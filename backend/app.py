@@ -32,7 +32,10 @@ else:
     # In production, only allow your domain
     allowed_origins = [
         f"https://{os.getenv('ALLOWED_DOMAIN', 'remoteradar.net')}",
-        f"https://www.{os.getenv('ALLOWED_DOMAIN', 'remoteradar.net')}"
+        f"https://www.{os.getenv('ALLOWED_DOMAIN', 'remoteradar.net')}",
+        "https://remoteradar.net",
+        "https://www.remoteradar.net",
+        "https://remote-radar-frontend.onrender.com"
     ]
     CORS(app, origins=allowed_origins)
 
