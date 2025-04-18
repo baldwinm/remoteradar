@@ -53,7 +53,11 @@ cache = {
     'place_details': {}
 }
 
-# Remove the duplicate health check endpoint since we moved it
+# This should be the only health check endpoint in your code
+@limiter.exempt
+@app.route('/health')
+def health_check():
+    return jsonify({"status": "healthy"})
 
 # ---------- Helper Functions ----------
 
