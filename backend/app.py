@@ -585,6 +585,8 @@ def get_cities():
 
 @app.route('/api/places/<city_id>', methods=['GET'])
 @limiter.limit("5 per minute")
+print(f"DEBUG: Searching for city with ID: {city_id}")
+print(f"DEBUG: OpenCage API Key configured: {bool(OPENCAGE_API_KEY and OPENCAGE_API_KEY != 'YOUR_OPENCAGE_API_KEY_HERE')}")
 def get_places(city_id):
     """Get coffee shops, coworking spaces, and restaurants for a city"""
     try:
