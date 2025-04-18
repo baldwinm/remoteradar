@@ -8,6 +8,8 @@ import json
 import re
 import time
 from datetime import datetime
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Load environment variables
 # In production, this loads from environment variables set in Render
@@ -34,6 +36,15 @@ else:
     ]
     CORS(app, origins=allowed_origins)
 
+# Configure rate limiting
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+    strategy="fixed-window"
+)
+
 # Simple in-memory cache
 cache = {
     'cities': {},
@@ -42,10 +53,7 @@ cache = {
     'place_details': {}
 }
 
-# Add a health check endpoint
-@app.route('/health')
-def health_check():
-    return jsonify({"status": "healthy"})
+# Remove the duplicate health check endpoint since we moved it
 
 # ---------- Helper Functions ----------
 
@@ -546,6 +554,7 @@ def fetch_accommodation_data(city_data, occupants=1):
 # ---------- API Routes ----------
 
 @app.route('/api/cities', methods=['GET'])
+@limiter.limit("15 per minute")
 def get_cities():
     """Search for cities"""
     search_query = request.args.get('q', '')
@@ -568,6 +577,7 @@ def get_cities():
         return jsonify({"error": str(e), "success": False}), 500
 
 @app.route('/api/places/<city_id>', methods=['GET'])
+@limiter.limit("5 per minute")
 def get_places(city_id):
     """Get coffee shops, coworking spaces, and restaurants for a city"""
     try:
@@ -648,6 +658,7 @@ def get_places(city_id):
         }), 500
 
 @app.route('/api/accommodation/<city_id>', methods=['GET'])
+@limiter.limit("5 per minute")
 def get_accommodation(city_id):
     """Get Airbnb pricing information for a city"""
     # Parse occupants parameter with error handling
@@ -729,6 +740,7 @@ def get_accommodation(city_id):
         }), 500
 
 @app.route('/api/place-details/<place_id>', methods=['GET'])
+@limiter.limit("15 per minute")
 def get_single_place_details(place_id):
     """Get detailed information for a single place"""
     try:
@@ -755,87 +767,4 @@ def get_single_place_details(place_id):
             "error": str(e),
             "success": False,
             "place_id": place_id
-        }), 500
-
-@app.route('/api/clear-cache', methods=['POST'])
-def clear_cache():
-    """Clear all caches"""
-    global cache
-    cache = {
-        'cities': {},
-        'places': {},
-        'accommodations': {},
-        'place_details': {}
-    }
-    return jsonify({"message": "Cache cleared", "success": True})
-
-@app.route('/api/check-city/<city_id>', methods=['GET'])
-def check_city(city_id):
-    """Diagnostic endpoint to check city ID lookup"""
-    try:
-        print(f"API ENDPOINT: /api/check-city/{city_id}")
-        
-        # Try various search strategies
-        results = {
-            "city_id": city_id,
-            "search_attempts": []
-        }
-        
-        # Strategy 1: Original first part only
-        search_term = city_id.split('_')[0].replace('_', ' ')
-        cities = search_city(search_term)
-        
-        strategy1 = {
-            "strategy": "first_part_only",
-            "search_term": search_term,
-            "cities_found": len(cities),
-            "exact_match": False
-        }
-        
-        for city in cities:
-            if city['id'] == city_id:
-                strategy1["exact_match"] = True
-                strategy1["matching_city"] = city
-                break
-        
-        results["search_attempts"].append(strategy1)
-        
-        # Strategy 2: Full name search
-        parts = city_id.split('_')
-        country_code = parts[-1] if len(parts) > 1 else None
-        full_city_name = '_'.join(parts[:-1]).replace('_', ' ') if country_code else city_id.replace('_', ' ')
-        
-        cities2 = search_city(full_city_name)
-        
-        strategy2 = {
-            "strategy": "full_name",
-            "search_term": full_city_name,
-            "cities_found": len(cities2),
-            "exact_match": False
-        }
-        
-        for city in cities2:
-            if city['id'] == city_id:
-                strategy2["exact_match"] = True
-                strategy2["matching_city"] = city
-                break
-                
-        if not strategy2["exact_match"] and country_code and cities2:
-            # Try to find a city with the same country code
-            for city in cities2:
-                c_country_code = city['id'].split('_')[-1]
-                if c_country_code == country_code:
-                    strategy2["country_code_match"] = True
-                    strategy2["matching_city"] = city
-                    break
-        
-        results["search_attempts"].append(strategy2)
-        
-        # Return all results for diagnosis
-        return jsonify(results)
-        
-    except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "city_id": city_id
         }), 500
