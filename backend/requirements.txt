@@ -1,18 +1,14 @@
-# Base requirements
-Flask==2.2.3
+# Base requirements with fixed versions to avoid compatibility issues
+Flask==2.0.1
+Werkzeug==2.0.1
 flask-cors==3.0.10
 requests==2.28.2
 python-dotenv==1.0.0
-flask-limiter==3.3.0
+flask-limiter==3.1.0
+limits==2.8.0
 
-# Added for improved caching and headers
+# For better caching management
 cachetools==5.3.0
-
-# Added for performance monitoring
-prometheus-flask-exporter==0.22.3
-
-# Added for better error handling
-sentry-sdk==1.19.1
 
 # For production deployment
 gunicorn==20.1.0
