@@ -3,9 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import PlacesList from '../components/PlacesList';
 import AccommodationWidget from '../components/AccommodationWidget';
+import CityImage from '../components/CityImage'; // Import the CityImage component
 import './CityDetailPage.css';
 
-// Simple Error Boundary component
+// Error Boundary component
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -14,6 +15,10 @@ class ErrorBoundary extends React.Component {
 
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Error caught by boundary:", error, errorInfo);
   }
 
   render() {
@@ -42,6 +47,9 @@ function CityDetailPage() {
   const [loading, setLoading] = useState({ city: true, places: true, accommodation: true });
   const [error, setError] = useState({ city: null, places: null, accommodation: null });
 
+  // Log component mounting and the cityId
+  console.log("CityDetailPage mounted with cityId:", cityId);
+
   // Fetch city data
   useEffect(() => {
     async function fetchCityData() {
@@ -51,23 +59,33 @@ function CityDetailPage() {
         const response = await fetch(`/api/places/${cityId}`);
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch city data: ${response.status}`);
+          const errorText = await response.text();
+          console.error(`Error response from places API: ${errorText}`);
+          throw new Error(`Failed to fetch city data: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
         console.log("City data received:", data);
         
+        if (!data || !data.city_name) {
+          console.error("Invalid places data format:", data);
+          throw new Error("Invalid data format received from API");
+        }
+        
         // Extract city info from places data
         const cityInfo = {
           id: cityId,
-          name: data.city_name || "Unknown City",
-          country: '', 
+          name: data.city_name,
+          country: cityId.split('_').pop().toUpperCase() || '', 
           lat: 0,
           lng: 0
         };
         
+        console.log("Setting city state:", cityInfo);
         setCity(cityInfo);
-        setPlacesData(data); // Set places data since we already have it
+        
+        // Also set places data since we already have it
+        setPlacesData(data);
         setLoading(prev => ({ ...prev, places: false }));
       } catch (err) {
         console.error('Error fetching city:', err);
@@ -82,7 +100,10 @@ function CityDetailPage() {
 
   // Fetch accommodation data once we have the city
   useEffect(() => {
-    if (!city) return;
+    if (!city) {
+      console.log("Skipping accommodation fetch - no city data yet");
+      return;
+    }
     
     async function fetchAccommodationData() {
       setLoading(prev => ({ ...prev, accommodation: true }));
@@ -91,11 +112,19 @@ function CityDetailPage() {
         const response = await fetch(`/api/accommodation/${cityId}?occupants=${occupants}`);
         
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error response from accommodation API: ${errorText}`);
           throw new Error(`Failed to fetch accommodation data: ${response.status}`);
         }
         
         const data = await response.json();
         console.log("Accommodation data received:", data);
+        
+        if (!data || !data.accommodations) {
+          console.error("Invalid accommodation data format:", data);
+          throw new Error("Invalid accommodation data received from API");
+        }
+        
         setAccommodationData(data);
       } catch (err) {
         console.error('Error fetching accommodation:', err);
@@ -141,6 +170,10 @@ function CityDetailPage() {
 
   // Get city name for display
   const cityName = city.name || '';
+  const countryName = city.country || '';
+  
+  // Log the render with city data
+  console.log("Rendering CityDetailPage with city:", city);
   
   return (
     <ErrorBoundary>
@@ -148,9 +181,13 @@ function CityDetailPage() {
         <div className="city-header">
           <div className="city-header-content">
             <h1 className="city-name">{cityName}</h1>
+            {countryName && <p className="city-country">{countryName}</p>}
             <Link to="/" className="back-button">← Back to Search</Link>
           </div>
         </div>
+
+        {/* City Image Section */}
+        <CityImage cityName={cityName} countryName={countryName} />
 
         <div className="city-content">
           <div className="content-row">
