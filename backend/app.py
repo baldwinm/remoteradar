@@ -1,5 +1,5 @@
 # app.py
-from flask import Flask, jsonify, request, make_response
+from flask import Flask, jsonify, request, make_response, g
 from flask_cors import CORS
 import os
 import requests
@@ -8,6 +8,9 @@ import json
 import re
 import time
 import random
+import logging
+import sys
+from logging.handlers import RotatingFileHandler
 from datetime import datetime, timedelta
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -15,6 +18,69 @@ from flask_limiter.util import get_remote_address
 # Load environment variables
 # In production, this loads from environment variables set in Render
 load_dotenv()
+
+# Setup logging configuration
+def setup_logging(app):
+    """Configure comprehensive logging for Flask application"""
+    
+    # Determine log level based on environment
+    if os.environ.get('FLASK_ENV') == 'production':
+        log_level = logging.INFO
+    else:
+        log_level = logging.DEBUG
+    
+    # Clear any existing handlers to prevent duplicate logs
+    if app.logger.handlers:
+        app.logger.handlers.clear()
+    
+    # Create a formatter with detailed information
+    formatter = logging.Formatter(
+        '[%(asctime)s] [%(levelname)s] [%(process)d] [%(thread)d] '
+        '[%(pathname)s:%(lineno)d] - %(message)s'
+    )
+    
+    # Create console handler for all logs
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    console_handler.setLevel(log_level)
+    app.logger.addHandler(console_handler)
+    
+    # Create log directory if it doesn't exist
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # Create file handler for all logs
+    file_handler = RotatingFileHandler(
+        os.path.join(log_dir, 'app.log'), 
+        maxBytes=10485760,  # 10MB
+        backupCount=10
+    )
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(log_level)
+    app.logger.addHandler(file_handler)
+    
+    # Create file handler for errors (ERROR and above)
+    error_handler = RotatingFileHandler(
+        os.path.join(log_dir, 'error.log'), 
+        maxBytes=10485760,  # 10MB
+        backupCount=10
+    )
+    error_handler.setFormatter(formatter)
+    error_handler.setLevel(logging.ERROR)
+    app.logger.addHandler(error_handler)
+    
+    # Set the logger level
+    app.logger.setLevel(log_level)
+    
+    app.logger.info("Logging setup complete")
+    
+    return app
+
+# Initialize Flask app
+app = Flask(__name__)
+
+# Configure logging
+setup_logging(app)
 
 # API Keys and configuration
 OPENCAGE_API_KEY = os.getenv('OPENCAGE_API_KEY', 'YOUR_OPENCAGE_API_KEY_HERE')
@@ -25,11 +91,21 @@ AIRBNB_API_URL = "https://airbnb19.p.rapidapi.com/api/v1/searchPropertyByLocatio
 OPENCAGE_BASE_URL = "https://api.opencagedata.com/geocode/v1/json"
 UNSPLASH_API_URL = "https://api.unsplash.com/search/photos"
 
-app = Flask(__name__)
+# Log loaded API keys (masked for security)
+def mask_api_key(key):
+    if not key or key.startswith('YOUR_'):
+        return key
+    return key[:4] + '*' * (len(key) - 8) + key[-4:]
+
+app.logger.info(f"Loaded OpenCage API Key: {mask_api_key(OPENCAGE_API_KEY)}")
+app.logger.info(f"Loaded Google API Key: {mask_api_key(GOOGLE_API_KEY)}")
+app.logger.info(f"Loaded Airbnb API Key: {mask_api_key(AIRBNB_API_KEY)}")
+app.logger.info(f"Loaded Unsplash API Key: {mask_api_key(UNSPLASH_API_KEY)}")
 
 # Configure CORS for production
 if os.getenv('FLASK_ENV') == 'development':
     # In development, allow all origins
+    app.logger.info("Running in development mode, CORS configured to allow all origins")
     CORS(app)
 else:
     # In production, only allow your domain
@@ -40,6 +116,7 @@ else:
         "https://www.remoteradar.net",
         "https://remote-radar-frontend.onrender.com"
     ]
+    app.logger.info(f"Running in production mode, CORS configured for: {allowed_origins}")
     CORS(app, origins=allowed_origins)
 
 # Configure rate limiting
@@ -50,6 +127,23 @@ limiter = Limiter(
     storage_uri="memory://",
     strategy="fixed-window"
 )
+
+# Configure request logging
+@app.before_request
+def before_request():
+    g.start_time = time.time()
+    app.logger.debug(f"Request: {request.method} {request.path} from {request.remote_addr}")
+
+@app.after_request
+def after_request(response):
+    try:
+        diff = time.time() - g.start_time
+        app.logger.info(
+            f"Response: {request.method} {request.path} {response.status_code} in {diff:.4f}s"
+        )
+    except Exception as e:
+        app.logger.error(f"Error in after_request: {str(e)}")
+    return response
 
 # Simple in-memory cache
 cache = {
@@ -65,6 +159,7 @@ cache = {
 @limiter.exempt
 @app.route('/health')
 def health_check():
+    app.logger.info("Health check endpoint called")
     return jsonify({"status": "healthy"})
 
 # ---------- Helper Functions ----------
@@ -97,12 +192,12 @@ def make_api_request(url, params=None, headers=None, timeout=10, cache_key=None,
         cache_entry = cache['api_requests'][cache_key]
         # Check if cache is still valid
         if time.time() - cache_entry['timestamp'] < ttl:
-            print(f"Using cached API response for {cache_key}")
+            app.logger.debug(f"Using cached API response for {cache_key}")
             return cache_entry['data']
     
     # Make the actual request
     try:
-        print(f"Making API request to {url}")
+        app.logger.info(f"Making API request to {url}")
         response = requests.get(url, params=params, headers=headers, timeout=timeout)
         
         if response.status_code == 200:
@@ -119,16 +214,16 @@ def make_api_request(url, params=None, headers=None, timeout=10, cache_key=None,
             
             return data
         else:
-            print(f"API request failed: {response.status_code}")
-            print(f"Response: {response.text[:200]}...")
+            app.logger.error(f"API request failed: {response.status_code}")
+            app.logger.debug(f"Response: {response.text[:200]}...")
             return None
     except Exception as e:
-        print(f"API request exception: {e}")
+        app.logger.error(f"API request exception: {str(e)}")
         return None
 
 def clean_memory_cache():
     """Periodically clean expired items from the memory cache"""
-    print("Cleaning memory cache...")
+    app.logger.info("Cleaning memory cache...")
     now = time.time()
     
     # Define TTL for different cache types
@@ -162,26 +257,27 @@ def clean_memory_cache():
             for key in to_remove:
                 del items[key]
     
-    print(f"Cache cleaning complete. Current cache size: {sum(len(items) for items in cache.values())} items")
+    app.logger.info(f"Cache cleaning complete. Current cache size: {sum(len(items) for items in cache.values())} items")
 
 def search_city(query):
     """Search for a city using OpenCage API"""
-    print(f"Searching for city with query: '{query}'")
+    app.logger.info(f"Searching for city with query: '{query}'")
     
     if not query or len(query) < 2:
+        app.logger.warning(f"Query too short: '{query}'")
         return []
     
     # Check cache first
     cache_key = f"city_search_{query.lower()}"
     if 'cities' in cache and cache_key in cache['cities']:
-        print(f"Using cached city search for {query}")
+        app.logger.info(f"Using cached city search for {query}")
         cached_result = cache['cities'][cache_key]
         # Check if cache is still valid (7 days)
         if time.time() - cached_result['timestamp'] < 604800:
             return cached_result['data']
     
     if not OPENCAGE_API_KEY or OPENCAGE_API_KEY == "YOUR_OPENCAGE_API_KEY_HERE":
-        print("OpenCage API key not configured")
+        app.logger.error("OpenCage API key not configured")
         return []
     
     try:
@@ -196,13 +292,13 @@ def search_city(query):
         )
         
         if response.status_code != 200:
-            print(f"API error: {response.status_code}")
+            app.logger.error(f"OpenCage API error: {response.status_code}")
             return []
         
         data = response.json()
         
         if not data or not data.get('results'):
-            print(f"No results found for query: '{query}'")
+            app.logger.info(f"No results found for query: '{query}'")
             return []
         
         # Process results
@@ -230,9 +326,9 @@ def search_city(query):
                 'formatted': result.get('formatted', '')
             })
         
-        print(f"Found {len(cities)} cities for query: '{query}'")
+        app.logger.info(f"Found {len(cities)} cities for query: '{query}'")
         for city in cities:
-            print(f"  - {city['name']} ({city['id']})")
+            app.logger.debug(f"  - {city['name']} ({city['id']})")
         
         # Cache the result
         if 'cities' not in cache:
@@ -245,7 +341,7 @@ def search_city(query):
         
         return cities
     except Exception as e:
-        print(f"Error searching for city: {e}")
+        app.logger.error(f"Error searching for city: {str(e)}", exc_info=True)
         return []
 
 def get_place_details(place_id):
@@ -264,6 +360,7 @@ def get_place_details(place_id):
     try:
         # Check if Google API key is configured
         if not GOOGLE_API_KEY or GOOGLE_API_KEY == "YOUR_GOOGLE_API_KEY_HERE":
+            app.logger.error("Google API key not configured")
             return {}
             
         # Make API request to get place details including the website URL
@@ -299,12 +396,12 @@ def get_place_details(place_id):
         return {}
     
     except Exception as e:
-        print(f"Error getting place details: {e}")
+        app.logger.error(f"Error getting place details: {str(e)}", exc_info=True)
         return {}
 
 def get_places_data(city_id, city_name, lat, lng):
     """Get coffee shops, coworking spaces, and restaurants for a city"""
-    print(f"Getting places data for city_id: {city_id}, city_name: {city_name}")
+    app.logger.info(f"Getting places data for city_id: {city_id}, city_name: {city_name}")
     
     try:
         # Check cache first
@@ -312,13 +409,19 @@ def get_places_data(city_id, city_name, lat, lng):
             cached_data = cache['places'][city_id]
             # Check if cache is still valid (12 hours)
             if time.time() - cached_data.get('timestamp', 0) < 43200:
-                print(f"Using cached places data for {city_id}")
+                app.logger.info(f"Using cached places data for {city_id}")
                 return cached_data
                 
+        # Check if Google API key is configured
+        if not GOOGLE_API_KEY or GOOGLE_API_KEY == "YOUR_GOOGLE_API_KEY_HERE":
+            app.logger.error("Google API key not configured")
+            raise Exception("Google API key not configured")
+        
         places = []
         place_ids = []  # To collect all place IDs for batch processing later
         
         # Search for coffee shops
+        app.logger.info(f"Searching for coffee shops near {city_name}")
         coffee_response = requests.get(
             "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
             params={
@@ -333,6 +436,7 @@ def get_places_data(city_id, city_name, lat, lng):
         if coffee_response.status_code == 200:
             coffee_data = coffee_response.json()
             if coffee_data and 'results' in coffee_data:
+                app.logger.info(f"Found {len(coffee_data['results'])} coffee shops")
                 for place in coffee_data['results']:
                     place_id = place.get("place_id")
                     if place_id:
@@ -351,8 +455,11 @@ def get_places_data(city_id, city_name, lat, lng):
                         "maps_url": f"https://www.google.com/maps/place/?q=place_id:{place_id}" if place_id else "",
                         "phone": ""  # Will be filled in later
                     })
+        else:
+            app.logger.error(f"Error searching for coffee shops: {coffee_response.status_code}")
         
         # Search for coworking spaces
+        app.logger.info(f"Searching for coworking spaces near {city_name}")
         coworking_response = requests.get(
             "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
             params={
@@ -366,6 +473,7 @@ def get_places_data(city_id, city_name, lat, lng):
         if coworking_response.status_code == 200:
             coworking_data = coworking_response.json()
             if coworking_data and 'results' in coworking_data:
+                app.logger.info(f"Found {len(coworking_data['results'])} coworking spaces")
                 for place in coworking_data['results']:
                     place_id = place.get("place_id")
                     if place_id:
@@ -384,8 +492,11 @@ def get_places_data(city_id, city_name, lat, lng):
                         "maps_url": f"https://www.google.com/maps/place/?q=place_id:{place_id}" if place_id else "",
                         "phone": ""  # Will be filled in later
                     })
+        else:
+            app.logger.error(f"Error searching for coworking spaces: {coworking_response.status_code}")
         
         # Search for restaurants
+        app.logger.info(f"Searching for restaurants near {city_name}")
         restaurant_response = requests.get(
             "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
             params={
@@ -400,6 +511,7 @@ def get_places_data(city_id, city_name, lat, lng):
         if restaurant_response.status_code == 200:
             restaurant_data = restaurant_response.json()
             if restaurant_data and 'results' in restaurant_data:
+                app.logger.info(f"Found {len(restaurant_data['results'])} restaurants")
                 for place in restaurant_data['results']:
                     place_id = place.get("place_id")
                     if place_id:
@@ -419,6 +531,8 @@ def get_places_data(city_id, city_name, lat, lng):
                         "maps_url": f"https://www.google.com/maps/place/?q=place_id:{place_id}" if place_id else "",
                         "phone": ""  # Will be filled in later
                     })
+        else:
+            app.logger.error(f"Error searching for restaurants: {restaurant_response.status_code}")
         
         # Count the types of places
         coffee_count = sum(1 for place in places if place['type'] == 'coffee')
@@ -466,11 +580,11 @@ def get_places_data(city_id, city_name, lat, lng):
         if 'places' not in cache:
             cache['places'] = {}
         cache['places'][city_id] = result
-        print(f"Places data cached for {city_id}")
+        app.logger.info(f"Places data cached for {city_id}")
         return result
     
     except Exception as e:
-        print(f"Error getting places data: {e}")
+        app.logger.error(f"Error getting places data: {str(e)}", exc_info=True)
         return {
             "city_id": city_id,
             "city_name": city_name,
@@ -496,7 +610,7 @@ def parse_price(price_text):
 
 def fetch_accommodation_data(city_data, occupants=1):
     """Fetch Airbnb pricing information for a city"""
-    print(f"Fetching accommodation data for {city_data['name']}, occupants: {occupants}")
+    app.logger.info(f"Fetching accommodation data for {city_data['name']}, occupants: {occupants}")
     
     try:
         # Check cache first
@@ -505,11 +619,12 @@ def fetch_accommodation_data(city_data, occupants=1):
             cached_data = cache['accommodations'][cache_key]
             # Check if cache is still valid (2 hours)
             if time.time() - cached_data.get('timestamp', 0) < 7200:
-                print(f"Using cached accommodation data for {cache_key}")
+                app.logger.info(f"Using cached accommodation data for {cache_key}")
                 return cached_data
         
         # Check if API key is missing
         if not AIRBNB_API_KEY or AIRBNB_API_KEY == "YOUR_AIRBNB_API_KEY_HERE":
+            app.logger.error("Airbnb API key is not configured")
             raise Exception("Airbnb API key is not configured. Please provide a valid API key.")
         
         # Ensure occupants is an integer
@@ -543,23 +658,25 @@ def fetch_accommodation_data(city_data, occupants=1):
             "adults": occupants_int
         }
         
-        print(f"Making Airbnb API request for {location_query}")
+        app.logger.info(f"Making Airbnb API request for {location_query}")
         
         # Make the API request
         response = requests.get(AIRBNB_API_URL, headers=headers, params=params, timeout=20)
         
         if response.status_code != 200:
+            app.logger.error(f"Airbnb API error: Status {response.status_code}")
             raise Exception(f"Airbnb API error: Status {response.status_code}")
         
         data = response.json()
         
         # Check if we got valid data in the expected format
         if not data or "status" not in data or not data["status"] or "data" not in data or "list" not in data["data"]:
+            app.logger.error("API response didn't match expected format")
             raise Exception("API response didn't match expected format")
         
         # Process the listings
         listing_items = data["data"]["list"]
-        print(f"Found {len(listing_items)} properties in the API response")
+        app.logger.info(f"Found {len(listing_items)} properties in the API response")
         
         # Extract the properties with simplified data structure
         accommodations = []
@@ -635,7 +752,7 @@ def fetch_accommodation_data(city_data, occupants=1):
         return result
     
     except Exception as e:
-        print(f"Error fetching accommodation data: {e}")
+        app.logger.error(f"Error fetching accommodation data: {str(e)}", exc_info=True)
         return {
             "city_id": city_data.get('id', ''),
             "city_name": city_data.get('name', ''),
@@ -656,18 +773,18 @@ def get_cities():
         return jsonify([])
     
     try:
-        print(f"API ENDPOINT: /api/cities?q={search_query}")
+        app.logger.info(f"API ENDPOINT: /api/cities?q={search_query}")
         cities = search_city(search_query)
         
         # For debugging, print full details of found cities
-        print(f"Found {len(cities)} cities for search query: '{search_query}'")
+        app.logger.info(f"Found {len(cities)} cities for search query: '{search_query}'")
         for city in cities:
-            print(f"  - City details: {json.dumps(city)}")
+            app.logger.debug(f"  - City details: {json.dumps(city)}")
         
         response = make_response(jsonify(cities))
         return add_cache_headers(response, max_age=86400)  # Cache for 1 day
     except Exception as e:
-        print(f"City search error: {e}")
+        app.logger.error(f"City search error: {str(e)}", exc_info=True)
         return jsonify({"error": str(e), "success": False}), 500
 
 @app.route('/api/places/<city_id>', methods=['GET'])
@@ -675,30 +792,30 @@ def get_cities():
 def get_places(city_id):
     """Get coffee shops, coworking spaces, and restaurants for a city"""
     try:
-        print(f"API ENDPOINT: /api/places/{city_id}")
+        app.logger.info(f"API ENDPOINT: /api/places/{city_id}")
         
         # First, find city info
         search_term = city_id.split('_')[0].replace('_', ' ')
-        print(f"Searching for city with term: '{search_term}' derived from city_id: '{city_id}'")
+        app.logger.info(f"Searching for city with term: '{search_term}' derived from city_id: '{city_id}'")
         cities = search_city(search_term)
         
         city = None
         for c in cities:
-            print(f"Comparing city ID: {c['id']} with requested ID: {city_id}")
+            app.logger.debug(f"Comparing city ID: {c['id']} with requested ID: {city_id}")
             if c['id'] == city_id:
                 city = c
-                print("MATCH FOUND!")
+                app.logger.info("MATCH FOUND!")
                 break
         
         if not city:
             # Try a more flexible search approach
-            print("City not found with exact ID match, trying looser matching...")
+            app.logger.info("City not found with exact ID match, trying looser matching...")
             parts = city_id.split('_')
             country_code = parts[-1] if len(parts) > 1 else None
             
             # Try full city name search
             full_city_name = '_'.join(parts[:-1]).replace('_', ' ') if country_code else city_id.replace('_', ' ')
-            print(f"Searching with full city name: '{full_city_name}'")
+            app.logger.info(f"Searching with full city name: '{full_city_name}'")
             
             cities_retry = search_city(full_city_name)
             
@@ -708,16 +825,16 @@ def get_places(city_id):
                     c_country_code = c['id'].split('_')[-1]
                     if c_country_code == country_code:
                         city = c
-                        print(f"Found match with country code: {c['id']}")
+                        app.logger.info(f"Found match with country code: {c['id']}")
                         break
             
             # If still not found, take the first result
             if not city and cities_retry:
                 city = cities_retry[0]
-                print(f"Taking first result as fallback: {city['id']}")
+                app.logger.info(f"Taking first result as fallback: {city['id']}")
             
             if not city:
-                print(f"City not found for city_id: {city_id}")
+                app.logger.error(f"City not found for city_id: {city_id}")
                 return jsonify({
                     "error": f"City not found for ID: {city_id}. Search term was: {search_term}",
                     "success": False,
@@ -726,8 +843,8 @@ def get_places(city_id):
                 }), 404
         
         # Log the city data we found
-        print(f"Found city: {city['name']} (ID: {city['id']})")
-        print(f"Location: lat={city['lat']}, lng={city['lng']}")
+        app.logger.info(f"Found city: {city['name']} (ID: {city['id']})")
+        app.logger.info(f"Location: lat={city['lat']}, lng={city['lng']}")
         
         # Get places data
         places_data = get_places_data(city_id, city['name'], city['lat'], city['lng'])
@@ -742,7 +859,7 @@ def get_places(city_id):
         return add_cache_headers(response, max_age=3600)  # Cache for 1 hour
     
     except Exception as e:
-        print(f"Places error: {e}")
+        app.logger.error(f"Places error: {str(e)}", exc_info=True)
         import traceback
         traceback.print_exc()
         
@@ -763,12 +880,12 @@ def get_accommodation(city_id):
     except ValueError:
         occupants = 1
     
-    print(f"API ENDPOINT: /api/accommodation/{city_id}?occupants={occupants}")
+    app.logger.info(f"API ENDPOINT: /api/accommodation/{city_id}?occupants={occupants}")
     
     try:
         # First, find city info using the same more robust approach from get_places
         search_term = city_id.split('_')[0].replace('_', ' ')
-        print(f"Searching for city with term: '{search_term}' derived from city_id: '{city_id}'")
+        app.logger.info(f"Searching for city with term: '{search_term}' derived from city_id: '{city_id}'")
         cities = search_city(search_term)
         
         city = None
@@ -776,18 +893,18 @@ def get_accommodation(city_id):
         for c in cities:
             if c['id'] == city_id:
                 city = c
-                print(f"Found exact match: {c['id']}")
+                app.logger.info(f"Found exact match: {c['id']}")
                 break
         
         if not city:
             # Try alternative matching approaches
-            print("City not found with exact ID match, trying looser matching...")
+            app.logger.info("City not found with exact ID match, trying looser matching...")
             parts = city_id.split('_')
             country_code = parts[-1] if len(parts) > 1 else None
             
             # Try full city name search
             full_city_name = '_'.join(parts[:-1]).replace('_', ' ') if country_code else city_id.replace('_', ' ')
-            print(f"Searching with full city name: '{full_city_name}'")
+            app.logger.info(f"Searching with full city name: '{full_city_name}'")
             
             cities_retry = search_city(full_city_name)
             
@@ -797,16 +914,16 @@ def get_accommodation(city_id):
                     c_country_code = c['id'].split('_')[-1]
                     if c_country_code == country_code:
                         city = c
-                        print(f"Found match with country code: {c['id']}")
+                        app.logger.info(f"Found match with country code: {c['id']}")
                         break
             
             # If still not found, take the first result
             if not city and cities_retry:
                 city = cities_retry[0]
-                print(f"Taking first result as fallback: {city['id']}")
+                app.logger.info(f"Taking first result as fallback: {city['id']}")
         
         if not city:
-            print(f"City not found for city_id: {city_id}")
+            app.logger.error(f"City not found for city_id: {city_id}")
             return jsonify({
                 "error": f"City not found for ID: {city_id}. Search term was: {search_term}",
                 "success": False,
@@ -816,7 +933,7 @@ def get_accommodation(city_id):
             }), 404
         
         # Log the city data we found
-        print(f"Found city for accommodation: {city['name']} (ID: {city['id']})")
+        app.logger.info(f"Found city for accommodation: {city['name']} (ID: {city['id']})")
         
         # Get accommodation data
         accommodation_data = fetch_accommodation_data(city, occupants)
@@ -825,7 +942,7 @@ def get_accommodation(city_id):
         return add_cache_headers(response, max_age=1800)  # Cache for 30 minutes
     
     except Exception as e:
-        print(f"Accommodation error: {e}")
+        app.logger.error(f"Accommodation error: {str(e)}", exc_info=True)
         import traceback
         traceback.print_exc()
         
@@ -842,11 +959,12 @@ def get_accommodation(city_id):
 def get_single_place_details(place_id):
     """Get detailed information for a single place"""
     try:
-        print(f"API ENDPOINT: /api/place-details/{place_id}")
+        app.logger.info(f"API ENDPOINT: /api/place-details/{place_id}")
         
         details = get_place_details(place_id)
         
         if not details:
+            app.logger.warning(f"Place details not found for ID: {place_id}")
             return jsonify({
                 "error": "Place details not found",
                 "success": False,
@@ -862,7 +980,7 @@ def get_single_place_details(place_id):
         return add_cache_headers(response, max_age=86400)  # Cache for 1 day
         
     except Exception as e:
-        print(f"Place details error: {e}")
+        app.logger.error(f"Place details error: {str(e)}", exc_info=True)
         return jsonify({
             "error": str(e),
             "success": False,
@@ -872,11 +990,15 @@ def get_single_place_details(place_id):
 @app.route('/api/city-image', methods=['GET'])
 @limiter.limit("20 per minute")
 def get_city_image():
-    """Get a city image from Unsplash API"""
+    """Get a city image from Unsplash API with enhanced logging"""
     city = request.args.get('city', '')
     country = request.args.get('country', '')
     
+    # Log request details
+    app.logger.info(f"City image request received for city='{city}', country='{country}'")
+    
     if not city:
+        app.logger.warning("City image request missing city parameter")
         return jsonify({
             "error": "City parameter is required",
             "success": False
@@ -885,24 +1007,36 @@ def get_city_image():
     # Create cache key based on city and country
     cache_key = f"city_image_{city.lower()}_{country.lower()}"
     
+    # Log cache checking
+    app.logger.debug(f"Checking cache for key: {cache_key}")
+    
     # Check cache first
     if 'city_images' in cache and cache_key in cache['city_images']:
         cached_data = cache['city_images'][cache_key]
         # Check if cache is still valid (1 day)
         if time.time() - cached_data.get('timestamp', 0) < 86400:
-            print(f"Using cached image for {city}, {country}")
+            app.logger.info(f"Using cached image for {city}, {country}")
             response = make_response(jsonify(cached_data))
             return add_cache_headers(response, max_age=86400)  # Cache for 1 day
+    
+    app.logger.info(f"No valid cache found for {cache_key}, fetching from Unsplash")
     
     try:
         # Check if Unsplash API key is missing
         if not UNSPLASH_API_KEY or UNSPLASH_API_KEY == "YOUR_UNSPLASH_API_KEY_HERE":
+            app.logger.error("Unsplash API key is not configured")
             raise Exception("Unsplash API key is not configured")
+        
+        # Log the API key (first 4 chars) for debugging
+        api_key_preview = UNSPLASH_API_KEY[:4] + "..." if UNSPLASH_API_KEY else "None"
+        app.logger.debug(f"Using Unsplash API key starting with: {api_key_preview}")
         
         # Create search query
         search_query = f"{city} city"
         if country:
             search_query += f" {country}"
+        
+        app.logger.info(f"Unsplash search query: '{search_query}'")
         
         # Headers for the Unsplash API
         headers = {
@@ -916,34 +1050,52 @@ def get_city_image():
             "per_page": 10  # Get multiple options to choose from
         }
         
-        print(f"Making Unsplash API request for {search_query}")
+        app.logger.info(f"Making Unsplash API request for {search_query}")
         
         # Make the API request
         response = requests.get(UNSPLASH_API_URL, headers=headers, params=params, timeout=10)
         
+        app.logger.debug(f"Unsplash API response status: {response.status_code}")
+        
         if response.status_code != 200:
+            app.logger.error(f"Unsplash API error: Status {response.status_code}")
+            # Log first 200 chars of response for debugging
+            response_preview = response.text[:200] if response.text else "No response body"
+            app.logger.error(f"Response preview: {response_preview}")
             raise Exception(f"Unsplash API error: Status {response.status_code}")
         
         data = response.json()
         
+        # Log response structure
+        app.logger.debug(f"Unsplash API response structure: {list(data.keys()) if isinstance(data, dict) else 'Not a dict'}")
+        
         # Check if we got valid data
         if not data or "results" not in data or not data["results"]:
+            app.logger.warning(f"No results from Unsplash for '{search_query}', trying fallback")
+            
             # Fallback to just city name if combined search didn't work
             params["query"] = city
             response = requests.get(UNSPLASH_API_URL, headers=headers, params=params, timeout=10)
             
             if response.status_code != 200:
+                app.logger.error(f"Unsplash API fallback error: Status {response.status_code}")
                 raise Exception(f"Unsplash API fallback error: Status {response.status_code}")
             
             data = response.json()
             
             # If still no results, return error
             if not data or "results" not in data or not data["results"]:
+                app.logger.error(f"No images found for city: {city}")
                 raise Exception("No images found for this city")
         
         # Get a random result from the first 5 (or fewer if less than 5 are returned)
         results = data["results"]
+        app.logger.info(f"Found {len(results)} image results for {city}")
+        
         selected_image = random.choice(results[:min(5, len(results))])
+        
+        # Log selected image details (ID and user)
+        app.logger.info(f"Selected image ID: {selected_image.get('id')}, by: {selected_image.get('user', {}).get('name')}")
         
         image_data = {
             "success": True,
@@ -964,11 +1116,13 @@ def get_city_image():
             cache['city_images'] = {}
         cache['city_images'][cache_key] = image_data
         
+        app.logger.info(f"Successfully cached city image for {city}")
+        
         response = make_response(jsonify(image_data))
         return add_cache_headers(response, max_age=86400)  # Cache for 1 day
     
     except Exception as e:
-        print(f"Error fetching city image: {e}")
+        app.logger.error(f"Error fetching city image: {str(e)}", exc_info=True)
         return jsonify({
             "error": str(e),
             "success": False
@@ -979,10 +1133,21 @@ def get_city_image():
 # For simplicity, we'll just run it occasionally based on request triggers
 @app.before_request
 def before_request():
+    # Set start time for request timing
+    g.start_time = time.time()
+    app.logger.debug(f"Request: {request.method} {request.path} from {request.remote_addr}")
+    
     # Clean cache approximately once every 100 requests
     if random.randint(1, 100) == 1:
         clean_memory_cache()
 
+# Log all unhandled exceptions
+@app.errorhandler(Exception)
+def handle_exception(e):
+    app.logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
+    return "Internal Server Error", 500
+
 if __name__ == '__main__':
+    # Start the app with appropriate parameters for the environment
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)

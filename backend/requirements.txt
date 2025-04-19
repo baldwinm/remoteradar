@@ -9,6 +9,7 @@ limits==2.8.0
 
 # For better caching management
 cachetools==5.3.0
+python-json-logger==2.0.7  # For structured JSON logging
 
 # For production deployment
 gunicorn==20.1.0
