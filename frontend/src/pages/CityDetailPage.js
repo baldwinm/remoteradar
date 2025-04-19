@@ -1,12 +1,33 @@
 // src/pages/CityDetailPage.js
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import CityImage from '../components/CityImage';
 import './CityDetailPage.css';
 
 // Lazy load components to improve initial load time
 const PlacesList = lazy(() => import('../components/PlacesList'));
 const AccommodationWidget = lazy(() => import('../components/AccommodationWidget'));
+
+// Add a simple debugging component for production
+const DebugInfo = ({ info }) => {
+  if (process.env.NODE_ENV === 'production' && !window.location.search.includes('debug=true')) {
+    return null;
+  }
+  
+  return (
+    <div className="debug-info">
+      <h3>Debug Information</h3>
+      <pre>{JSON.stringify(info, null, 2)}</pre>
+    </div>
+  );
+};
+
+// Simple loading component
+const Loading = () => (
+  <div className="loading-container">
+    <div className="loading-spinner"></div>
+    <p>Loading city data...</p>
+  </div>
+);
 
 function CityDetailPage() {
   const { cityId } = useParams();
@@ -17,21 +38,34 @@ function CityDetailPage() {
   const [loading, setLoading] = useState({ city: true, places: true, accommodation: true });
   const [error, setError] = useState({ city: null, places: null, accommodation: null });
   const [debugInfo, setDebugInfo] = useState(null);
+  const [cityImage, setCityImage] = useState(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageError, setImageError] = useState(null);
 
   // Fetch city data
   useEffect(() => {
+    console.log("Fetching city data for cityId:", cityId);
+    
     async function fetchCityData() {
       setLoading(prev => ({ ...prev, city: true }));
+      setError(prev => ({ ...prev, city: null }));
+      
       try {
         // Use the full cityId for search
         const response = await fetch(`/api/places/${cityId}`);
+        
         if (!response.ok) {
           const errorData = await response.json();
           console.error('Place API error:', errorData);
-          throw new Error('Failed to fetch city data');
+          throw new Error(errorData.error || 'Failed to fetch city data');
         }
         
         const placesData = await response.json();
+        console.log("Places data:", placesData);
+        
+        if (!placesData || !placesData.city_name) {
+          throw new Error('Invalid data format from API');
+        }
         
         // Extract city info from places data
         const cityInfo = {
@@ -49,6 +83,10 @@ function CityDetailPage() {
         });
         
         setCity(cityInfo);
+        
+        // Also set places data since we already have it
+        setPlacesData(placesData);
+        setLoading(prev => ({ ...prev, places: false }));
       } catch (err) {
         console.error('Error fetching city:', err);
         setError(prev => ({ ...prev, city: err.message }));
@@ -65,30 +103,46 @@ function CityDetailPage() {
     fetchCityData();
   }, [cityId]);
 
-  // Fetch places data once we have the city
+  // Fetch city image when we have the city
   useEffect(() => {
-    if (!city) return;
+    if (!city || !city.name) return;
     
-    async function fetchPlacesData() {
-      setLoading(prev => ({ ...prev, places: true }));
+    async function fetchCityImage() {
+      setImageLoading(true);
+      setImageError(null);
+      
       try {
-        const response = await fetch(`/api/places/${cityId}`);
+        console.log("Fetching city image for:", city.name);
+        const response = await fetch(`/api/city-image?city=${encodeURIComponent(city.name)}`);
+        
         if (!response.ok) {
-          throw new Error('Failed to fetch places data');
+          // Check for specific error status
+          if (response.status === 404) {
+            console.warn("City image not found");
+            setImageError("Image not available");
+            return;
+          }
+          throw new Error(`Failed to fetch city image: ${response.status}`);
         }
         
         const data = await response.json();
-        setPlacesData(data);
+        console.log("Image data:", data);
+        
+        if (data && data.url) {
+          setCityImage(data);
+        } else {
+          setImageError("No image data available");
+        }
       } catch (err) {
-        console.error('Error fetching places:', err);
-        setError(prev => ({ ...prev, places: err.message }));
+        console.error("Error fetching city image:", err);
+        setImageError(err.message);
       } finally {
-        setLoading(prev => ({ ...prev, places: false }));
+        setImageLoading(false);
       }
     }
     
-    fetchPlacesData();
-  }, [city, cityId]);
+    fetchCityImage();
+  }, [city]);
 
   // Fetch accommodation data once we have the city
   useEffect(() => {
@@ -96,13 +150,18 @@ function CityDetailPage() {
     
     async function fetchAccommodationData() {
       setLoading(prev => ({ ...prev, accommodation: true }));
+      setError(prev => ({ ...prev, accommodation: null }));
+      
       try {
+        console.log("Fetching accommodation data");
         const response = await fetch(`/api/accommodation/${cityId}?occupants=${occupants}`);
+        
         if (!response.ok) {
           throw new Error('Failed to fetch accommodation data');
         }
         
         const data = await response.json();
+        console.log("Accommodation data:", data);
         setAccommodationData(data);
       } catch (err) {
         console.error('Error fetching accommodation:', err);
@@ -127,12 +186,7 @@ function CityDetailPage() {
   const isLoading = loading.city;
   
   if (isLoading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading city data...</p>
-      </div>
-    );
+    return <Loading />;
   }
 
   // Check for critical errors
@@ -141,20 +195,13 @@ function CityDetailPage() {
       <div className="error-container">
         <h2>Error Loading City</h2>
         <p>{error.city || 'City not found'}</p>
-        {debugInfo && (
-          <div style={{ marginTop: '20px', textAlign: 'left', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
-            <h3>Debug Information:</h3>
-            <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto' }}>
-              {JSON.stringify(debugInfo, null, 2)}
-            </pre>
-          </div>
-        )}
+        <DebugInfo info={debugInfo} />
         <Link to="/" className="back-link">Return to Home</Link>
       </div>
     );
   }
 
-  // Get city name and country for display
+  // Get city, state, and country for display
   const cityName = city.name || '';
   const stateName = city.state || '';
   const countryName = city.country || '';
@@ -162,7 +209,7 @@ function CityDetailPage() {
   // Format the location with state (if available)
   const locationSubtitle = stateName 
     ? `${stateName}, ${countryName}` 
-    : countryName;
+    : countryName || 'Loading location...';
   
   return (
     <div className="city-detail-page">
@@ -175,7 +222,31 @@ function CityDetailPage() {
       </div>
 
       {/* City Image Section */}
-      <CityImage cityName={cityName} countryName={countryName} />
+      {imageLoading ? (
+        <div className="city-image-container loading">
+          <div className="image-loading-placeholder"></div>
+        </div>
+      ) : cityImage ? (
+        <div className="city-image-container">
+          <img 
+            src={cityImage.url} 
+            alt={`${cityName}, ${countryName || ''}`}
+            className="city-image"
+            loading="eager"
+          />
+          {cityImage.attribution && (
+            <div className="city-image-attribution">
+              Photo by <a href={cityImage.attribution.link} target="_blank" rel="noopener noreferrer">{cityImage.attribution.name}</a> on <a href="https://unsplash.com" target="_blank" rel="noopener noreferrer">Unsplash</a>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="city-image-container placeholder">
+          <div className="city-image-placeholder">
+            {imageError ? `Image error: ${imageError}` : 'No image available'}
+          </div>
+        </div>
+      )}
 
       <div className="city-content">
         <div className="content-row">
@@ -200,7 +271,15 @@ function CityDetailPage() {
               {loading.accommodation ? (
                 <div className="section-loading">Loading accommodation data...</div>
               ) : error.accommodation ? (
-                <div className="section-error">{error.accommodation}</div>
+                <div className="section-error">
+                  <p>Error loading accommodation data: {error.accommodation}</p>
+                  <button 
+                    onClick={() => window.location.reload()} 
+                    className="retry-button"
+                  >
+                    Retry
+                  </button>
+                </div>
               ) : (
                 <AccommodationWidget accommodationData={accommodationData} />
               )}
@@ -213,7 +292,15 @@ function CityDetailPage() {
               {loading.places ? (
                 <div className="section-loading">Loading places data...</div>
               ) : error.places ? (
-                <div className="section-error">{error.places}</div>
+                <div className="section-error">
+                  <p>Error loading places data: {error.places}</p>
+                  <button 
+                    onClick={() => window.location.reload()} 
+                    className="retry-button"
+                  >
+                    Retry
+                  </button>
+                </div>
               ) : (
                 <PlacesList places={placesData?.places || []} />
               )}
@@ -230,7 +317,7 @@ function CityDetailPage() {
                 <div className="stat-item">
                   <div className="stat-icon">🏨</div>
                   <div className="stat-value">
-                    ${accommodationData?.average_price.toFixed(2) || '0.00'}
+                    ${accommodationData?.average_price?.toFixed(2) || '0.00'}
                   </div>
                   <div className="stat-label">Avg. Nightly</div>
                 </div>
@@ -259,7 +346,22 @@ function CityDetailPage() {
             </div>
           </div>
         </div>
+        
+        {/* Debug info section - only visible in development or with ?debug=true */}
+        <DebugInfo info={{
+          city,
+          imageData: cityImage,
+          imageError,
+          apiCalls: {
+            city: `/api/places/${cityId}`,
+            image: `/api/city-image?city=${encodeURIComponent(city.name)}`,
+            accommodation: `/api/accommodation/${cityId}?occupants=${occupants}`
+          },
+          errors: error
+        }} />
       </div>
     </div>
   );
 }
+
+export default CityDetailPage;
