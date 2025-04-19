@@ -1,5 +1,5 @@
 // src/components/SearchBar.js
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './SearchBar.css';
 
@@ -8,117 +8,132 @@ function SearchBar() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const searchRef = useRef(null);
   const navigate = useNavigate();
+  const debounceTimeoutRef = useRef(null);
 
-  const handleSearch = async (e) => {
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Autocomplete city search with debouncing
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([]);
+      setIsOpen(false);
+      return;
+    }
+
+    // Clear previous timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set new timeout for debouncing
+    debounceTimeoutRef.current = setTimeout(async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const response = await fetch(`/api/cities?q=${encodeURIComponent(query)}`);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to search cities');
+        }
+        
+        const data = await response.json();
+        setResults(data);
+        setIsOpen(true);
+      } catch (err) {
+        console.error('Search error:', err);
+        setError('Error searching for cities. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }, 300); // 300ms debounce
+    
+    // Cleanup function
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [query]);
+
+  const handleSearch = (e) => {
     e.preventDefault();
     
     if (!query.trim()) return;
     
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await fetch(`/api/cities?q=${encodeURIComponent(query)}`);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to search cities');
-      }
-      
-      const data = await response.json();
-      setResults(data);
-    } catch (err) {
-      console.error('Search error:', err);
-      setError('Error searching for cities. Please try again.');
-    } finally {
-      setLoading(false);
+    // If we have results and the dropdown is open, select the first result
+    if (results.length > 0 && isOpen) {
+      handleCitySelect(results[0]);
     }
   };
 
   const handleCitySelect = (city) => {
     navigate(`/city/${city.id}`);
+    setIsOpen(false);
     setResults([]);
     setQuery('');  // Clear the search input after selection
   };
 
-  // Inline styles as a backup in case CSS isn't applied correctly
-  const searchResultsStyle = {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    backgroundColor: 'white',
-    border: '1px solid #ddd',
-    borderRadius: '0 0 5px 5px',
-    boxShadow: '0 2px 5px rgba(0, 0, 0, 0.1)',
-    zIndex: 10,
-    maxHeight: '300px',
-    overflowY: 'auto'
-  };
-
-  const searchResultItemStyle = {
-    padding: '0.8rem 1rem',
-    cursor: 'pointer',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottom: '1px solid #eee',
-    color: '#333333',
-    backgroundColor: 'white',
-    fontSize: '0.9rem'
-  };
-
-  const cityNameStyle = {
-    fontWeight: 'bold',
-    color: '#333333',
-    fontSize: '0.9rem'
-  };
-
-  const cityCountryStyle = {
-    color: '#666666',
-    fontSize: '0.8rem'
+  const handleInputChange = (e) => {
+    setQuery(e.target.value);
   };
 
   return (
-    <div className="search-bar">
+    <div className="search-bar" ref={searchRef}>
       <form onSubmit={handleSearch}>
         <input
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={handleInputChange}
           placeholder="Enter a city name..."
           className="search-input"
+          aria-label="Search for a city"
+          autoComplete="off"
         />
-        <button type="submit" className="search-button">
+        <button type="submit" className="search-button" aria-label="Search">
           Search
         </button>
       </form>
       
       {loading && (
-        <div className="search-loading" style={{ backgroundColor: 'white', color: '#333' }}>
+        <div className="search-loading">
           Searching...
         </div>
       )}
       
       {error && (
-        <div className="search-error" style={{ backgroundColor: 'white', color: '#e74c3c' }}>
+        <div className="search-error">
           {error}
         </div>
       )}
       
-      {results.length > 0 && (
-        <div className="search-results" style={searchResultsStyle}>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+      {isOpen && results.length > 0 && (
+        <div className="search-results">
+          <ul>
             {results.map(city => (
               <li 
                 key={city.id} 
                 className="search-result-item"
-                style={searchResultItemStyle}
                 onClick={() => handleCitySelect(city)}
               >
-                <span className="city-name" style={cityNameStyle}>{city.name}</span>
-                <span className="city-country" style={cityCountryStyle}>{city.country}</span>
+                <span className="city-name">{city.name}</span>
+                <span className="city-country">{city.country}</span>
               </li>
             ))}
           </ul>

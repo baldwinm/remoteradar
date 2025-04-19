@@ -1,9 +1,19 @@
 // src/App.js
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import HomePage from './pages/HomePage';
-import CityDetailPage from './pages/CityDetailPage';
 import './App.css';
+
+// Lazy load page components for better initial load time
+const HomePage = lazy(() => import('./pages/HomePage'));
+const CityDetailPage = lazy(() => import('./pages/CityDetailPage'));
+
+// Simple loading component
+const Loading = () => (
+  <div className="loading-container">
+    <div className="loading-spinner"></div>
+    <p>Loading...</p>
+  </div>
+);
 
 function App() {
   return (
@@ -16,10 +26,12 @@ function App() {
         </header>
         
         <main className="app-content">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/city/:cityId" element={<CityDetailPage />} />
-          </Routes>
+          <Suspense fallback={<Loading />}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/city/:cityId" element={<CityDetailPage />} />
+            </Routes>
+          </Suspense>
         </main>
         
         <footer className="app-footer">

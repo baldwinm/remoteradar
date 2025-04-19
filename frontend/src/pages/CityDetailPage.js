@@ -1,9 +1,12 @@
 // src/pages/CityDetailPage.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import PlacesList from '../components/PlacesList';
-import AccommodationWidget from '../components/AccommodationWidget';
+import CityImage from '../components/CityImage';
 import './CityDetailPage.css';
+
+// Lazy load components to improve initial load time
+const PlacesList = lazy(() => import('../components/PlacesList'));
+const AccommodationWidget = lazy(() => import('../components/AccommodationWidget'));
 
 function CityDetailPage() {
   const { cityId } = useParams();
@@ -21,7 +24,6 @@ function CityDetailPage() {
       setLoading(prev => ({ ...prev, city: true }));
       try {
         // Use the full cityId for search
-        
         const response = await fetch(`/api/places/${cityId}`);
         if (!response.ok) {
           const errorData = await response.json();
@@ -152,7 +154,7 @@ function CityDetailPage() {
     );
   }
 
-  // Get city, state, and country for display
+  // Get city name and country for display
   const cityName = city.name || '';
   const stateName = city.state || '';
   const countryName = city.country || '';
@@ -171,6 +173,9 @@ function CityDetailPage() {
           <Link to="/" className="back-button">← Back to Search</Link>
         </div>
       </div>
+
+      {/* City Image Section */}
+      <CityImage cityName={cityName} countryName={countryName} />
 
       <div className="city-content">
         <div className="content-row">
@@ -191,24 +196,28 @@ function CityDetailPage() {
               </select>
             </div>
             
-            {loading.accommodation ? (
-              <div className="section-loading">Loading accommodation data...</div>
-            ) : error.accommodation ? (
-              <div className="section-error">{error.accommodation}</div>
-            ) : (
-              <AccommodationWidget accommodationData={accommodationData} />
-            )}
+            <Suspense fallback={<div className="section-loading">Loading accommodation data...</div>}>
+              {loading.accommodation ? (
+                <div className="section-loading">Loading accommodation data...</div>
+              ) : error.accommodation ? (
+                <div className="section-error">{error.accommodation}</div>
+              ) : (
+                <AccommodationWidget accommodationData={accommodationData} />
+              )}
+            </Suspense>
           </div>
         
           {/* Places Section */}
           <div className="content-section">
-            {loading.places ? (
-              <div className="section-loading">Loading places data...</div>
-            ) : error.places ? (
-              <div className="section-error">{error.places}</div>
-            ) : (
-              <PlacesList places={placesData?.places || []} />
-            )}
+            <Suspense fallback={<div className="section-loading">Loading places data...</div>}>
+              {loading.places ? (
+                <div className="section-loading">Loading places data...</div>
+              ) : error.places ? (
+                <div className="section-error">{error.places}</div>
+              ) : (
+                <PlacesList places={placesData?.places || []} />
+              )}
+            </Suspense>
           </div>
         </div>
         
@@ -254,5 +263,3 @@ function CityDetailPage() {
     </div>
   );
 }
-
-export default CityDetailPage;

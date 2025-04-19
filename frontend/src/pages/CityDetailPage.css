@@ -2,31 +2,33 @@
 .city-detail-page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 0.5rem;
 }
 
 .city-header {
   background-color: #2c3e50; 
   color: white !important; 
-  padding: 2rem 1rem;
-  margin-bottom: 2rem;
-  border-radius: 10px;
+  padding: 1.5rem 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
+.city-header-content {
+  display: flex;
+  flex-direction: column;
+}
+
 .city-name {
-  font-size: 2.5rem;
+  font-size: 2rem;
   margin-bottom: 0.5rem;
   color: white !important; 
+  word-break: break-word; /* Prevent text overflow on small screens */
 }
 
 .city-country {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   opacity: 0.9;
-  color: white !important; 
-}
-
-.city-header-content * {
   color: white !important; 
 }
 
@@ -35,6 +37,8 @@
   margin-top: 1rem;
   color: white !important; 
   text-decoration: none;
+  padding: 0.5rem 0;
+  font-size: 1rem;
 }
 
 .back-button:hover {
@@ -42,16 +46,53 @@
   color: white !important; 
 }
 
+/* City image section */
+.city-image-container {
+  width: 100%;
+  height: 250px;
+  margin-bottom: 1.5rem;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.city-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.city-image-attribution {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.7rem;
+  border-radius: 4px 0 0 0;
+}
+
+.city-image-attribution a {
+  color: white;
+  text-decoration: none;
+}
+
+.city-image-attribution a:hover {
+  text-decoration: underline;
+}
+
 .city-content {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 .content-row {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 .content-section {
@@ -60,7 +101,7 @@
 
 .accommodation-options {
   background-color: white;
-  border-radius: 10px 10px 0 0;
+  border-radius: 8px 8px 0 0;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   padding: 1rem;
   display: flex;
@@ -80,11 +121,13 @@
   border-radius: 4px;
   background-color: white;
   min-width: 120px;
+  height: 40px; /* Better touch target size */
+  -webkit-appearance: none; /* Fix for iOS styling */
 }
 
 .city-summary {
   background-color: white;
-  border-radius: 10px;
+  border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   padding: 1.5rem;
 }
@@ -97,40 +140,40 @@
 
 .summary-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(2, 1fr); /* 2 columns on mobile */
+  gap: 1rem;
 }
 
 .stat-item {
   background-color: #f8f9fa;
   border-radius: 8px;
-  padding: 1.5rem 1rem;
+  padding: 1.2rem 0.8rem;
   text-align: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .stat-icon {
-  font-size: 2rem;
-  margin-bottom: 0.8rem;
+  font-size: 1.8rem;
+  margin-bottom: 0.6rem;
 }
 
 .stat-value {
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: bold;
   color: #2c3e50;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.3rem;
 }
 
 .stat-label {
   color: #7f8c8d;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .section-loading, .section-error {
   padding: 2rem;
   text-align: center;
   background-color: white;
-  border-radius: 10px;
+  border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
@@ -144,7 +187,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 50vh;
+  min-height: 30vh;
   padding: 2rem;
 }
 
@@ -152,8 +195,8 @@
   border: 4px solid rgba(0, 0, 0, 0.1);
   border-left-color: #3498db;
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
 }
@@ -167,7 +210,7 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 3rem 1rem;
+  padding: 2rem 1rem;
 }
 
 .error-container h2 {
@@ -183,6 +226,10 @@
   padding: 0.5rem 1rem;
   border: 1px solid #3498db;
   border-radius: 4px;
+  min-height: 44px; /* Better touch target size */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .back-link:hover {
@@ -192,11 +239,31 @@
 
 /* Responsive adjustments */
 @media (min-width: 768px) {
+  .city-detail-page {
+    padding: 1rem;
+  }
+
+  .city-header {
+    padding: 2rem 1.5rem;
+  }
+
+  .city-name {
+    font-size: 2.5rem;
+  }
+
+  .city-image-container {
+    height: 350px;
+  }
+
   .content-row {
     flex-direction: row;
   }
   
   .content-section {
     flex: 1;
+  }
+
+  .summary-stats {
+    grid-template-columns: repeat(4, 1fr); /* 4 columns on desktop */
   }
 }

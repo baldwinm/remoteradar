@@ -17,6 +17,7 @@
   border-radius: 5px 0 0 5px;
   font-size: 1rem;
   transition: border-color 0.2s;
+  -webkit-appearance: none; /* Fix for iOS styling */
 }
 
 .search-input:focus {
@@ -33,25 +34,27 @@
   cursor: pointer;
   font-size: 1rem;
   transition: background-color 0.2s;
+  -webkit-appearance: none; /* Fix for iOS styling */
 }
 
 .search-button:hover {
   background-color: #2980b9;
 }
 
-/* Search Results - with !important flags to override any conflicting styles */
+/* Search Results */
 .search-results {
   position: absolute !important;
   top: 100% !important;
   left: 0 !important;
   right: 0 !important;
-  background-color: #2c3e50 !important; /* Same blue as header */
-  border: 1px solid #34495e !important; /* Slightly lighter blue border */
+  background-color: #2c3e50 !important;
+  border: 1px solid #34495e !important;
   border-radius: 0 0 5px 5px !important;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2) !important;
-  z-index: 10 !important;
+  z-index: 1000 !important; /* Increased z-index to ensure it appears above other elements */
   max-height: 300px !important;
   overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important; /* Smooth scrolling on iOS */
 }
 
 .search-results ul {
@@ -61,15 +64,15 @@
 }
 
 .search-result-item {
-  padding: 0.8rem 1rem !important;
+  padding: 1rem !important; /* Increased padding for better touch targets */
   cursor: pointer !important;
   display: flex !important;
   justify-content: space-between !important;
   align-items: center !important;
-  border-bottom: 1px solid #34495e !important; /* Slightly lighter blue border between items */
-  color: white !important; /* White text for dark background */
-  background-color: #2c3e50 !important; /* Same blue as header */
-  font-size: 0.9rem !important; /* Smaller font size */
+  border-bottom: 1px solid #34495e !important;
+  color: white !important;
+  background-color: #2c3e50 !important;
+  font-size: 0.9rem !important;
 }
 
 .search-result-item:last-child {
@@ -77,44 +80,65 @@
 }
 
 .search-result-item:hover {
-  background-color: #34495e !important; /* Slightly lighter blue on hover */
+  background-color: #34495e !important;
 }
 
 .city-name {
   font-weight: bold !important;
-  color: white !important; /* White text for dark background */
-  font-size: 0.9rem !important; /* Controlled font size */
+  color: white !important;
+  font-size: 0.9rem !important;
 }
 
 .city-country {
-  color: rgba(255, 255, 255, 0.8) !important; /* Slightly transparent white */
-  font-size: 0.8rem !important; /* Smaller font size */
+  color: rgba(255, 255, 255, 0.8) !important;
+  font-size: 0.8rem !important;
 }
 
 .search-loading, .search-error {
   padding: 0.8rem !important;
   text-align: center !important;
-  color: white !important; /* White text for dark background */
-  background-color: #2c3e50 !important; /* Same blue as header */
+  color: white !important;
+  background-color: #2c3e50 !important;
 }
 
 .search-error {
-  color: #ff6b6b !important; /* Lighter red that stands out on dark blue */
+  color: #ff6b6b !important;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .search-bar form {
-    flex-direction: column;
+    flex-direction: row; /* Keep the form in a single row */
   }
   
   .search-input {
-    border-radius: 5px;
-    margin-bottom: 0.5rem;
+    border-radius: 5px 0 0 5px;
+    font-size: 16px; /* Prevent zoom on iOS */
+    height: 44px; /* Minimum touch target size */
   }
   
   .search-button {
-    border-radius: 5px;
-    padding: 0.8rem;
+    border-radius: 0 5px 5px 0;
+    padding: 0 1rem;
+    min-width: 80px; /* Minimum touch target width */
+    height: 44px; /* Minimum touch target size */
+  }
+
+  .search-result-item {
+    padding: 1rem !important;
+    min-height: 44px !important; /* Minimum touch target size */
+    flex-direction: column !important; 
+    align-items: flex-start !important;
+  }
+
+  .city-country {
+    margin-top: 0.3rem !important;
+  }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+  .search-input {
+    padding: 0.7rem;
   }
 }

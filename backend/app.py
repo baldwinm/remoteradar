@@ -1,5 +1,5 @@
 # app.py
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 import os
 import requests
@@ -7,7 +7,8 @@ from dotenv import load_dotenv
 import json
 import re
 import time
-from datetime import datetime
+import random
+from datetime import datetime, timedelta
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -19,8 +20,10 @@ load_dotenv()
 OPENCAGE_API_KEY = os.getenv('OPENCAGE_API_KEY', 'YOUR_OPENCAGE_API_KEY_HERE')
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY', 'YOUR_GOOGLE_API_KEY_HERE')
 AIRBNB_API_KEY = os.getenv('AIRBNB_API_KEY', 'YOUR_AIRBNB_API_KEY_HERE')
+UNSPLASH_API_KEY = os.getenv('UNSPLASH_API_KEY', 'YOUR_UNSPLASH_API_KEY_HERE')
 AIRBNB_API_URL = "https://airbnb19.p.rapidapi.com/api/v1/searchPropertyByLocationV2"
 OPENCAGE_BASE_URL = "https://api.opencagedata.com/geocode/v1/json"
+UNSPLASH_API_URL = "https://api.unsplash.com/search/photos"
 
 app = Flask(__name__)
 
@@ -53,7 +56,9 @@ cache = {
     'cities': {},
     'places': {},
     'accommodations': {},
-    'place_details': {}
+    'place_details': {},
+    'city_images': {},
+    'api_requests': {}
 }
 
 # This should be the only health check endpoint in your code
@@ -63,6 +68,12 @@ def health_check():
     return jsonify({"status": "healthy"})
 
 # ---------- Helper Functions ----------
+
+def add_cache_headers(response, max_age=3600):
+    """Add caching headers to the response"""
+    response.headers['Cache-Control'] = f'public, max-age={max_age}'
+    response.headers['Expires'] = (datetime.utcnow() + timedelta(seconds=max_age)).strftime('%a, %d %b %Y %H:%M:%S GMT')
+    return response
 
 def make_api_request(url, params=None, headers=None, timeout=10, cache_key=None, ttl=None):
     """Enhanced API request function with caching"""
@@ -76,6 +87,8 @@ def make_api_request(url, params=None, headers=None, timeout=10, cache_key=None,
             ttl = 43200   # 12 hours
         elif 'airbnb' in url:
             ttl = 7200    # 2 hours
+        elif 'unsplash' in url:
+            ttl = 86400   # 1 day
         else:
             ttl = 3600    # Default 1 hour
     
@@ -113,9 +126,59 @@ def make_api_request(url, params=None, headers=None, timeout=10, cache_key=None,
         print(f"API request exception: {e}")
         return None
 
+def clean_memory_cache():
+    """Periodically clean expired items from the memory cache"""
+    print("Cleaning memory cache...")
+    now = time.time()
+    
+    # Define TTL for different cache types
+    ttls = {
+        'cities': 604800,      # 7 days
+        'places': 43200,       # 12 hours
+        'accommodations': 7200, # 2 hours
+        'place_details': 86400, # 1 day
+        'city_images': 86400,   # 1 day
+        'api_requests': 3600    # 1 hour by default
+    }
+    
+    # Clean each cache category
+    for category, items in cache.items():
+        if category == 'api_requests':
+            # API requests cache items have their own timestamps
+            to_remove = []
+            for key, item in items.items():
+                if now - item['timestamp'] > item.get('ttl', ttls[category]):
+                    to_remove.append(key)
+            
+            for key in to_remove:
+                del items[key]
+        else:
+            # Other cache items use a standard TTL
+            to_remove = []
+            for key, item in items.items():
+                if 'timestamp' in item and now - item['timestamp'] > ttls.get(category, 3600):
+                    to_remove.append(key)
+            
+            for key in to_remove:
+                del items[key]
+    
+    print(f"Cache cleaning complete. Current cache size: {sum(len(items) for items in cache.values())} items")
+
 def search_city(query):
     """Search for a city using OpenCage API"""
     print(f"Searching for city with query: '{query}'")
+    
+    if not query or len(query) < 2:
+        return []
+    
+    # Check cache first
+    cache_key = f"city_search_{query.lower()}"
+    if 'cities' in cache and cache_key in cache['cities']:
+        print(f"Using cached city search for {query}")
+        cached_result = cache['cities'][cache_key]
+        # Check if cache is still valid (7 days)
+        if time.time() - cached_result['timestamp'] < 604800:
+            return cached_result['data']
     
     if not OPENCAGE_API_KEY or OPENCAGE_API_KEY == "YOUR_OPENCAGE_API_KEY_HERE":
         print("OpenCage API key not configured")
@@ -171,6 +234,15 @@ def search_city(query):
         for city in cities:
             print(f"  - {city['name']} ({city['id']})")
         
+        # Cache the result
+        if 'cities' not in cache:
+            cache['cities'] = {}
+            
+        cache['cities'][cache_key] = {
+            'data': cities,
+            'timestamp': time.time()
+        }
+        
         return cities
     except Exception as e:
         print(f"Error searching for city: {e}")
@@ -184,7 +256,10 @@ def get_place_details(place_id):
     # Check cache first
     cache_key = f"place_details_{place_id}"
     if 'place_details' in cache and cache_key in cache['place_details']:
-        return cache['place_details'][cache_key]
+        cache_entry = cache['place_details'][cache_key]
+        # Check if cache is still valid (1 day)
+        if time.time() - cache_entry.get('timestamp', 0) < 86400:
+            return cache_entry
     
     try:
         # Check if Google API key is configured
@@ -210,7 +285,8 @@ def get_place_details(place_id):
                 details = {
                     "website": result.get("website", ""),
                     "formatted_phone_number": result.get("formatted_phone_number", ""),
-                    "google_maps_url": result.get("url", "")
+                    "google_maps_url": result.get("url", ""),
+                    "timestamp": time.time()  # Add timestamp for cache expiration
                 }
                 
                 # Cache the details
@@ -232,9 +308,12 @@ def get_places_data(city_id, city_name, lat, lng):
     
     try:
         # Check cache first
-        if city_id in cache['places']:
-            print(f"Using cached places data for {city_id}")
-            return cache['places'][city_id]
+        if city_id in cache.get('places', {}):
+            cached_data = cache['places'][city_id]
+            # Check if cache is still valid (12 hours)
+            if time.time() - cached_data.get('timestamp', 0) < 43200:
+                print(f"Using cached places data for {city_id}")
+                return cached_data
                 
         places = []
         place_ids = []  # To collect all place IDs for batch processing later
@@ -379,10 +458,13 @@ def get_places_data(city_id, city_name, lat, lng):
                 "coworking": coworking_count,
                 "restaurant": restaurant_count,
                 "total": len(places)
-            }
+            },
+            "timestamp": time.time()  # Add timestamp for cache expiration
         }
         
         # Cache the result
+        if 'places' not in cache:
+            cache['places'] = {}
         cache['places'][city_id] = result
         print(f"Places data cached for {city_id}")
         return result
@@ -420,8 +502,11 @@ def fetch_accommodation_data(city_data, occupants=1):
         # Check cache first
         cache_key = f"{city_data['id']}_{occupants}"
         if cache_key in cache.get('accommodations', {}):
-            print(f"Using cached accommodation data for {cache_key}")
-            return cache['accommodations'][cache_key]
+            cached_data = cache['accommodations'][cache_key]
+            # Check if cache is still valid (2 hours)
+            if time.time() - cached_data.get('timestamp', 0) < 7200:
+                print(f"Using cached accommodation data for {cache_key}")
+                return cached_data
         
         # Check if API key is missing
         if not AIRBNB_API_KEY or AIRBNB_API_KEY == "YOUR_AIRBNB_API_KEY_HERE":
@@ -538,7 +623,8 @@ def fetch_accommodation_data(city_data, occupants=1):
             "city_id": city_data['id'],
             "city_name": city_data['name'],
             "average_price": round(avg_price, 2),
-            "accommodations": accommodations
+            "accommodations": accommodations,
+            "timestamp": time.time()  # Add timestamp for cache expiration
         }
         
         # Cache the result
@@ -578,7 +664,8 @@ def get_cities():
         for city in cities:
             print(f"  - City details: {json.dumps(city)}")
         
-        return jsonify(cities)
+        response = make_response(jsonify(cities))
+        return add_cache_headers(response, max_age=86400)  # Cache for 1 day
     except Exception as e:
         print(f"City search error: {e}")
         return jsonify({"error": str(e), "success": False}), 500
@@ -650,7 +737,9 @@ def get_places(city_id):
         if place_type != 'all' and 'places' in places_data:
             places_data['places'] = [p for p in places_data['places'] if p['type'] == place_type]
             
-        return jsonify({"success": True, **places_data})
+        response_data = {"success": True, **places_data}
+        response = make_response(jsonify(response_data))
+        return add_cache_headers(response, max_age=3600)  # Cache for 1 hour
     
     except Exception as e:
         print(f"Places error: {e}")
@@ -731,7 +820,9 @@ def get_accommodation(city_id):
         
         # Get accommodation data
         accommodation_data = fetch_accommodation_data(city, occupants)
-        return jsonify({"success": True, **accommodation_data})
+        response_data = {"success": True, **accommodation_data}
+        response = make_response(jsonify(response_data))
+        return add_cache_headers(response, max_age=1800)  # Cache for 30 minutes
     
     except Exception as e:
         print(f"Accommodation error: {e}")
@@ -762,11 +853,13 @@ def get_single_place_details(place_id):
                 "place_id": place_id
             }), 404
             
-        return jsonify({
+        response_data = {
             "success": True,
             "place_id": place_id,
             "details": details
-        })
+        }
+        response = make_response(jsonify(response_data))
+        return add_cache_headers(response, max_age=86400)  # Cache for 1 day
         
     except Exception as e:
         print(f"Place details error: {e}")
@@ -775,3 +868,121 @@ def get_single_place_details(place_id):
             "success": False,
             "place_id": place_id
         }), 500
+
+@app.route('/api/city-image', methods=['GET'])
+@limiter.limit("20 per minute")
+def get_city_image():
+    """Get a city image from Unsplash API"""
+    city = request.args.get('city', '')
+    country = request.args.get('country', '')
+    
+    if not city:
+        return jsonify({
+            "error": "City parameter is required",
+            "success": False
+        }), 400
+    
+    # Create cache key based on city and country
+    cache_key = f"city_image_{city.lower()}_{country.lower()}"
+    
+    # Check cache first
+    if 'city_images' in cache and cache_key in cache['city_images']:
+        cached_data = cache['city_images'][cache_key]
+        # Check if cache is still valid (1 day)
+        if time.time() - cached_data.get('timestamp', 0) < 86400:
+            print(f"Using cached image for {city}, {country}")
+            response = make_response(jsonify(cached_data))
+            return add_cache_headers(response, max_age=86400)  # Cache for 1 day
+    
+    try:
+        # Check if Unsplash API key is missing
+        if not UNSPLASH_API_KEY or UNSPLASH_API_KEY == "YOUR_UNSPLASH_API_KEY_HERE":
+            raise Exception("Unsplash API key is not configured")
+        
+        # Create search query
+        search_query = f"{city} city"
+        if country:
+            search_query += f" {country}"
+        
+        # Headers for the Unsplash API
+        headers = {
+            "Authorization": f"Client-ID {UNSPLASH_API_KEY}"
+        }
+        
+        # Parameters for the API request
+        params = {
+            "query": search_query,
+            "orientation": "landscape",
+            "per_page": 10  # Get multiple options to choose from
+        }
+        
+        print(f"Making Unsplash API request for {search_query}")
+        
+        # Make the API request
+        response = requests.get(UNSPLASH_API_URL, headers=headers, params=params, timeout=10)
+        
+        if response.status_code != 200:
+            raise Exception(f"Unsplash API error: Status {response.status_code}")
+        
+        data = response.json()
+        
+        # Check if we got valid data
+        if not data or "results" not in data or not data["results"]:
+            # Fallback to just city name if combined search didn't work
+            params["query"] = city
+            response = requests.get(UNSPLASH_API_URL, headers=headers, params=params, timeout=10)
+            
+            if response.status_code != 200:
+                raise Exception(f"Unsplash API fallback error: Status {response.status_code}")
+            
+            data = response.json()
+            
+            # If still no results, return error
+            if not data or "results" not in data or not data["results"]:
+                raise Exception("No images found for this city")
+        
+        # Get a random result from the first 5 (or fewer if less than 5 are returned)
+        results = data["results"]
+        selected_image = random.choice(results[:min(5, len(results))])
+        
+        image_data = {
+            "success": True,
+            "url": selected_image["urls"]["regular"],
+            "small_url": selected_image["urls"]["small"],
+            "thumb_url": selected_image["urls"]["thumb"],
+            "attribution": {
+                "name": selected_image["user"]["name"],
+                "username": selected_image["user"]["username"],
+                "link": f"https://unsplash.com/@{selected_image['user']['username']}?utm_source=remote_radar&utm_medium=referral"
+            },
+            "unsplash_link": f"{selected_image['links']['html']}?utm_source=remote_radar&utm_medium=referral",
+            "timestamp": time.time()  # Add timestamp for cache expiration
+        }
+        
+        # Cache the result
+        if 'city_images' not in cache:
+            cache['city_images'] = {}
+        cache['city_images'][cache_key] = image_data
+        
+        response = make_response(jsonify(image_data))
+        return add_cache_headers(response, max_age=86400)  # Cache for 1 day
+    
+    except Exception as e:
+        print(f"Error fetching city image: {e}")
+        return jsonify({
+            "error": str(e),
+            "success": False
+        }), 500
+
+# Set up a function to periodically clean the cache (call this in a separate thread or process)
+# In production, you'd want to use a proper task scheduler like Celery
+# For simplicity, we'll just run it occasionally based on request triggers
+@app.before_request
+def before_request():
+    # Clean cache approximately once every 100 requests
+    if random.randint(1, 100) == 1:
+        clean_memory_cache()
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
