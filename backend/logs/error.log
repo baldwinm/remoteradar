@@ -1,0 +1,426 @@
+[2025-04-20 10:40:08,678] [ERROR] [588] [8928] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:116] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 10:40:08,748] [ERROR] [588] [8928] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:110] - Error in after_request: name 'request' is not defined
+[2025-04-20 10:40:08,749] [ERROR] [588] [5708] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:116] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 10:40:08,753] [ERROR] [588] [5708] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:110] - Error in after_request: name 'request' is not defined
+[2025-04-20 10:40:15,019] [ERROR] [588] [11604] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\cities.py:44] - City search error: add_cache_headers() got an unexpected keyword argument 'max_age'
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\cities.py", line 42, in get_cities
+    return add_cache_headers(response, max_age=86400)  # Cache for 1 day
+TypeError: add_cache_headers() got an unexpected keyword argument 'max_age'
+[2025-04-20 10:40:15,020] [ERROR] [588] [11604] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:110] - Error in after_request: name 'request' is not defined
+[2025-04-20 10:40:15,763] [ERROR] [588] [15776] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\cities.py:44] - City search error: add_cache_headers() got an unexpected keyword argument 'max_age'
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\cities.py", line 42, in get_cities
+    return add_cache_headers(response, max_age=86400)  # Cache for 1 day
+TypeError: add_cache_headers() got an unexpected keyword argument 'max_age'
+[2025-04-20 10:40:15,764] [ERROR] [588] [15776] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:110] - Error in after_request: name 'request' is not defined
+[2025-04-20 10:40:16,833] [ERROR] [588] [1416] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\cities.py:44] - City search error: add_cache_headers() got an unexpected keyword argument 'max_age'
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\cities.py", line 42, in get_cities
+    return add_cache_headers(response, max_age=86400)  # Cache for 1 day
+TypeError: add_cache_headers() got an unexpected keyword argument 'max_age'
+[2025-04-20 10:40:16,833] [ERROR] [588] [1416] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:110] - Error in after_request: name 'request' is not defined
+[2025-04-20 10:44:18,026] [ERROR] [2024] [17208] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:109] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 10:44:26,175] [ERROR] [2024] [600] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:65] - Unsplash API key is not configured
+[2025-04-20 10:44:26,176] [ERROR] [2024] [600] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:171] - Error fetching city image: Unsplash API key is not configured
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py", line 66, in get_city_image
+    raise Exception("Unsplash API key is not configured")
+Exception: Unsplash API key is not configured
+[2025-04-20 10:44:26,492] [ERROR] [2024] [8364] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:65] - Unsplash API key is not configured
+[2025-04-20 10:44:26,492] [ERROR] [2024] [8364] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:171] - Error fetching city image: Unsplash API key is not configured
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py", line 66, in get_city_image
+    raise Exception("Unsplash API key is not configured")
+Exception: Unsplash API key is not configured
+[2025-04-20 10:44:34,018] [ERROR] [2024] [10344] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:65] - Unsplash API key is not configured
+[2025-04-20 10:44:34,018] [ERROR] [2024] [10344] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:171] - Error fetching city image: Unsplash API key is not configured
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py", line 66, in get_city_image
+    raise Exception("Unsplash API key is not configured")
+Exception: Unsplash API key is not configured
+[2025-04-20 10:44:34,088] [ERROR] [2024] [15540] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:109] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 10:44:34,272] [ERROR] [2024] [13792] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:65] - Unsplash API key is not configured
+[2025-04-20 10:44:34,273] [ERROR] [2024] [13792] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:171] - Error fetching city image: Unsplash API key is not configured
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py", line 66, in get_city_image
+    raise Exception("Unsplash API key is not configured")
+Exception: Unsplash API key is not configured
+[2025-04-20 10:46:19,670] [ERROR] [2024] [16896] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:65] - Unsplash API key is not configured
+[2025-04-20 10:46:19,671] [ERROR] [2024] [16896] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:171] - Error fetching city image: Unsplash API key is not configured
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py", line 66, in get_city_image
+    raise Exception("Unsplash API key is not configured")
+Exception: Unsplash API key is not configured
+[2025-04-20 10:46:19,681] [ERROR] [2024] [16788] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:65] - Unsplash API key is not configured
+[2025-04-20 10:46:19,682] [ERROR] [2024] [16788] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:171] - Error fetching city image: Unsplash API key is not configured
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py", line 66, in get_city_image
+    raise Exception("Unsplash API key is not configured")
+Exception: Unsplash API key is not configured
+[2025-04-20 10:46:20,035] [ERROR] [2024] [9248] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:109] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 10:46:33,563] [ERROR] [2024] [5100] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:65] - Unsplash API key is not configured
+[2025-04-20 10:46:33,564] [ERROR] [2024] [5100] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:171] - Error fetching city image: Unsplash API key is not configured
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py", line 66, in get_city_image
+    raise Exception("Unsplash API key is not configured")
+Exception: Unsplash API key is not configured
+[2025-04-20 10:46:33,883] [ERROR] [2024] [14016] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:65] - Unsplash API key is not configured
+[2025-04-20 10:46:33,884] [ERROR] [2024] [14016] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py:171] - Error fetching city image: Unsplash API key is not configured
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\api\images.py", line 66, in get_city_image
+    raise Exception("Unsplash API key is not configured")
+Exception: Unsplash API key is not configured
+[2025-04-20 10:52:03,674] [ERROR] [2464] [11892] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:109] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 10:52:03,678] [ERROR] [2464] [17260] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:109] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 10:52:27,198] [ERROR] [2464] [8448] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:109] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 10:57:58,060] [ERROR] [8668] [9404] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:109] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 10:58:00,629] [ERROR] [8668] [11408] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:109] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 10:58:00,632] [ERROR] [8668] [7172] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:109] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 10:58:00,650] [ERROR] [8668] [10924] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:109] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 10:59:44,194] [ERROR] [5228] [1052] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:109] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 11:08:20,405] [ERROR] [3468] [5712] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:123] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 11:12:15,716] [ERROR] [11588] [4052] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:123] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1458, in dispatch_request
+    self.raise_routing_exception(req)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1440, in raise_routing_exception
+    raise request.routing_exception  # type: ignore
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\ctx.py", line 353, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 11:12:21,970] [ERROR] [11588] [8968] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:123] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 11:12:21,979] [ERROR] [11588] [9360] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:123] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 13:32:34,630] [ERROR] [18720] [18312] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:123] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 13:32:34,765] [ERROR] [18720] [17916] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:123] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 13:40:38,005] [ERROR] [2712] [6448] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:123] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 13:40:38,015] [ERROR] [2712] [2908] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:123] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 13:50:32,698] [ERROR] [6764] [6944] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:123] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 13:50:32,709] [ERROR] [6764] [7100] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:123] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-20 13:50:56,092] [ERROR] [6764] [19324] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:123] - Unhandled exception: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 502, in <lambda>
+    view_func=lambda **kw: self_ref().send_static_file(**kw),  # type: ignore # noqa: B950
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\scaffold.py", line 317, in send_static_file
+    return send_from_directory(
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\helpers.py", line 557, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+  File "C:\Users\Mbldwn-Framework-lpt\AppData\Local\Programs\Python\Python310\lib\site-packages\werkzeug\utils.py", line 575, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
