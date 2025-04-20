@@ -22,11 +22,16 @@ function CityImage({ cityName, countryName }) {
       setError(null);
       
       try {
+        // Determine base URL based on environment
+        const baseUrl = process.env.NODE_ENV === 'production' 
+          ? 'https://remote-radar-backend.onrender.com' 
+          : '';
+        
         // Log the request we're about to make
-        console.log(`Fetching image from /api/city-image for city: ${cityName}`);
+        console.log(`Fetching image from ${baseUrl}/api/city-image for city: ${cityName}`);
         
         // Make the API request
-        const apiUrl = `/api/city-image?city=${encodeURIComponent(cityName)}${countryName ? `&country=${encodeURIComponent(countryName)}` : ''}`;
+        const apiUrl = `${baseUrl}/api/city-image?city=${encodeURIComponent(cityName)}${countryName ? `&country=${encodeURIComponent(countryName)}` : ''}`;
         console.log(`API URL: ${apiUrl}`);
         
         const response = await fetch(apiUrl, {
@@ -116,7 +121,6 @@ function CityImage({ cityName, countryName }) {
           setError("Image failed to load");
         }}
       />
-      {/* Remove Unsplash attribution */}
       {imageData.attribution && (
         <div className="city-image-attribution">
           Map by {' '}

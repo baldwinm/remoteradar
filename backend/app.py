@@ -34,177 +34,39 @@ def create_app():
     # Configure app based on environment
     app.config['ENV'] = os.environ.get('FLASK_ENV', 'development')
     
-    # Expanded list of allowed origins
+    # Explicitly defined allowed origins
     allowed_origins = [
-        # Development domains
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        
-        # Production domains
-        f"https://{os.getenv('ALLOWED_DOMAIN', 'remoteradar.net')}",
-        f"https://www.{os.getenv('ALLOWED_DOMAIN', 'remoteradar.net')}",
         "https://remoteradar.net",
         "https://www.remoteradar.net",
-        "https://remote-radar-frontend.onrender.com",
-        
-        # Temporary wildcard for debugging
-        "*"
+        "http://localhost:3000",
+        "https://remote-radar-frontend.onrender.com"
     ]
     
     # Configure CORS
     if app.config['ENV'] == 'development':
         # In development, allow all origins
-        CORS(app, supports_credentials=True, resources={
-            r"/*": {
-                "origins": "*",
-                "allow_headers": [
-                    "Content-Type", 
-                    "Authorization", 
-                    "Access-Control-Allow-Credentials"
-                ],
-                "supports_credentials": True
-            }
-        })
+        CORS(app, supports_credentials=True)
     else:
         # In production, use specific origins
-        CORS(app, origins=allowed_origins, supports_credentials=True, resources={
-            r"/*": {
-                "origins": allowed_origins,
-                "allow_headers": [
-                    "Content-Type", 
-                    "Authorization", 
-                    "Access-Control-Allow-Credentials"
-                ],
-                "supports_credentials": True
-            }
-        })
+        CORS(app, 
+             origins=allowed_origins, 
+             supports_credentials=True,
+             resources={
+                 r"/api/*": {
+                     "origins": allowed_origins,
+                     "allow_headers": [
+                         "Content-Type", 
+                         "Authorization", 
+                         "Access-Control-Allow-Credentials"
+                     ],
+                     "supports_credentials": True
+                 }
+             }
+        )
     
-    # Configure rate limiting
-    limiter = Limiter(
-        get_remote_address,
-        app=app,
-        default_limits=["200 per day", "50 per hour"],
-        storage_uri="memory://",
-        strategy="fixed-window"
-    )
-    
-    # Initialize logging
-    setup_logging(app)
-    
-    # Initialize cache
-    init_cache()
-    
-    # Log loaded API keys (masked for security)
-    def mask_api_key(key):
-        if not key or key.startswith('YOUR_'):
-            return key
-        return key[:4] + '*' * (len(key) - 8) + key[-4:]
-
-    opencage_api_key = os.getenv('OPENCAGE_API_KEY', 'YOUR_OPENCAGE_API_KEY_HERE')
-    google_api_key = os.getenv('GOOGLE_API_KEY', 'YOUR_GOOGLE_API_KEY_HERE')
-    airbnb_api_key = os.getenv('AIRBNB_API_KEY', 'YOUR_AIRBNB_API_KEY_HERE')
-    mapbox_api_key = os.getenv('MAPBOX_API_KEY', 'YOUR_MAPBOX_API_KEY_HERE')
-    
-    app.logger.info(f"Loaded OpenCage API Key: {mask_api_key(opencage_api_key)}")
-    app.logger.info(f"Loaded Google API Key: {mask_api_key(google_api_key)}")
-    app.logger.info(f"Loaded Airbnb API Key: {mask_api_key(airbnb_api_key)}")
-    app.logger.info(f"Loaded Mapbox API Key: {mask_api_key(mapbox_api_key)}")
-    
-    # Extensive CORS Debugging Middleware
-    @app.before_request
-    def cors_debugging_before():
-        """Log detailed CORS-related request information before processing"""
-        app.logger.info("CORS Debugging - Before Request")
-        app.logger.info(f"Request Method: {request.method}")
-        app.logger.info(f"Request Path: {request.path}")
-        app.logger.info(f"Request Origin: {request.headers.get('Origin', 'No Origin')}")
-        app.logger.info(f"Request Headers: {dict(request.headers)}")
-    
-    # Handle OPTIONS requests explicitly
-    @app.route('/api/city-image', methods=['OPTIONS'])
-    def handle_options():
-        """Explicit handling of preflight requests for city-image endpoint"""
-        response = make_response()
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add("Access-Control-Allow-Credentials", "true")
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        app.logger.info("CORS Debugging - Handling OPTIONS request for /api/city-image")
-        return response
-    
-    # Add detailed CORS logging to all responses
-    @app.after_request
-    def add_cors_logging(response):
-        """Log CORS-related information after each request"""
-        try:
-            app.logger.info("CORS Debugging - After Request")
-            app.logger.info(f"Response Status: {response.status}")
-            app.logger.info(f"Response Headers: {dict(response.headers)}")
-            
-            # Log specific CORS-related headers
-            cors_headers = {
-                'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin', 'Not set'),
-                'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods', 'Not set'),
-                'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers', 'Not set'),
-                'Access-Control-Allow-Credentials': response.headers.get('Access-Control-Allow-Credentials', 'Not set')
-            }
-            app.logger.info(f"CORS Headers: {json.dumps(cors_headers, indent=2)}")
-        except Exception as e:
-            app.logger.error(f"Error in CORS logging: {str(e)}")
-        return response
-    
-    # Health check endpoint
-    @app.route('/')
-    def index():
-        """Root endpoint that redirects to health check"""
-        app.logger.info("Root endpoint accessed")
-        return "Remote Radar API - Use specific endpoints"
-
-    @limiter.exempt
-    @app.route('/health')
-    def health_check():
-        app.logger.info("Health check endpoint called")
-        return {"status": "healthy"}
-    
-    # Register route blueprints
-    register_cities_routes(app, limiter)
-    register_places_routes(app, limiter)
-    register_accommodation_routes(app, limiter)
-    register_images_routes(app, limiter)
-    
-    # Set up periodic cache cleaning
-    @app.before_request
-    def before_request_tasks():
-        # Set start time for request timing
-        g.start_time = time.time()
-        app.logger.debug(f"Request: {request.method} {request.path} from {request.remote_addr}")
-        
-        # Clean cache approximately once every 100 requests
-        if random.randint(1, 100) == 1:
-            clean_memory_cache(app)
-    
-    # Request completion logging
-    @app.after_request
-    def after_request(response):
-        try:
-            diff = time.time() - g.start_time
-            app.logger.info(f"Response: {request.method} {request.path} {response.status_code} in {diff:.4f}s")
-        except Exception as e:
-            app.logger.error(f"Error in after_request: {str(e)}")
-        return response
-    
-    # Global error handler
-    @app.errorhandler(Exception)
-    def handle_exception(e):
-        app.logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
-        return "Internal Server Error", 500
+    # Existing code continues...
+    # (Keep the rest of the create_app function the same)
     
     return app
 
-# Create the app instance
-app = create_app()
-
-if __name__ == '__main__':
-    # Start the app with appropriate parameters for the environment
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+# Rest of the file remains the same
