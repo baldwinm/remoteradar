@@ -1,11 +1,18 @@
 // src/App.js
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { 
+  BrowserRouter as Router, 
+  Routes, 
+  Route, 
+  Link, 
+  Navigate 
+} from 'react-router-dom';
 import './App.css';
 
 // Lazy load page components for better initial load time
 const HomePage = lazy(() => import('./pages/HomePage'));
 const CityDetailPage = lazy(() => import('./pages/CityDetailPage'));
+const ErrorPage = lazy(() => import('./pages/ErrorPage')); // New error page
 
 // Simple loading component
 const Loading = () => (
@@ -30,6 +37,10 @@ function App() {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/city/:cityId" element={<CityDetailPage />} />
+              
+              {/* Catch-all route */}
+              <Route path="/error" element={<ErrorPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
         </main>
