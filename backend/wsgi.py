@@ -1,5 +1,5 @@
 # wsgi.py
-from app import app as application
+from app import app
 
-# This file is used by Gunicorn to serve the application
-# The name 'application' is used because Gunicorn expects a WSGI callable named 'application'
+# Explicitly expose the app attribute for Gunicorn
+app = app
