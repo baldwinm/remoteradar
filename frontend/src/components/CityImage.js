@@ -1,6 +1,6 @@
 // src/components/CityImage.js
 import React, { useState, useEffect } from 'react';
-import './CityImage.css'; // We'll create this next
+import './CityImage.css';
 
 function CityImage({ cityName, countryName }) {
   const [imageData, setImageData] = useState(null);
@@ -29,7 +29,13 @@ function CityImage({ cityName, countryName }) {
         const apiUrl = `/api/city-image?city=${encodeURIComponent(cityName)}${countryName ? `&country=${encodeURIComponent(countryName)}` : ''}`;
         console.log(`API URL: ${apiUrl}`);
         
-        const response = await fetch(apiUrl);
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
         
         // Log the response status
         console.log(`Image API response status: ${response.status}`);
@@ -103,22 +109,19 @@ function CityImage({ cityName, countryName }) {
     <div className="city-image-container">
       <img 
         src={imageData.url} 
-        alt={`${cityName}${countryName ? `, ${countryName}` : ''}`}
+        alt={`${cityName}${countryName ? `, ${countryName}` : ''} map`}
         className="city-image"
         onError={(e) => {
           console.error("Image failed to load:", e);
           setError("Image failed to load");
         }}
       />
+      {/* Remove Unsplash attribution */}
       {imageData.attribution && (
         <div className="city-image-attribution">
-          Photo by {' '}
+          Map by {' '}
           <a href={imageData.attribution.link} target="_blank" rel="noopener noreferrer">
             {imageData.attribution.name}
-          </a>
-          {' '} on {' '}
-          <a href={imageData.unsplash_link || "https://unsplash.com"} target="_blank" rel="noopener noreferrer">
-            Unsplash
           </a>
         </div>
       )}
