@@ -37,8 +37,8 @@ def create_app(test_config=None):
         # Load the test config if passed in
         app.config.from_mapping(test_config)
     
-    # Enable CORS
-    CORS(app)
+    # Enable CORS with more permissive settings
+    CORS(app, resources={r"/*": {"origins": "*"}})
     
     # Set up logging
     setup_logging(app)
@@ -73,6 +73,17 @@ def create_app(test_config=None):
             app.logger.error(f"Error cleaning cache: {str(e)}", exc_info=True)
             return jsonify({"success": False, "error": str(e)}), 500
     
+    # Health check endpoint with comprehensive logging
+    @app.route('/health', methods=['GET'])
+    def health_check():
+        """Health check endpoint with detailed logging."""
+        try:
+            app.logger.info(f"Health check from IP: {request.remote_addr}")
+            return jsonify({"status": "ok", "message": "Application is running"}), 200
+        except Exception as e:
+            app.logger.error(f"Error in health check: {str(e)}", exc_info=True)
+            return jsonify({"status": "error", "message": str(e)}), 500
+    
     # Serve index.html for all routes (for SPA)
     @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
@@ -84,17 +95,25 @@ def create_app(test_config=None):
         else:
             return app.send_static_file('index.html')
     
-    # Health check endpoint
-    @app.route('/api/health')
-    def health_check():
-        """Health check endpoint."""
-        return jsonify({"status": "ok"})
+    # Debugging route to print all registered routes
+    @app.route('/debug/routes')
+    def list_routes():
+        """List all registered routes."""
+        routes = []
+        for rule in app.url_map.iter_rules():
+            routes.append({
+                'endpoint': rule.endpoint,
+                'methods': list(rule.methods),
+                'route': str(rule)
+            })
+        return jsonify(routes)
     
     # Generic error handler
     @app.errorhandler(404)
     def not_found(e):
         """Handle 404 errors."""
-        return jsonify({"error": "Not found"}), 404
+        app.logger.warning(f"404 error: {request.url}")
+        return jsonify({"error": "Not found", "path": request.path}), 404
     
     @app.errorhandler(500)
     def server_error(e):
@@ -102,12 +121,18 @@ def create_app(test_config=None):
         app.logger.error(f"Server error: {str(e)}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
     
-    # Move the global exception handler inside the create_app function
+    # Global exception handler
     @app.errorhandler(Exception)
     def handle_exception(e):
         """Log all uncaught exceptions"""
         app.logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
+    
+    # Print out all routes at startup for debugging
+    with app.app_context():
+        print("Registered Routes:")
+        for rule in app.url_map.iter_rules():
+            print(f"{rule.endpoint}: {rule}")
     
     return app
 
