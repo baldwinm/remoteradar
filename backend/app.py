@@ -39,18 +39,11 @@ def create_app(test_config=None):
         # Load the test config if passed in
         app.config.from_mapping(test_config)
     
-    # Enable CORS with more comprehensive configuration
-    cors_origins = [
-        'https://remoteradar.net',  # Production domain
-        'http://localhost:3000',    # Local development
-        'https://www.remoteradar.net'  # WWW subdomain
-    ]
-    
-    # Modify CORS to handle multiple origins cleanly
+    # Enable CORS with maximum permissiveness 
     CORS(app, 
          resources={
-             r"/api/*": {
-                 "origins": cors_origins,
+             r"*": {
+                 "origins": "*",
                  "allow_headers": [
                      "Content-Type", 
                      "Authorization", 
@@ -59,9 +52,7 @@ def create_app(test_config=None):
                  "supports_credentials": True,
                  "methods": ["GET", "POST", "OPTIONS"]
              }
-         },
-         # Ensure only one origin is returned
-         origin_regex=True
+         }
     )
     
     # Set up logging
@@ -112,20 +103,14 @@ def create_app(test_config=None):
             "process_id": os.getpid()
         }), 200
     
-    # Preflight request handler for CORS using standard route method
+    # Preflight request handler for CORS
     @app.route('/api/city-image', methods=['OPTIONS'])
     def handle_preflight():
         """Handle CORS preflight requests for city image endpoint"""
-        # Get the requesting origin
-        origin = request.headers.get('Origin')
-        
-        # Create response
         response = make_response()
         
-        # Set CORS headers dynamically
-        if origin in cors_origins:
-            response.headers.add("Access-Control-Allow-Origin", origin)
-        
+        # Allow any origin
+        response.headers.add("Access-Control-Allow-Origin", "*")
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
         response.headers.add("Access-Control-Allow-Methods", "GET,OPTIONS")
         response.headers.add("Access-Control-Allow-Credentials", "true")

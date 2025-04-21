@@ -25,18 +25,24 @@ def register_images_routes(app, limiter):
     @app.route('/api/city-image', methods=['GET'])
     @limiter.limit("20 per minute")
     @cross_origin(
-        origins=['https://remoteradar.net', 'http://localhost:3000', 'https://www.remoteradar.net'],
+        origins=['*'],
         supports_credentials=True
     )
     def get_city_image():
         """Get a city map image using Mapbox Static Images API"""
-        # Log all incoming parameters for debugging
-        current_app.logger.info(f"City image request parameters: {dict(request.args)}")
+        # Extensive logging of all incoming parameters
+        logger.info(f"City image request received. Full args: {dict(request.args)}")
+        
+        # Log headers for debugging
+        logger.info(f"Request headers: {dict(request.headers)}")
         
         # Extract parameters with more robust error handling
         city = request.args.get('city', '').strip()
         country = request.args.get('country', '').strip()
         state = request.args.get('state', '').strip()
+        
+        # Log extracted parameters
+        logger.info(f"Extracted parameters - City: {city}, Country: {country}, State: {state}")
         
         # Get coordinates if provided, with improved error handling
         try:
@@ -44,17 +50,11 @@ def register_images_routes(app, limiter):
             lng = float(request.args.get('lng', '')) if request.args.get('lng') else None
         except (ValueError, TypeError):
             lat, lng = None, None
-            current_app.logger.warning("Invalid coordinates provided, will attempt to find coordinates")
-        
-        # Comprehensive logging of request details
-        log_message = f"City map image request received: city='{city}', state='{state}', country='{country}'"
-        if lat is not None and lng is not None:
-            log_message += f", coordinates=({lat}, {lng})"
-        current_app.logger.info(log_message)
+            logger.warning("Invalid coordinates provided, will attempt to find coordinates")
         
         # Validate city parameter
         if not city:
-            current_app.logger.warning("City map image request missing city parameter")
+            logger.warning("City map image request missing city parameter")
             return jsonify({
                 "error": "City parameter is required",
                 "success": False
@@ -85,12 +85,12 @@ def register_images_routes(app, limiter):
                         if not country and 'country' in city_info:
                             country = city_info.get('country', '')
                             
-                        current_app.logger.info(
+                        logger.info(
                             f"Found coordinates for {city}: ({lat}, {lng}), "
                             f"state: {state}, country: {country}"
                         )
                 except Exception as e:
-                    current_app.logger.warning(f"Error finding city coordinates: {str(e)}")
+                    logger.warning(f"Error finding city coordinates: {str(e)}")
                     # Continue without coordinates
             
             # Validate we have coordinates
@@ -110,20 +110,20 @@ def register_images_routes(app, limiter):
                 api_key=mapbox_api_key
             )
             
-            current_app.logger.info(f"Successfully retrieved Mapbox map image for {city}")
+            logger.info(f"Successfully retrieved Mapbox map image for {city}")
             
             # Create a response object for better control
             response = make_response(jsonify(image_data))
             
-            # Add CORS headers explicitly
-            response.headers.add('Access-Control-Allow-Origin', 'https://remoteradar.net')
+            # Explicitly set CORS headers
+            response.headers.add('Access-Control-Allow-Origin', '*')
             response.headers.add('Access-Control-Allow-Credentials', 'true')
             
             # Add caching headers
             return add_cache_headers(response, max_age=86400)  # Cache for 1 day
         
         except Exception as e:
-            current_app.logger.error(f"Error fetching city map image: {str(e)}", exc_info=True)
+            logger.error(f"Error fetching city map image: {str(e)}", exc_info=True)
             
             # Fallback to a simple city placeholder with more detailed error information
             try:
@@ -155,14 +155,14 @@ def register_images_routes(app, limiter):
                 # Create a response object for better control
                 response = make_response(jsonify(placeholder_data))
                 
-                # Add CORS headers explicitly
-                response.headers.add('Access-Control-Allow-Origin', 'https://remoteradar.net')
+                # Explicitly set CORS headers
+                response.headers.add('Access-Control-Allow-Origin', '*')
                 response.headers.add('Access-Control-Allow-Credentials', 'true')
                 
                 return add_cache_headers(response, max_age=3600)  # Cache for 1 hour only
             except Exception as fallback_error:
                 # If even the placeholder fails, return a more comprehensive error
-                current_app.logger.critical(f"Complete fallback error: {str(fallback_error)}")
+                logger.critical(f"Complete fallback error: {str(fallback_error)}")
                 return jsonify({
                     "error": "Multiple errors occurred while fetching city map image",
                     "original_error": str(e),
