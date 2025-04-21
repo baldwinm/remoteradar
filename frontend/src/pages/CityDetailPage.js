@@ -189,8 +189,6 @@ function CityDetailPage() {
   const cityName = city.name || '';
   const countryName = city.country || '';
   
-  // Log the render with city data
-  
   
   return (
     <ErrorBoundary>
@@ -290,6 +288,18 @@ function CityDetailPage() {
                     </div>
                     <div className="stat-label">Restaurants</div>
                   </div>
+                </div>
+                
+                {/* Buy Me a Coffee Button */}
+                <div className="support-container" style={{ marginTop: '2rem', textAlign: 'center' }}>
+                  <p style={{ marginBottom: '1rem' }}>Enjoying Remote Radar? Support this project:</p>
+                  <a href="https://buymeacoffee.com/remoteradar" target="_blank" rel="noopener noreferrer">
+                    <img 
+                      src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" 
+                      alt="Buy Me A Coffee" 
+                      style={{ height: '40px', width: 'auto' }} 
+                    />
+                  </a>
                 </div>
               </div>
             </div>
