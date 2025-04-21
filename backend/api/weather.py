@@ -30,11 +30,17 @@ def register_weather_routes(app, limiter):
         if units not in ['metric', 'imperial']:
             units = 'metric'  # Default to metric for invalid values
         
+        # Check if coordinates are directly provided in the query parameters
+        # This is a new direct approach that bypasses city lookup if coordinates are provided
+        direct_lat = request.args.get('lat')
+        direct_lng = request.args.get('lng')
+        
         # Enhanced logging with more context
         current_app.logger.info(f"WEATHER ENDPOINT CALLED")
         current_app.logger.info(f"Full Request Details:")
         current_app.logger.info(f"City ID: {city_id}")
         current_app.logger.info(f"Units: {units}")
+        current_app.logger.info(f"Direct coordinates: lat={direct_lat}, lng={direct_lng}")
         current_app.logger.info(f"Full Request Args: {dict(request.args)}")
         current_app.logger.info(f"Remote Address: {request.remote_addr}")
         current_app.logger.info(f"User Agent: {request.user_agent}")
@@ -49,9 +55,65 @@ def register_weather_routes(app, limiter):
                     "city_id": city_id
                 }), 400
             
+            # If direct coordinates are provided, use them directly
+            if direct_lat is not None and direct_lng is not None:
+                try:
+                    # Convert to float and validate
+                    lat = float(direct_lat)
+                    lng = float(direct_lng)
+                    
+                    if abs(lat) > 90 or abs(lng) > 180:
+                        current_app.logger.error(f"Direct coordinates out of valid range: lat={lat}, lng={lng}")
+                        return jsonify({
+                            "error": f"Coordinates out of valid range: lat={lat}, lng={lng}",
+                            "success": False,
+                        }), 400
+                    
+                    # If we have valid coordinates, use them directly for weather data
+                    current_app.logger.info(f"Using direct coordinates: lat={lat}, lng={lng}")
+                    
+                    # Get weather data
+                    weather_data = get_weather_data(
+                        lat=lat,
+                        lng=lng,
+                        units=units
+                    )
+                    
+                    # Check for error in weather data
+                    if 'error' in weather_data:
+                        current_app.logger.error(f"Error from weather service: {weather_data['error']}")
+                        return jsonify({
+                            "error": weather_data['error'],
+                            "success": False,
+                            "city_id": city_id,
+                            "coordinates": {"lat": lat, "lng": lng}
+                        }), 400
+                    
+                    # Return successful response
+                    response_data = {
+                        "success": True,
+                        "city_id": city_id,
+                        "city_name": city_id.replace('_', ' ').title(),  # Simple formatting for direct coord mode
+                        "weather": weather_data,
+                        "coordinates": {
+                            "lat": lat,
+                            "lng": lng
+                        },
+                        "note": "Using direct coordinates"
+                    }
+                    
+                    response = make_response(jsonify(response_data))
+                    return add_cache_headers(response, max_age=1800)  # Cache for 30 minutes
+                
+                except (ValueError, TypeError) as e:
+                    current_app.logger.error(f"Error parsing direct coordinates: {e}")
+                    # Fall back to city lookup if direct coordinates fail
+                    current_app.logger.info("Falling back to city lookup due to coordinate error")
+            
+            # If we get here, we need to look up the city
             # First, find city info
             search_term = city_id.split('_')[0].replace('_', ' ')
-            current_app.logger.info(f"Derived search term: '{search_term}'")
+            current_app.logger.info(f"Looking up city with search term: '{search_term}'")
             
             # Perform city search
             cities = search_city(search_term)
@@ -205,5 +267,3 @@ def register_weather_routes(app, limiter):
                     "full_trace": str(e)
                 }
             }), 500
-                
-                #

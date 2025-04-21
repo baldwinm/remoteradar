@@ -3,19 +3,23 @@ import React, { useState, useEffect } from 'react';
 import './WeatherWidget.css';
 import config from '../config'; // Import config
 
-const WeatherWidget = ({ cityId, units = 'metric' }) => {
+const WeatherWidget = ({ cityId, units = 'metric', onUnitsChange, lat, lng }) => {
   const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('current');
   
   console.group('WeatherWidget Initialization');
-  console.log('Props received:', { cityId, units });
+  console.log('Props received:', { cityId, units, lat, lng });
+  console.log('Config:', { 
+    API_URL: config.API_URL, 
+    env: config.ENVIRONMENT
+  });
   console.groupEnd();
   
   useEffect(() => {
     console.group('WeatherWidget Effect');
-    console.log('Effect triggered with:', { cityId, units });
+    console.log('Effect triggered with:', { cityId, units, lat, lng });
 
     if (!cityId) {
       console.warn('No cityId provided');
@@ -31,8 +35,15 @@ const WeatherWidget = ({ cityId, units = 'metric' }) => {
       setError(null);
       
       try {
-        // Use config for API URL instead of hardcoded value
-        const apiUrl = `${config.API_URL}/api/weather/${cityId}?units=${units}`;
+        // Construct URL with coordinates if available
+        let apiUrl;
+        if (lat && lng) {
+          // Send coordinates directly in the URL if available
+          apiUrl = `${config.API_URL}/api/weather/${cityId}?lat=${lat}&lng=${lng}&units=${units}`;
+        } else {
+          // Otherwise use the standard endpoint
+          apiUrl = `${config.API_URL}/api/weather/${cityId}?units=${units}`;
+        }
         
         console.group('Fetch Configuration');
         console.log('Full API URL:', apiUrl);
@@ -67,7 +78,8 @@ const WeatherWidget = ({ cityId, units = 'metric' }) => {
         const data = await response.json();
         
         console.group('Parsed Weather Data');
-        console.log('Received Data:', JSON.stringify(data, null, 2));
+        console.log('Data received:', !!data);
+        console.log('Weather data present:', !!(data && data.weather));
         console.groupEnd();
 
         if (!data || !data.weather) {
@@ -93,8 +105,13 @@ const WeatherWidget = ({ cityId, units = 'metric' }) => {
       }
     };
     
-    fetchWeatherData();
-  }, [cityId, units]);
+    // Add a small delay to ensure any other component updates finish first
+    const timer = setTimeout(() => {
+      fetchWeatherData();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [cityId, units, lat, lng]);
 
   // Handle loading state
   if (loading) {
@@ -113,6 +130,13 @@ const WeatherWidget = ({ cityId, units = 'metric' }) => {
         <div className="error-icon">⚠️</div>
         <p>Unable to load weather data</p>
         <div className="error-details">{error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="retry-button"
+          style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: '#3498db', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -179,8 +203,8 @@ const WeatherWidget = ({ cityId, units = 'metric' }) => {
       console.log(`Changing units from ${units} to ${newUnit}`);
       
       // If onUnitsChange prop is provided, call it
-      if (props.onUnitsChange) {
-        props.onUnitsChange(newUnit);
+      if (onUnitsChange) {
+        onUnitsChange(newUnit);
       } else {
         // If no callback provided, log a message
         console.log('No onUnitsChange callback provided');
@@ -232,7 +256,7 @@ const WeatherWidget = ({ cityId, units = 'metric' }) => {
         </button>
       </div>
       
-      {activeTab === 'current' && (
+      {activeTab === 'current' && current && (
         <div className="current-weather">
           <div className="weather-now">
             <div className="weather-icon">

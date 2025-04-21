@@ -1,10 +1,12 @@
 // src/pages/CityDetailPage.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect export default CityDetailPage; from 'react';
 import { useParams, Link } from 'react-router-dom';
 import PlacesList from '../components/PlacesList';
 import AccommodationWidget from '../components/AccommodationWidget';
 import CityImage from '../components/CityImage';
 import WeatherWidget from '../components/WeatherWidget';
+import WeatherErrorBoundary from '../components/WeatherErrorBoundary';
+import WeatherDebug from '../components/WeatherDebug'; // Import debug component
 import './CityDetailPage.css';
 import config from '../config';
 
@@ -48,6 +50,7 @@ function CityDetailPage() {
   const [occupants, setOccupants] = useState(1);
   const [loading, setLoading] = useState({ city: true, places: true, accommodation: true });
   const [error, setError] = useState({ city: null, places: null, accommodation: null });
+  const [showDebug, setShowDebug] = useState(false); // State for debug panel
   
   // Get the units parameter from URL query string (default to metric)
   const urlParams = new URLSearchParams(window.location.search);
@@ -215,6 +218,11 @@ function CityDetailPage() {
   // Log the render with city data
   console.log("Rendering CityDetailPage with city:", city);
   
+  // Toggle debug panel
+  const toggleDebug = () => {
+    setShowDebug(!showDebug);
+  };
+  
   return (
     <ErrorBoundary>
       <div className="city-detail-page">
@@ -229,14 +237,56 @@ function CityDetailPage() {
         {/* City Image Section */}
         <CityImage cityName={cityName} countryName={countryName} />
 
-        {/* Weather Widget - Pass cityId, units and onUnitsChange handler */}
+        {/* Debug button (only in development mode) */}
+        {config.DEBUG && (
+          <div style={{ textAlign: 'center', margin: '1rem 0' }}>
+            <button 
+              onClick={toggleDebug}
+              style={{ 
+                padding: '0.5rem 1rem', 
+                background: '#f8f9fa', 
+                border: '1px solid #dee2e6',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              {showDebug ? 'Hide Debug Panel' : 'Show Debug Panel'}
+            </button>
+          </div>
+        )}
+
+        {/* Weather Debug Panel (only shown if showDebug is true) */}
+        {config.DEBUG && showDebug && (
+          <WeatherDebug 
+            cityId={cityId} 
+            units={units} 
+            lat={city.lat} 
+            lng={city.lng} 
+          />
+        )}
+
+        {/* Weather Widget with Error Boundary */}
         <div className="content-row">
           <div className="content-section">
-            <WeatherWidget 
-              cityId={cityId} 
-              units={units} 
-              onUnitsChange={handleUnitsChange} 
-            />
+            <WeatherErrorBoundary>
+              {city && city.lat && city.lng ? (
+                <WeatherWidget 
+                  cityId={cityId} 
+                  units={units} 
+                  onUnitsChange={handleUnitsChange}
+                  lat={city.lat}
+                  lng={city.lng}
+                />
+              ) : (
+                <div className="weather-widget error">
+                  <div className="error-icon">⚠️</div>
+                  <p>Cannot load weather data</p>
+                  <div className="error-details">
+                    No valid coordinates available for this city
+                  </div>
+                </div>
+              )}
+            </WeatherErrorBoundary>
           </div>
         </div>
 
@@ -327,7 +377,9 @@ function CityDetailPage() {
             <pre>{JSON.stringify({
               cityId,
               coordinates: { lat: city.lat, lng: city.lng },
-              units
+              units,
+              apiUrl: config.API_URL,
+              environment: config.ENVIRONMENT
             }, null, 2)}</pre>
           </div>
         )}
@@ -335,5 +387,3 @@ function CityDetailPage() {
     </ErrorBoundary>
   );
 }
-
-export default CityDetailPage;
