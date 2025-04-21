@@ -159,55 +159,88 @@ def process_simplified_weather_data(data: Dict[str, Any], units: str) -> Dict[st
     Returns:
         Processed weather data
     """
+    # Extensive logging for debugging
+    logger.debug(f"Processing weather data: {data}")
+    
+    # Validate input data
+    if not data or 'current' not in data or 'daily' not in data:
+        logger.error("Invalid or incomplete weather data received")
+        return {
+            'error': 'No weather data available',
+            'current': {},
+            'daily': [],
+            'units': units
+        }
+    
     # Extract current weather
     current = data.get('current', {})
     
     # Get weather code
-    weather_code = current.get('weather_code')
-    
-    # Get condition description
-    condition = get_weather_condition(weather_code)
-    
-    current_weather = {
-        'temp': current.get('temperature_2m'),
-        'feels_like': current.get('apparent_temperature'),
-        'humidity': current.get('relative_humidity_2m'),
-        'weather': condition,
-        'description': condition,
-        'weather_code': weather_code,
-    }
+    try:
+        weather_code = current.get('weather_code')
+        
+        # Get condition description
+        condition = get_weather_condition(weather_code)
+        
+        current_weather = {
+            'temp': current.get('temperature_2m', 'N/A'),
+            'feels_like': current.get('apparent_temperature', 'N/A'),
+            'humidity': current.get('relative_humidity_2m', 'N/A'),
+            'weather': condition,
+            'description': condition,
+            'weather_code': weather_code,
+        }
+    except Exception as e:
+        logger.error(f"Error processing current weather: {e}")
+        current_weather = {
+            'temp': 'N/A',
+            'feels_like': 'N/A',
+            'humidity': 'N/A',
+            'weather': 'Unknown',
+            'description': 'Unknown',
+            'weather_code': None,
+        }
     
     # Process daily forecast
     daily = data.get('daily', {})
     dates = daily.get('time', [])
     daily_data = []
     
-    for i in range(len(dates)):
-        weather_code = daily.get('weather_code', [])[i] if i < len(daily.get('weather_code', [])) else None
-        condition = get_weather_condition(weather_code)
-        
-        day_data = {
-            'date': dates[i],
-            'day_name': datetime.strptime(dates[i], '%Y-%m-%d').strftime('%A'),
-            'temp_max': daily.get('temperature_2m_max', [])[i] if i < len(daily.get('temperature_2m_max', [])) else None,
-            'temp_min': daily.get('temperature_2m_min', [])[i] if i < len(daily.get('temperature_2m_min', [])) else None,
-            'feels_like_max': daily.get('apparent_temperature_max', [])[i] if i < len(daily.get('apparent_temperature_max', [])) else None,
-            'feels_like_min': daily.get('apparent_temperature_min', [])[i] if i < len(daily.get('apparent_temperature_min', [])) else None,
-            'condition': condition,
-            'weather_code': weather_code,
-        }
-        
-        daily_data.append(day_data)
+    try:
+        for i in range(len(dates)):
+            try:
+                weather_code = daily.get('weather_code', [])[i] if i < len(daily.get('weather_code', [])) else None
+                condition = get_weather_condition(weather_code)
+                
+                day_data = {
+                    'date': dates[i],
+                    'day_name': datetime.strptime(dates[i], '%Y-%m-%d').strftime('%A'),
+                    'temp_max': daily.get('temperature_2m_max', [])[i] if i < len(daily.get('temperature_2m_max', [])) else 'N/A',
+                    'temp_min': daily.get('temperature_2m_min', [])[i] if i < len(daily.get('temperature_2m_min', [])) else 'N/A',
+                    'feels_like_max': daily.get('apparent_temperature_max', [])[i] if i < len(daily.get('apparent_temperature_max', [])) else 'N/A',
+                    'feels_like_min': daily.get('apparent_temperature_min', [])[i] if i < len(daily.get('apparent_temperature_min', [])) else 'N/A',
+                    'condition': condition,
+                    'weather_code': weather_code,
+                }
+                
+                daily_data.append(day_data)
+            except Exception as day_err:
+                logger.error(f"Error processing daily forecast for index {i}: {day_err}")
+    except Exception as e:
+        logger.error(f"Error processing daily forecast: {e}")
     
     # Build result (only include current and next two days)
     result = {
         'current': current_weather,
         'daily': daily_data[:3],  # Only include current and next two days
         'units': units,
-        'latitude': data.get('latitude'),
-        'longitude': data.get('longitude'),
-        'timezone': data.get('timezone'),
+        'latitude': data.get('latitude', 'N/A'),
+        'longitude': data.get('longitude', 'N/A'),
+        'timezone': data.get('timezone', 'N/A'),
     }
+    
+    # Log the final processed result for debugging
+    logger.debug(f"Processed weather data: {result}")
     
     return result
 
