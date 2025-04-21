@@ -91,8 +91,8 @@ def create_app(test_config=None):
             app.logger.error(f"Error cleaning cache: {str(e)}", exc_info=True)
             return jsonify({"success": False, "error": str(e)}), 500
     
-    # Preflight request handler for CORS
-    @app.options('/api/city-image')
+    # Preflight request handler for CORS using standard route method
+    @app.route('/api/city-image', methods=['OPTIONS'])
     def handle_preflight():
         """Handle CORS preflight requests for city image endpoint"""
         response = make_response()
