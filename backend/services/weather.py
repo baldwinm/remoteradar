@@ -75,7 +75,7 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
             params['temperature_unit'] = 'fahrenheit'
         
         # Log full request parameters for debugging
-        logger.debug(f"Open-Meteo API Request Parameters: {params}")
+        logger.info(f"Open-Meteo API Request Parameters: {params}")
         
         # Make API request with comprehensive error handling
         try:
@@ -86,7 +86,8 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
             )
             
             # Log full response details
-            logger.debug(f"API Response Status: {response.status_code}")
+            logger.info(f"API Response Status: {response.status_code}")
+            logger.info(f"API Response Headers: {response.headers}")
             
             # Handle non-200 response
             if response.status_code != 200:
@@ -101,6 +102,7 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
             # Parse JSON response
             try:
                 data = response.json()
+                logger.info(f"Parsed JSON Response: {data}")
             except ValueError as json_err:
                 logger.error(f"Failed to parse JSON response: {json_err}")
                 logger.error(f"Response text: {response.text}")
@@ -160,7 +162,7 @@ def process_simplified_weather_data(data: Dict[str, Any], units: str) -> Dict[st
         Processed weather data
     """
     # Extensive logging for debugging
-    logger.debug(f"Processing weather data: {data}")
+    logger.info(f"Processing weather data: {data}")
     
     # Validate input data
     if not data or 'current' not in data or 'daily' not in data:
@@ -178,9 +180,11 @@ def process_simplified_weather_data(data: Dict[str, Any], units: str) -> Dict[st
     # Get weather code
     try:
         weather_code = current.get('weather_code')
+        logger.info(f"Weather Code: {weather_code}")
         
         # Get condition description
         condition = get_weather_condition(weather_code)
+        logger.info(f"Weather Condition: {condition}")
         
         current_weather = {
             'temp': current.get('temperature_2m', 'N/A'),
@@ -190,6 +194,8 @@ def process_simplified_weather_data(data: Dict[str, Any], units: str) -> Dict[st
             'description': condition,
             'weather_code': weather_code,
         }
+        
+        logger.info(f"Current Weather: {current_weather}")
     except Exception as e:
         logger.error(f"Error processing current weather: {e}")
         current_weather = {
@@ -224,6 +230,7 @@ def process_simplified_weather_data(data: Dict[str, Any], units: str) -> Dict[st
                 }
                 
                 daily_data.append(day_data)
+                logger.info(f"Daily Forecast Day {i}: {day_data}")
             except Exception as day_err:
                 logger.error(f"Error processing daily forecast for index {i}: {day_err}")
     except Exception as e:
@@ -240,7 +247,7 @@ def process_simplified_weather_data(data: Dict[str, Any], units: str) -> Dict[st
     }
     
     # Log the final processed result for debugging
-    logger.debug(f"Processed weather data: {result}")
+    logger.info(f"Final Processed Weather Data: {result}")
     
     return result
 
