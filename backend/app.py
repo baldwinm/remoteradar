@@ -101,6 +101,7 @@ def create_app(test_config=None):
     @limiter.limit("500 per minute")  # Increased rate limit for health checks
     def health_check():
         """Health check endpoint with multiple route support."""
+        # Directly use app.logger instead of current_app
         app.logger.info(f"Health check from IP: {request.remote_addr}")
         return jsonify({
             "status": "ok", 
