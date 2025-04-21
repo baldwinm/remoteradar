@@ -61,7 +61,7 @@ def create_app(test_config=None):
     # Set up logging
     setup_logging(app)
     
-    # Initialize rate limiter
+    # Initialize rate limiter with more flexible storage
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
@@ -102,8 +102,9 @@ def create_app(test_config=None):
         response.headers.add("Access-Control-Allow-Credentials", "true")
         return response
     
-    # Health check endpoint
+    # Health check endpoint with very permissive rate limiting
     @app.route('/api/health')
+    @limiter.limit("500 per minute")  # Increased rate limit for health checks
     def health_check():
         """Health check endpoint."""
         return jsonify({"status": "ok"})
@@ -118,6 +119,16 @@ def create_app(test_config=None):
             return app.send_static_file(path)
         else:
             return app.send_static_file('index.html')
+    
+    # Generic error handler for rate limiting
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        """Handle rate limiting errors gracefully"""
+        app.logger.warning(f"Rate limit exceeded: {str(e)}")
+        return jsonify({
+            "error": "Too many requests", 
+            "message": "Please slow down and try again later"
+        }), 429
     
     # Generic error handler
     @app.errorhandler(404)
