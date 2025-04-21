@@ -1,9 +1,10 @@
 # api/images.py
-from flask import Blueprint, jsonify, request, make_response, current_app
-import logging
 import os
 import sys
 import time
+import logging
+from flask import Blueprint, jsonify, request, make_response, current_app
+from flask_cors import cross_origin
 
 # Add parent directory to path if needed
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -23,6 +24,10 @@ def register_images_routes(app, limiter):
     
     @app.route('/api/city-image', methods=['GET'])
     @limiter.limit("20 per minute")
+    @cross_origin(
+        origins=['https://remoteradar.net', 'http://localhost:3000', 'https://www.remoteradar.net'],
+        supports_credentials=True
+    )
     def get_city_image():
         """Get a city map image using Mapbox Static Images API"""
         # Extract parameters with more robust error handling
@@ -104,8 +109,14 @@ def register_images_routes(app, limiter):
             
             current_app.logger.info(f"Successfully retrieved Mapbox map image for {city}")
             
-            # Add caching headers
+            # Create a response object for better control
             response = make_response(jsonify(image_data))
+            
+            # Add CORS headers explicitly
+            response.headers.add('Access-Control-Allow-Origin', 'https://remoteradar.net')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            
+            # Add caching headers
             return add_cache_headers(response, max_age=86400)  # Cache for 1 day
         
         except Exception as e:
@@ -138,7 +149,13 @@ def register_images_routes(app, limiter):
                     "timestamp": time.time()
                 }
                 
+                # Create a response object for better control
                 response = make_response(jsonify(placeholder_data))
+                
+                # Add CORS headers explicitly
+                response.headers.add('Access-Control-Allow-Origin', 'https://remoteradar.net')
+                response.headers.add('Access-Control-Allow-Credentials', 'true')
+                
                 return add_cache_headers(response, max_age=3600)  # Cache for 1 hour only
             except Exception as fallback_error:
                 # If even the placeholder fails, return a more comprehensive error

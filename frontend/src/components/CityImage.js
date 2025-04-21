@@ -32,7 +32,16 @@ function CityImage({ cityName, countryName, state }) {
         const apiUrl = `/api/city-image?${params.toString()}`;
         console.log(`Fetching city image from: ${apiUrl}`);
         
-        const response = await fetch(apiUrl);
+        // Explicitly set credentials
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Origin': 'https://remoteradar.net'
+          }
+        });
         
         // Log the response status
         console.log(`City image API response status: ${response.status}`);

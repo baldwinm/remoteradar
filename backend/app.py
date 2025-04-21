@@ -37,8 +37,26 @@ def create_app(test_config=None):
         # Load the test config if passed in
         app.config.from_mapping(test_config)
     
-    # Enable CORS with more permissive settings
-    CORS(app, resources={r"/*": {"origins": "*"}})
+    # Enable CORS with more comprehensive configuration
+    cors_origins = [
+        'https://remoteradar.net',  # Production domain
+        'http://localhost:3000',    # Local development
+        'https://www.remoteradar.net'  # WWW subdomain
+    ]
+    
+    CORS(app, 
+         resources={
+             r"/api/*": {
+                 "origins": cors_origins,
+                 "allow_headers": [
+                     "Content-Type", 
+                     "Authorization", 
+                     "Access-Control-Allow-Credentials"
+                 ],
+                 "supports_credentials": True
+             }
+         }
+    )
     
     # Set up logging
     setup_logging(app)
@@ -73,16 +91,22 @@ def create_app(test_config=None):
             app.logger.error(f"Error cleaning cache: {str(e)}", exc_info=True)
             return jsonify({"success": False, "error": str(e)}), 500
     
-    # Health check endpoint with comprehensive logging
-    @app.route('/health', methods=['GET'])
+    # Preflight request handler for CORS
+    @app.options('/api/city-image')
+    def handle_preflight():
+        """Handle CORS preflight requests for city image endpoint"""
+        response = make_response()
+        response.headers.add("Access-Control-Allow-Origin", request.headers.get('Origin'))
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+        response.headers.add("Access-Control-Allow-Methods", "GET,OPTIONS")
+        response.headers.add("Access-Control-Allow-Credentials", "true")
+        return response
+    
+    # Health check endpoint
+    @app.route('/api/health')
     def health_check():
-        """Health check endpoint with detailed logging."""
-        try:
-            app.logger.info(f"Health check from IP: {request.remote_addr}")
-            return jsonify({"status": "ok", "message": "Application is running"}), 200
-        except Exception as e:
-            app.logger.error(f"Error in health check: {str(e)}", exc_info=True)
-            return jsonify({"status": "error", "message": str(e)}), 500
+        """Health check endpoint."""
+        return jsonify({"status": "ok"})
     
     # Serve index.html for all routes (for SPA)
     @app.route('/', defaults={'path': ''})
@@ -95,25 +119,11 @@ def create_app(test_config=None):
         else:
             return app.send_static_file('index.html')
     
-    # Debugging route to print all registered routes
-    @app.route('/debug/routes')
-    def list_routes():
-        """List all registered routes."""
-        routes = []
-        for rule in app.url_map.iter_rules():
-            routes.append({
-                'endpoint': rule.endpoint,
-                'methods': list(rule.methods),
-                'route': str(rule)
-            })
-        return jsonify(routes)
-    
     # Generic error handler
     @app.errorhandler(404)
     def not_found(e):
         """Handle 404 errors."""
-        app.logger.warning(f"404 error: {request.url}")
-        return jsonify({"error": "Not found", "path": request.path}), 404
+        return jsonify({"error": "Not found"}), 404
     
     @app.errorhandler(500)
     def server_error(e):
@@ -127,12 +137,6 @@ def create_app(test_config=None):
         """Log all uncaught exceptions"""
         app.logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
-    
-    # Print out all routes at startup for debugging
-    with app.app_context():
-        print("Registered Routes:")
-        for rule in app.url_map.iter_rules():
-            print(f"{rule.endpoint}: {rule}")
     
     return app
 
