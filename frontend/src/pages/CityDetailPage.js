@@ -5,12 +5,10 @@ import PlacesList from '../components/PlacesList';
 import AccommodationWidget from '../components/AccommodationWidget';
 import CityImage from '../components/CityImage';
 import WeatherWidget from '../components/WeatherWidget';
-import WeatherErrorBoundary from '../components/WeatherErrorBoundary';
-import WeatherDebug from '../components/WeatherDebug'; // Import debug component
 import './CityDetailPage.css';
 import config from '../config';
 
-// Error Boundary component
+// Simple Error Boundary component
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -50,7 +48,6 @@ function CityDetailPage() {
   const [occupants, setOccupants] = useState(1);
   const [loading, setLoading] = useState({ city: true, places: true, accommodation: true });
   const [error, setError] = useState({ city: null, places: null, accommodation: null });
-  const [showDebug, setShowDebug] = useState(false); // State for debug panel
   
   // Get the units parameter from URL query string (default to metric)
   const urlParams = new URLSearchParams(window.location.search);
@@ -74,17 +71,13 @@ function CityDetailPage() {
     }
   };
 
-  // Log component mounting and the cityId
-  console.log("CityDetailPage mounted with cityId:", cityId);
-
   // Fetch city data
   useEffect(() => {
     async function fetchCityData() {
       setLoading(prev => ({ ...prev, city: true }));
       try {
         console.log(`Fetching city data for ${cityId}`);
-        // Use config for API URL
-        const response = await fetch(config.endpoints.PLACES(cityId));
+        const response = await fetch(`/api/places/${cityId}`);
         
         if (!response.ok) {
           const errorText = await response.text();
@@ -101,7 +94,6 @@ function CityDetailPage() {
         }
         
         // Extract city info from places data
-        // IMPORTANT: Include lat/lng coordinates from the places data
         const cityInfo = {
           id: cityId,
           name: data.city_name,
@@ -139,8 +131,7 @@ function CityDetailPage() {
       setLoading(prev => ({ ...prev, accommodation: true }));
       try {
         console.log(`Fetching accommodation data for ${cityId} with ${occupants} occupants`);
-        // Use config for API URL
-        const response = await fetch(config.endpoints.ACCOMMODATION(cityId, occupants));
+        const response = await fetch(`/api/accommodation/${cityId}?occupants=${occupants}`);
         
         if (!response.ok) {
           const errorText = await response.text();
@@ -154,18 +145,6 @@ function CityDetailPage() {
         if (!data || !data.accommodations) {
           console.error("Invalid accommodation data format:", data);
           throw new Error("Invalid accommodation data received from API");
-        }
-        
-        // Update city coordinates if they're available in the accommodation data
-        if (data.accommodations && data.accommodations.length > 0) {
-          const firstAccommodation = data.accommodations[0];
-          if (firstAccommodation.lat && firstAccommodation.lng) {
-            setCity(prev => ({
-              ...prev,
-              lat: firstAccommodation.lat,
-              lng: firstAccommodation.lng
-            }));
-          }
         }
         
         setAccommodationData(data);
@@ -215,14 +194,6 @@ function CityDetailPage() {
   const cityName = city.name || '';
   const countryName = city.country || '';
   
-  // Log the render with city data
-  console.log("Rendering CityDetailPage with city:", city);
-  
-  // Toggle debug panel
-  const toggleDebug = () => {
-    setShowDebug(!showDebug);
-  };
-  
   return (
     <ErrorBoundary>
       <div className="city-detail-page">
@@ -237,56 +208,16 @@ function CityDetailPage() {
         {/* City Image Section */}
         <CityImage cityName={cityName} countryName={countryName} />
 
-        {/* Debug button (only in development mode) */}
-        {config.DEBUG && (
-          <div style={{ textAlign: 'center', margin: '1rem 0' }}>
-            <button 
-              onClick={toggleDebug}
-              style={{ 
-                padding: '0.5rem 1rem', 
-                background: '#f8f9fa', 
-                border: '1px solid #dee2e6',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              {showDebug ? 'Hide Debug Panel' : 'Show Debug Panel'}
-            </button>
-          </div>
-        )}
-
-        {/* Weather Debug Panel (only shown if showDebug is true) */}
-        {config.DEBUG && showDebug && (
-          <WeatherDebug 
-            cityId={cityId} 
-            units={units} 
-            lat={city.lat} 
-            lng={city.lng} 
-          />
-        )}
-
-        {/* Weather Widget with Error Boundary */}
+        {/* Simple Weather Widget */}
         <div className="content-row">
           <div className="content-section">
-            <WeatherErrorBoundary>
-              {city && city.lat && city.lng ? (
-                <WeatherWidget 
-                  cityId={cityId} 
-                  units={units} 
-                  onUnitsChange={handleUnitsChange}
-                  lat={city.lat}
-                  lng={city.lng}
-                />
-              ) : (
-                <div className="weather-widget error">
-                  <div className="error-icon">⚠️</div>
-                  <p>Cannot load weather data</p>
-                  <div className="error-details">
-                    No valid coordinates available for this city
-                  </div>
-                </div>
-              )}
-            </WeatherErrorBoundary>
+            <WeatherWidget 
+              cityId={cityId} 
+              units={units} 
+              onUnitsChange={handleUnitsChange}
+              lat={city.lat}
+              lng={city.lng}
+            />
           </div>
         </div>
 
@@ -369,20 +300,6 @@ function CityDetailPage() {
             </div>
           </div>
         </div>
-
-        {/* Add a debug section for coordinates (can be removed in production) */}
-        {config.DEBUG && (
-          <div className="debug-info">
-            <h3>Debug Information</h3>
-            <pre>{JSON.stringify({
-              cityId,
-              coordinates: { lat: city.lat, lng: city.lng },
-              units,
-              apiUrl: config.API_URL,
-              environment: config.ENVIRONMENT
-            }, null, 2)}</pre>
-          </div>
-        )}
       </div>
     </ErrorBoundary>
   );
