@@ -13,3 +13,6 @@ python-json-logger==2.0.7  # For structured JSON logging
 
 # For production deployment
 gunicorn==20.1.0
+
+# Remove sqlalchemy or add it if you need it
+# SQLAlchemy==2.0.19

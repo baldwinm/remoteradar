@@ -5,8 +5,6 @@ from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 # Import API route registrations
 from api.cities import register_cities_routes
@@ -28,7 +26,6 @@ def create_app(test_config=None):
     # Configure app
     app.config.from_mapping(
         SECRET_KEY=os.environ.get('SECRET_KEY', 'dev'),
-        DATABASE=os.environ.get('DATABASE_URL', 'sqlite:///instance/remote-radar.sqlite'),
         ENV=os.environ.get('FLASK_ENV', 'development'),
     )
     
@@ -107,7 +104,9 @@ def create_app(test_config=None):
     
     return app
 
+# If using wsgi.py, this allows direct execution of this file
+app = create_app()
+
 if __name__ == '__main__':
-    app = create_app()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=app.config['ENV'] == 'development')
