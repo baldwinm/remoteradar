@@ -313,6 +313,41 @@
   font-size: 0.8rem;
 }
 
+/* Buy Me a Coffee Button Styling */
+.support-container {
+  margin-top: 2rem;
+  text-align: center;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.coffee-button {
+  display: inline-block;
+  background-color: #5F7FFF;
+  color: white !important;
+  padding: 10px 20px;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: bold;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  border: none;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.coffee-button:hover {
+  background-color: #4a6ae0;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  color: white !important;
+  text-decoration: none;
+}
+
+.coffee-button:active {
+  transform: translateY(1px);
+}
+
 /* Responsive adjustments */
 @media (min-width: 768px) {
   .city-detail-page {

@@ -291,14 +291,18 @@ function CityDetailPage() {
                 </div>
                 
                 {/* Buy Me a Coffee Button */}
-                <div className="support-container" style={{ marginTop: '2rem', textAlign: 'center' }}>
-                  <p style={{ marginBottom: '1rem' }}>Enjoying Remote Radar? Support this project:</p>
-                  <a href="https://buymeacoffee.com/remoteradar" target="_blank" rel="noopener noreferrer">
-                    <img 
-                      src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" 
-                      alt="Buy Me A Coffee" 
-                      style={{ height: '40px', width: 'auto' }} 
-                    />
+                <div className="support-container">
+                  <p style={{ marginBottom: '1rem', fontSize: '1rem', color: '#2c3e50' }}>
+                    Enjoying Remote Radar? Support this project:
+                  </p>
+                  <a 
+                    href="https://buymeacoffee.com/remoteradar" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="coffee-button"
+                  >
+                    <span style={{ marginRight: '10px' }}>☕</span>
+                    Buy me a coffee
                   </a>
                 </div>
               </div>
