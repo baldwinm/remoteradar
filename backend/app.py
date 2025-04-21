@@ -6,7 +6,7 @@ from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_limiter.errors import RateLimitExceeded  # Updated import
+from flask_limiter.errors import RateLimitExceeded
 
 # Import API route registrations
 from api.cities import register_cities_routes
@@ -46,6 +46,7 @@ def create_app(test_config=None):
         'https://www.remoteradar.net'  # WWW subdomain
     ]
     
+    # Modify CORS to handle multiple origins cleanly
     CORS(app, 
          resources={
              r"/api/*": {
@@ -55,9 +56,12 @@ def create_app(test_config=None):
                      "Authorization", 
                      "Access-Control-Allow-Credentials"
                  ],
-                 "supports_credentials": True
+                 "supports_credentials": True,
+                 "methods": ["GET", "POST", "OPTIONS"]
              }
-         }
+         },
+         # Ensure only one origin is returned
+         origin_regex=True
     )
     
     # Set up logging
@@ -112,11 +116,20 @@ def create_app(test_config=None):
     @app.route('/api/city-image', methods=['OPTIONS'])
     def handle_preflight():
         """Handle CORS preflight requests for city image endpoint"""
+        # Get the requesting origin
+        origin = request.headers.get('Origin')
+        
+        # Create response
         response = make_response()
-        response.headers.add("Access-Control-Allow-Origin", request.headers.get('Origin'))
+        
+        # Set CORS headers dynamically
+        if origin in cors_origins:
+            response.headers.add("Access-Control-Allow-Origin", origin)
+        
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
         response.headers.add("Access-Control-Allow-Methods", "GET,OPTIONS")
         response.headers.add("Access-Control-Allow-Credentials", "true")
+        
         return response
     
     # Serve index.html for all routes (for SPA)

@@ -37,13 +37,15 @@ function CityImage({ cityName, countryName, state }) {
         const apiUrl = `/api/city-image?${params.toString()}`;
         console.log(`Fetching city image from: ${apiUrl}`);
         
-        // Fetch with comprehensive error handling
+        // Fetch with comprehensive error handling and CORS configuration
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
+            'Content-Type': 'application/json',
+            'Origin': 'https://remoteradar.net'
+          },
+          credentials: 'include'  // Important for CORS with credentials
         });
         
         // Log the full response for debugging
@@ -57,7 +59,9 @@ function CityImage({ cityName, countryName, state }) {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`Error response from city-image API: ${errorText}`);
-          throw new Error(`Failed to fetch city image: ${response.status} ${response.statusText}`);
+          
+          // Provide more detailed error information
+          throw new Error(`Failed to fetch city image: ${response.status} ${response.statusText} - ${errorText}`);
         }
         
         // Parse the JSON
