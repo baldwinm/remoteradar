@@ -1,7 +1,7 @@
 # app.py
 import os
 import logging
-from flask import Flask, jsonify, request, make_response
+from flask import Flask, jsonify, request, make_response, current_app
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -97,8 +97,12 @@ def create_app(test_config=None):
     @limiter.limit("500 per minute")  # Increased rate limit for health checks
     def health_check():
         """Health check endpoint with multiple route support."""
-        current_app.logger.info(f"Health check from IP: {request.remote_addr}")
-        return jsonify({"status": "ok", "timestamp": os.getpid()}), 200
+        app.logger.info(f"Health check from IP: {request.remote_addr}")
+        return jsonify({
+            "status": "ok", 
+            "timestamp": int(time.time()),
+            "process_id": os.getpid()
+        }), 200
     
     # Preflight request handler for CORS using standard route method
     @app.route('/api/city-image', methods=['OPTIONS'])
