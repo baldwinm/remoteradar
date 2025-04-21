@@ -103,6 +103,12 @@ def create_app(test_config=None):
         return jsonify({"error": "Internal server error"}), 500
     
     return app
+ 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Log all uncaught exceptions"""
+    app.logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
+    return jsonify({"error": "Internal server error", "details": str(e)}), 500  
 
 # If using wsgi.py, this allows direct execution of this file
 app = create_app()

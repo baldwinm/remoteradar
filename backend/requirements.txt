@@ -2,7 +2,7 @@
 Flask==2.0.1
 Werkzeug==2.0.1
 flask-cors==3.0.10
-requests==2.28.2
+requests==2.31.0
 python-dotenv==1.0.0
 flask-limiter==3.1.0
 limits==2.8.0
