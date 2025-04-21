@@ -387,3 +387,5 @@ function CityDetailPage() {
     </ErrorBoundary>
   );
 }
+
+export default CityDetailPage;
