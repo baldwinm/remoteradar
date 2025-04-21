@@ -60,13 +60,12 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
                 logger.debug(f"Using cached weather data for {cache_key}")
                 return cache_entry.get('data', {})
         
-        # Prepare API request parameters
+        # Prepare simplified API request parameters
         params = {
             'latitude': lat,
             'longitude': lng,
-            'current': 'temperature,relative_humidity,apparent_temperature,is_day,precipitation,rain,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m',
-            'hourly': 'temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,cloud_cover,wind_speed_10m',
-            'daily': 'weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,sunrise,sunset,precipitation_sum,precipitation_probability_max,wind_speed_10m_max',
+            'current': 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code',
+            'daily': 'weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min',
             'timezone': 'auto',
             'forecast_days': 3
         }
@@ -74,8 +73,6 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
         # Add temperature unit parameter based on units
         if units == 'imperial':
             params['temperature_unit'] = 'fahrenheit'
-            params['wind_speed_unit'] = 'mph'
-            params['precipitation_unit'] = 'inch'
         
         # Log full request parameters for debugging
         logger.debug(f"Open-Meteo API Request Parameters: {params}")
@@ -90,8 +87,6 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
             
             # Log full response details
             logger.debug(f"API Response Status: {response.status_code}")
-            logger.debug(f"API Response Headers: {dict(response.headers)}")
-            logger.debug(f"API Response Text: {response.text}")
             
             # Handle non-200 response
             if response.status_code != 200:
@@ -115,7 +110,7 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
                 }
             
             # Validate response structure
-            required_keys = ['current', 'hourly', 'daily']
+            required_keys = ['current', 'daily']
             for key in required_keys:
                 if key not in data:
                     logger.error(f"Missing required key in response: {key}")
@@ -125,7 +120,7 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
                     }
             
             # Process the API response
-            processed_data = process_weather_data(data, units)
+            processed_data = process_simplified_weather_data(data, units)
             
             # Cache the result
             _cache[cache_key] = {
@@ -152,9 +147,10 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
                 "units": units
             }
         }
-def process_weather_data(data: Dict[str, Any], units: str) -> Dict[str, Any]:
+
+def process_simplified_weather_data(data: Dict[str, Any], units: str) -> Dict[str, Any]:
     """
-    Process raw API response into a more usable format
+    Process raw API response into a more usable format with simplified data
     
     Args:
         data: Raw API response
@@ -166,27 +162,19 @@ def process_weather_data(data: Dict[str, Any], units: str) -> Dict[str, Any]:
     # Extract current weather
     current = data.get('current', {})
     
-    # Get weather code and is_day flag
+    # Get weather code
     weather_code = current.get('weather_code')
-    is_day = current.get('is_day', 1)
     
     # Get condition description
     condition = get_weather_condition(weather_code)
     
     current_weather = {
-        'temp': current.get('temperature'),
+        'temp': current.get('temperature_2m'),
         'feels_like': current.get('apparent_temperature'),
-        'humidity': current.get('relative_humidity'),
-        'pressure': current.get('pressure_msl'),
+        'humidity': current.get('relative_humidity_2m'),
         'weather': condition,
         'description': condition,
         'weather_code': weather_code,
-        'wind_speed': current.get('wind_speed_10m'),
-        'wind_direction': current.get('wind_direction_10m'),
-        'clouds': current.get('cloud_cover'),
-        'precipitation': current.get('precipitation'),
-        'timestamp': data.get('current', {}).get('time'),
-        'is_day': bool(is_day),
     }
     
     # Process daily forecast
@@ -205,57 +193,20 @@ def process_weather_data(data: Dict[str, Any], units: str) -> Dict[str, Any]:
             'temp_min': daily.get('temperature_2m_min', [])[i] if i < len(daily.get('temperature_2m_min', [])) else None,
             'feels_like_max': daily.get('apparent_temperature_max', [])[i] if i < len(daily.get('apparent_temperature_max', [])) else None,
             'feels_like_min': daily.get('apparent_temperature_min', [])[i] if i < len(daily.get('apparent_temperature_min', [])) else None,
-            'sunrise': daily.get('sunrise', [])[i] if i < len(daily.get('sunrise', [])) else None,
-            'sunset': daily.get('sunset', [])[i] if i < len(daily.get('sunset', [])) else None,
-            'precipitation_sum': daily.get('precipitation_sum', [])[i] if i < len(daily.get('precipitation_sum', [])) else None,
-            'precipitation_probability': daily.get('precipitation_probability_max', [])[i] if i < len(daily.get('precipitation_probability_max', [])) else None,
-            'wind_speed': daily.get('wind_speed_10m_max', [])[i] if i < len(daily.get('wind_speed_10m_max', [])) else None,
             'condition': condition,
             'weather_code': weather_code,
         }
         
         daily_data.append(day_data)
     
-    # Process hourly forecast for more detailed information if needed
-    hourly = data.get('hourly', {})
-    times = hourly.get('time', [])
-    hourly_data = []
-    
-    # Only include hourly data for the next 24 hours (every 3 hours)
-    for i in range(0, min(24, len(times)), 3):
-        time_str = times[i]
-        dt = datetime.fromisoformat(time_str)
-        
-        weather_code = hourly.get('weather_code', [])[i] if i < len(hourly.get('weather_code', [])) else None
-        is_day = 1 if 6 <= dt.hour <= 20 else 0  # Simple day/night determination
-        condition = get_weather_condition(weather_code)
-        
-        hour_data = {
-            'timestamp': time_str,
-            'time': dt.strftime('%H:%M'),
-            'temp': hourly.get('temperature_2m', [])[i] if i < len(hourly.get('temperature_2m', [])) else None,
-            'feels_like': hourly.get('apparent_temperature', [])[i] if i < len(hourly.get('apparent_temperature', [])) else None,
-            'precipitation_probability': hourly.get('precipitation_probability', [])[i] if i < len(hourly.get('precipitation_probability', [])) else None,
-            'precipitation': hourly.get('precipitation', [])[i] if i < len(hourly.get('precipitation', [])) else None,
-            'wind_speed': hourly.get('wind_speed_10m', [])[i] if i < len(hourly.get('wind_speed_10m', [])) else None,
-            'clouds': hourly.get('cloud_cover', [])[i] if i < len(hourly.get('cloud_cover', [])) else None,
-            'condition': condition,
-            'weather_code': weather_code,
-            'is_day': bool(is_day),
-        }
-        
-        hourly_data.append(hour_data)
-    
-    # Build result
+    # Build result (only include current and next two days)
     result = {
         'current': current_weather,
-        'daily': daily_data,
-        'hourly': hourly_data,
+        'daily': daily_data[:3],  # Only include current and next two days
         'units': units,
         'latitude': data.get('latitude'),
         'longitude': data.get('longitude'),
         'timezone': data.get('timezone'),
-        'elevation': data.get('elevation'),
     }
     
     return result
