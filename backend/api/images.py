@@ -30,6 +30,9 @@ def register_images_routes(app, limiter):
     )
     def get_city_image():
         """Get a city map image using Mapbox Static Images API"""
+        # Log all incoming parameters for debugging
+        current_app.logger.info(f"City image request parameters: {dict(request.args)}")
+        
         # Extract parameters with more robust error handling
         city = request.args.get('city', '').strip()
         country = request.args.get('country', '').strip()

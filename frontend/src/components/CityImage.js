@@ -23,39 +23,48 @@ function CityImage({ cityName, countryName, state }) {
       
       try {
         // Construct the API URL with all available parameters
-        const params = new URLSearchParams({
-          city: cityName,
-          ...(countryName && { country: countryName }),
-          ...(state && { state: state })
-        });
+        const params = new URLSearchParams();
+        params.append('city', cityName);
+        
+        if (countryName) {
+          params.append('country', countryName);
+        }
+        
+        if (state) {
+          params.append('state', state);
+        }
         
         const apiUrl = `/api/city-image?${params.toString()}`;
         console.log(`Fetching city image from: ${apiUrl}`);
         
-        // Explicitly set credentials
+        // Fetch with comprehensive error handling
         const response = await fetch(apiUrl, {
           method: 'GET',
-          credentials: 'include',
           headers: {
-            'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'Origin': 'https://remoteradar.net'
+            'Content-Type': 'application/json'
           }
         });
         
-        // Log the response status
-        console.log(`City image API response status: ${response.status}`);
+        // Log the full response for debugging
+        console.log('Full response:', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries())
+        });
         
+        // Check if the response is ok
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`Error response from city-image API: ${errorText}`);
           throw new Error(`Failed to fetch city image: ${response.status} ${response.statusText}`);
         }
         
+        // Parse the JSON
         const data = await response.json();
         console.log("Image data received:", data);
         
-        // Handle different response formats
+        // Validate the data
         if (!data || (!data.url && !data.success)) {
           console.error("Invalid image data format:", data);
           throw new Error("Invalid image data received from API");
@@ -89,6 +98,7 @@ function CityImage({ cityName, countryName, state }) {
       <div className="city-image-container error">
         <div className="city-image-error">
           <p>Unable to load image</p>
+          <p>{error}</p>
           <button 
             onClick={() => window.location.reload()} 
             className="retry-button"

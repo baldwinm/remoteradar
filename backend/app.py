@@ -91,6 +91,15 @@ def create_app(test_config=None):
             app.logger.error(f"Error cleaning cache: {str(e)}", exc_info=True)
             return jsonify({"success": False, "error": str(e)}), 500
     
+    # Health check endpoint with very permissive rate limiting
+    @app.route('/health', methods=['GET'])
+    @app.route('/api/health', methods=['GET'])
+    @limiter.limit("500 per minute")  # Increased rate limit for health checks
+    def health_check():
+        """Health check endpoint with multiple route support."""
+        current_app.logger.info(f"Health check from IP: {request.remote_addr}")
+        return jsonify({"status": "ok", "timestamp": os.getpid()}), 200
+    
     # Preflight request handler for CORS using standard route method
     @app.route('/api/city-image', methods=['OPTIONS'])
     def handle_preflight():
@@ -101,13 +110,6 @@ def create_app(test_config=None):
         response.headers.add("Access-Control-Allow-Methods", "GET,OPTIONS")
         response.headers.add("Access-Control-Allow-Credentials", "true")
         return response
-    
-    # Health check endpoint with very permissive rate limiting
-    @app.route('/api/health')
-    @limiter.limit("500 per minute")  # Increased rate limit for health checks
-    def health_check():
-        """Health check endpoint."""
-        return jsonify({"status": "ok"})
     
     # Serve index.html for all routes (for SPA)
     @app.route('/', defaults={'path': ''})
@@ -134,7 +136,8 @@ def create_app(test_config=None):
     @app.errorhandler(404)
     def not_found(e):
         """Handle 404 errors."""
-        return jsonify({"error": "Not found"}), 404
+        app.logger.warning(f"404 Not Found: {request.url}")
+        return jsonify({"error": "Not found", "path": request.path}), 404
     
     @app.errorhandler(500)
     def server_error(e):
