@@ -22,19 +22,45 @@ logger = logging.getLogger(__name__)
 def register_images_routes(app, limiter):
     """Register all routes related to city images"""
     
-    @app.route('/api/city-image', methods=['GET'])
+    @app.route('/api/city-image', methods=['GET', 'OPTIONS'])
     @limiter.limit("20 per minute")
-    @cross_origin(
-        origins=['*'],
-        supports_credentials=True
-    )
     def get_city_image():
         """Get a city map image using Mapbox Static Images API"""
+        # Handle OPTIONS request for CORS preflight
+        if request.method == 'OPTIONS':
+            # Get the origin from the request
+            origin = request.headers.get('Origin', 'https://remoteradar.net')
+            
+            # Allowed origins
+            allowed_origins = [
+                'https://remoteradar.net', 
+                'http://localhost:3000'
+            ]
+            
+            # Create response
+            response = make_response()
+            
+            # Set CORS headers
+            if origin in allowed_origins or origin.startswith('http://localhost:'):
+                response.headers.add('Access-Control-Allow-Origin', origin)
+            else:
+                response.headers.add('Access-Control-Allow-Origin', 'https://remoteradar.net')
+            
+            response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Origin')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            response.headers.add('Vary', 'Origin')
+            
+            return response
+        
         # Extensive logging of all incoming parameters
         logger.info(f"City image request received. Full args: {dict(request.args)}")
         
         # Log headers for debugging
         logger.info(f"Request headers: {dict(request.headers)}")
+        
+        # Get the origin for CORS
+        origin = request.headers.get('Origin', 'https://remoteradar.net')
         
         # Extract parameters with more robust error handling
         city = request.args.get('city', '').strip()
@@ -55,10 +81,18 @@ def register_images_routes(app, limiter):
         # Validate city parameter
         if not city:
             logger.warning("City map image request missing city parameter")
-            return jsonify({
+            
+            # Create response with CORS headers
+            response = make_response(jsonify({
                 "error": "City parameter is required",
                 "success": False
-            }), 400
+            }), 400)
+            
+            # Set CORS headers
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            
+            return response
         
         try:
             # If we don't have coordinates but have a city name, try to get coordinates
@@ -115,9 +149,10 @@ def register_images_routes(app, limiter):
             # Create a response object for better control
             response = make_response(jsonify(image_data))
             
-            # Explicitly set CORS headers
-            response.headers.add('Access-Control-Allow-Origin', '*')
+            # Set CORS headers
+            response.headers.add('Access-Control-Allow-Origin', origin)
             response.headers.add('Access-Control-Allow-Credentials', 'true')
+            response.headers.add('Vary', 'Origin')
             
             # Add caching headers
             return add_cache_headers(response, max_age=86400)  # Cache for 1 day
@@ -155,17 +190,26 @@ def register_images_routes(app, limiter):
                 # Create a response object for better control
                 response = make_response(jsonify(placeholder_data))
                 
-                # Explicitly set CORS headers
-                response.headers.add('Access-Control-Allow-Origin', '*')
+                # Set CORS headers
+                response.headers.add('Access-Control-Allow-Origin', origin)
                 response.headers.add('Access-Control-Allow-Credentials', 'true')
+                response.headers.add('Vary', 'Origin')
                 
                 return add_cache_headers(response, max_age=3600)  # Cache for 1 hour only
             except Exception as fallback_error:
                 # If even the placeholder fails, return a more comprehensive error
                 logger.critical(f"Complete fallback error: {str(fallback_error)}")
-                return jsonify({
+                
+                # Create error response with CORS headers
+                response = make_response(jsonify({
                     "error": "Multiple errors occurred while fetching city map image",
                     "original_error": str(e),
                     "fallback_error": str(fallback_error),
                     "success": False
-                }), 500
+                }), 500)
+                
+                # Set CORS headers
+                response.headers.add('Access-Control-Allow-Origin', origin)
+                response.headers.add('Access-Control-Allow-Credentials', 'true')
+                
+                return response
