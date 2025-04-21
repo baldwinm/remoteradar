@@ -1,10 +1,12 @@
 # app.py
 import os
+import time
 import logging
-from flask import Flask, jsonify, request, make_response, current_app
+from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_limiter.limits import RateLimitFailureError
 
 # Import API route registrations
 from api.cities import register_cities_routes
@@ -61,12 +63,14 @@ def create_app(test_config=None):
     # Set up logging
     setup_logging(app)
     
-    # Initialize rate limiter with more flexible storage
+    # Initialize rate limiter with more flexible storage and configuration
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
         default_limits=["200 per day", "50 per hour"],
         storage_uri="memory://",
+        strategy="fixed-window",  # Use fixed window strategy
+        default_limits_deduct_when=lambda resp: resp.status_code < 500,  # Only count successful requests
     )
     
     # Initialize the memory cache
@@ -126,14 +130,15 @@ def create_app(test_config=None):
         else:
             return app.send_static_file('index.html')
     
-    # Generic error handler for rate limiting
-    @app.errorhandler(429)
-    def ratelimit_handler(e):
-        """Handle rate limiting errors gracefully"""
+    # Specific handler for rate limit exceeded errors
+    @app.errorhandler(RateLimitFailureError)
+    def handle_rate_limit_error(e):
+        """Handle rate limiting errors with a more informative response."""
         app.logger.warning(f"Rate limit exceeded: {str(e)}")
         return jsonify({
-            "error": "Too many requests", 
-            "message": "Please slow down and try again later"
+            "error": "Rate limit exceeded", 
+            "message": "Too many requests. Please wait and try again later.",
+            "retry_after": 60  # Suggest waiting 1 minute
         }), 429
     
     # Generic error handler
