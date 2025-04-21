@@ -1,148 +1,113 @@
 # app.py
-# Add this at the top to help Python find your modules
-import sys
 import os
-# Add the current directory to Python's path
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
-
-from flask import Flask, request, g, make_response  # Added make_response
+import logging
+from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from dotenv import load_dotenv
-import time
-import random
-import json
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
 
-# Import utility modules
-from utils.logging_config import setup_logging
-from utils.cache import init_cache, clean_memory_cache
-
-# Import API route modules
+# Import API route registrations
 from api.cities import register_cities_routes
 from api.places import register_places_routes
 from api.accommodation import register_accommodation_routes
 from api.images import register_images_routes
+from api.weather import register_weather_routes
 
-# Load environment variables
-load_dotenv()
+# Import utilities
+from utils.logging_config import setup_logging
+from utils.cache import init_cache, clean_memory_cache
 
-# Create and configure the app
-def create_app():
-    app = Flask(__name__)
+def create_app(test_config=None):
+    """Create and configure the Flask application."""
     
-    # Configure app based on environment
-    app.config['ENV'] = os.environ.get('FLASK_ENV', 'development')
+    # Create Flask app
+    app = Flask(__name__, static_folder='../build', static_url_path='/')
     
-    # Explicitly defined allowed origins
-    allowed_origins = [
-        "https://remoteradar.net",
-        "https://www.remoteradar.net",
-        "http://localhost:3000",
-        "https://remote-radar-frontend.onrender.com"
-    ]
-    
-    # Configure CORS
-    if app.config['ENV'] == 'development':
-        # In development, allow all origins
-        CORS(app, supports_credentials=True)
-    else:
-        # In production, use specific origins
-        CORS(app, 
-             origins=allowed_origins, 
-             supports_credentials=True,
-             resources={
-                 r"/api/*": {
-                     "origins": allowed_origins,
-                     "allow_headers": [
-                         "Content-Type", 
-                         "Authorization", 
-                         "Access-Control-Allow-Credentials"
-                     ],
-                     "supports_credentials": True
-                 }
-             }
-        )
-    
-    # Configure rate limiting
-    limiter = Limiter(
-        get_remote_address,
-        app=app,
-        default_limits=["200 per day", "50 per hour"],
-        storage_uri="memory://",
-        strategy="fixed-window"
+    # Configure app
+    app.config.from_mapping(
+        SECRET_KEY=os.environ.get('SECRET_KEY', 'dev'),
+        DATABASE=os.environ.get('DATABASE_URL', 'sqlite:///instance/remote-radar.sqlite'),
+        ENV=os.environ.get('FLASK_ENV', 'development'),
     )
     
-    # Initialize logging
+    # Apply environment-specific config
+    if test_config is None:
+        # Load the instance config, if it exists, when not testing
+        app.config.from_pyfile('config.py', silent=True)
+    else:
+        # Load the test config if passed in
+        app.config.from_mapping(test_config)
+    
+    # Enable CORS
+    CORS(app)
+    
+    # Set up logging
     setup_logging(app)
     
-    # Initialize cache
+    # Initialize rate limiter
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://",
+    )
+    
+    # Initialize the memory cache
     init_cache()
     
-    # Log loaded API keys (masked for security)
-    def mask_api_key(key):
-        if not key or key.startswith('YOUR_'):
-            return key
-        return key[:4] + '*' * (len(key) - 8) + key[-4:]
-
-    opencage_api_key = os.getenv('OPENCAGE_API_KEY', 'YOUR_OPENCAGE_API_KEY_HERE')
-    mapbox_api_key = os.getenv('MAPBOX_API_KEY', 'YOUR_MAPBOX_API_KEY_HERE')
-    
-    app.logger.info(f"Loaded OpenCage API Key: {mask_api_key(opencage_api_key)}")
-    app.logger.info(f"Loaded Mapbox API Key: {mask_api_key(mapbox_api_key)}")
-    
-    # Health check endpoint
-    @app.route('/')
-    def index():
-        """Root endpoint that redirects to health check"""
-        app.logger.info("Root endpoint accessed")
-        return "Remote Radar API - Use specific endpoints"
-
-    @limiter.exempt
-    @app.route('/health')
-    def health_check():
-        app.logger.info("Health check endpoint called")
-        return {"status": "healthy"}
-    
-    # Register route blueprints
+    # Register API routes
     register_cities_routes(app, limiter)
     register_places_routes(app, limiter)
     register_accommodation_routes(app, limiter)
     register_images_routes(app, limiter)
+    register_weather_routes(app, limiter)
     
-    # Set up periodic cache cleaning
-    @app.before_request
-    def before_request_tasks():
-        # Set start time for request timing
-        g.start_time = time.time()
-        app.logger.info(f"Request: {request.method} {request.path} from {request.remote_addr}")
-        
-        # Clean cache approximately once every 100 requests
-        if random.randint(1, 100) == 1:
-            clean_memory_cache(app)
-    
-    # Request completion logging
-    @app.after_request
-    def after_request(response):
+    # Add memory cache cleaning endpoint (for admin use)
+    @app.route('/api/admin/clean-cache', methods=['POST'])
+    @limiter.limit("5 per hour")
+    def api_clean_cache():
+        """Clean expired items from the memory cache."""
         try:
-            diff = time.time() - g.start_time
-            app.logger.info(f"Response: {request.method} {request.path} {response.status_code} in {diff:.4f}s")
+            clean_memory_cache(app)
+            return jsonify({"success": True, "message": "Cache cleaned successfully"})
         except Exception as e:
-            app.logger.error(f"Error in after_request: {str(e)}")
-        return response
+            app.logger.error(f"Error cleaning cache: {str(e)}", exc_info=True)
+            return jsonify({"success": False, "error": str(e)}), 500
     
-    # Global error handler
-    @app.errorhandler(Exception)
-    def handle_exception(e):
-        app.logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
-        return "Internal Server Error", 500
+    # Serve index.html for all routes (for SPA)
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve(path):
+        """Serve the static files from the build directory."""
+        app.logger.debug(f"Serving path: {path}")
+        if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+            return app.send_static_file(path)
+        else:
+            return app.send_static_file('index.html')
+    
+    # Health check endpoint
+    @app.route('/api/health')
+    def health_check():
+        """Health check endpoint."""
+        return jsonify({"status": "ok"})
+    
+    # Generic error handler
+    @app.errorhandler(404)
+    def not_found(e):
+        """Handle 404 errors."""
+        return jsonify({"error": "Not found"}), 404
+    
+    @app.errorhandler(500)
+    def server_error(e):
+        """Handle 500 errors."""
+        app.logger.error(f"Server error: {str(e)}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
     
     return app
 
-# Create the app instance for import
-app = create_app()
-
 if __name__ == '__main__':
-    # Start the app with appropriate parameters for the environment
+    app = create_app()
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=app.config['ENV'] == 'development')

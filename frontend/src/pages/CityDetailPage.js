@@ -1,10 +1,10 @@
 // src/pages/CityDetailPage.js
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import PlacesList from '../components/PlacesList';
 import AccommodationWidget from '../components/AccommodationWidget';
 import CityImage from '../components/CityImage';
-import CityMapView from '../components/CityMapView';
+import WeatherWidget from '../components/WeatherWidget';
 import './CityDetailPage.css';
 
 // Error Boundary component
@@ -41,47 +41,40 @@ class ErrorBoundary extends React.Component {
 
 function CityDetailPage() {
   const { cityId } = useParams();
-  const navigate = useNavigate();
   const [city, setCity] = useState(null);
   const [placesData, setPlacesData] = useState(null);
   const [accommodationData, setAccommodationData] = useState(null);
   const [occupants, setOccupants] = useState(1);
-  const [loading, setLoading] = useState({ 
-    city: true, 
-    places: true, 
-    accommodation: true 
-  });
-  const [error, setError] = useState({ 
-    city: null, 
-    places: null, 
-    accommodation: null 
-  });
+  const [loading, setLoading] = useState({ city: true, places: true, accommodation: true });
+  const [error, setError] = useState({ city: null, places: null, accommodation: null });
+  
+  // Get the units parameter from URL query string (default to metric)
+  const urlParams = new URLSearchParams(window.location.search);
+  const units = urlParams.get('units') || 'metric';
+
+  // Log component mounting and the cityId
+  console.log("CityDetailPage mounted with cityId:", cityId);
 
   // Fetch city data
   useEffect(() => {
     async function fetchCityData() {
       setLoading(prev => ({ ...prev, city: true }));
       try {
-        // Validate cityId format
-        if (!cityId || !cityId.includes('_')) {
-          throw new Error('Invalid city identifier');
-        }
-
-        
+        console.log(`Fetching city data for ${cityId}`);
         const response = await fetch(`/api/places/${cityId}`);
         
         if (!response.ok) {
-          // Handle specific error cases
-          if (response.status === 404) {
-            throw new Error('City not found');
-          }
-          throw new Error('Failed to fetch city data');
+          const errorText = await response.text();
+          console.error(`Error response from places API: ${errorText}`);
+          throw new Error(`Failed to fetch city data: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
+        console.log("City data received:", data);
         
         if (!data || !data.city_name) {
-          throw new Error('Invalid city data format');
+          console.error("Invalid places data format:", data);
+          throw new Error("Invalid data format received from API");
         }
         
         // Extract city info from places data
@@ -89,44 +82,38 @@ function CityDetailPage() {
           id: cityId,
           name: data.city_name,
           country: cityId.split('_').pop().toUpperCase() || '', 
-          lat: data.latitude || 0,  // Ensure lat is available
-          lng: data.longitude || 0  // Ensure lng is available
+          lat: 0,
+          lng: 0
         };
         
-        
+        console.log("Setting city state:", cityInfo);
         setCity(cityInfo);
         
         // Also set places data since we already have it
         setPlacesData(data);
         setLoading(prev => ({ ...prev, places: false }));
       } catch (err) {
-        console.error('City fetch error:', err);
+        console.error('Error fetching city:', err);
         setError(prev => ({ ...prev, city: err.message }));
-        
-        // Navigate to error page if city fetch fails
-        navigate('/error', { 
-          state: { error: err.message },
-          replace: true 
-        });
       } finally {
         setLoading(prev => ({ ...prev, city: false }));
       }
     }
     
     fetchCityData();
-  }, [cityId, navigate]);
+  }, [cityId]);
 
   // Fetch accommodation data once we have the city
   useEffect(() => {
     if (!city) {
-      
+      console.log("Skipping accommodation fetch - no city data yet");
       return;
     }
     
     async function fetchAccommodationData() {
       setLoading(prev => ({ ...prev, accommodation: true }));
       try {
-        
+        console.log(`Fetching accommodation data for ${cityId} with ${occupants} occupants`);
         const response = await fetch(`/api/accommodation/${cityId}?occupants=${occupants}`);
         
         if (!response.ok) {
@@ -136,9 +123,10 @@ function CityDetailPage() {
         }
         
         const data = await response.json();
-        
+        console.log("Accommodation data received:", data);
         
         if (!data || !data.accommodations) {
+          console.error("Invalid accommodation data format:", data);
           throw new Error("Invalid accommodation data received from API");
         }
         
@@ -189,6 +177,8 @@ function CityDetailPage() {
   const cityName = city.name || '';
   const countryName = city.country || '';
   
+  // Log the render with city data
+  console.log("Rendering CityDetailPage with city:", city);
   
   return (
     <ErrorBoundary>
@@ -204,15 +194,12 @@ function CityDetailPage() {
         {/* City Image Section */}
         <CityImage cityName={cityName} countryName={countryName} />
 
-        {/* Interactive Map Section */}
-        {city.lat && city.lng && (
-          <CityMapView 
-            city={cityName} 
-            lat={parseFloat(city.lat)} 
-            lng={parseFloat(city.lng)} 
-            mapboxToken={process.env.REACT_APP_MAPBOX_TOKEN}
-          />
-        )}
+        {/* Weather Widget */}
+        <div className="content-row">
+          <div className="content-section">
+            <WeatherWidget cityId={cityId} units={units} />
+          </div>
+        </div>
 
         <div className="city-content">
           <div className="content-row">
@@ -288,22 +275,6 @@ function CityDetailPage() {
                     </div>
                     <div className="stat-label">Restaurants</div>
                   </div>
-                </div>
-                
-                {/* Buy Me a Coffee Button */}
-                <div className="support-container">
-                  <p style={{ marginBottom: '1rem', fontSize: '1rem', color: '#2c3e50' }}>
-                    Enjoying Remote Radar? Support this project:
-                  </p>
-                  <a 
-                    href="https://buymeacoffee.com/remoteradar" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="coffee-button"
-                  >
-                    <span style={{ marginRight: '10px' }}>☕</span>
-                    Buy me a coffee
-                  </a>
                 </div>
               </div>
             </div>
