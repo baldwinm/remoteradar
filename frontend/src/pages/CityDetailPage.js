@@ -1,5 +1,5 @@
 // src/pages/CityDetailPage.js
-import React, { useState, useEffect export default CityDetailPage; from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import PlacesList from '../components/PlacesList';
 import AccommodationWidget from '../components/AccommodationWidget';
