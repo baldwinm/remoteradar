@@ -22,7 +22,8 @@ function CityImage({ cityName, countryName, state }) {
       setError(null);
       
       try {
-        // Construct the API URL with all available parameters
+        // Construct the full URL with query parameters
+        const baseUrl = 'https://remote-radar-backend.onrender.com/api/city-image';
         const params = new URLSearchParams();
         params.append('city', cityName);
         
@@ -34,16 +35,19 @@ function CityImage({ cityName, countryName, state }) {
           params.append('state', state);
         }
         
-        const apiUrl = `/api/city-image?${params.toString()}`;
+        const apiUrl = `${baseUrl}?${params.toString()}`;
         console.log(`Fetching city image from: ${apiUrl}`);
         
-        // Fetch with comprehensive error handling
+        // Fetch with comprehensive CORS and error handling
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
+            'Content-Type': 'application/json',
+            'Origin': 'https://remoteradar.net'
+          },
+          mode: 'cors',
+          credentials: 'include'
         });
         
         // Log the full response for debugging
