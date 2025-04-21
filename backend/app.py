@@ -102,15 +102,16 @@ def create_app(test_config=None):
         app.logger.error(f"Server error: {str(e)}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
     
+    # Move the global exception handler inside the create_app function
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        """Log all uncaught exceptions"""
+        app.logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
+        return jsonify({"error": "Internal server error", "details": str(e)}), 500
+    
     return app
- 
-@app.errorhandler(Exception)
-def handle_exception(e):
-    """Log all uncaught exceptions"""
-    app.logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
-    return jsonify({"error": "Internal server error", "details": str(e)}), 500  
 
-# If using wsgi.py, this allows direct execution of this file
+# Create the app when this module is imported
 app = create_app()
 
 if __name__ == '__main__':
