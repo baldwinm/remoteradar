@@ -35,7 +35,7 @@ def register_places_routes(app, limiter):
             
             city = None
             for c in cities:
-                current_app.logger.debug(f"Comparing city ID: {c['id']} with requested ID: {city_id}")
+                current_app.logger.info(f"Comparing city ID: {c['id']} with requested ID: {city_id}")
                 if c['id'] == city_id:
                     city = c
                     current_app.logger.info("MATCH FOUND!")

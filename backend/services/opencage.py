@@ -94,7 +94,7 @@ def search_city(query: str) -> List[Dict[str, Any]]:
         
         logger.info(f"Found {len(cities)} cities for query: '{query}'")
         for city in cities:
-            logger.debug(f"  - {city['name']} ({city['id']})")
+            logger.info(f"  - {city['name']} ({city['id']})")
         
         # Cache the result
         _cache[cache_key] = {

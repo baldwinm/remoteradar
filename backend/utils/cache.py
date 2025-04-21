@@ -45,7 +45,7 @@ def put_in_cache(category: str, key: str, data: Any) -> None:
         'timestamp': time.time()
     }
     
-    logger.debug(f"Added item to cache: {category}/{key}")
+    logger.info(f"Added item to cache: {category}/{key}")
 
 def get_from_cache(category: str, key: str, ttl: int = 3600) -> Optional[Any]:
     """
@@ -66,10 +66,10 @@ def get_from_cache(category: str, key: str, ttl: int = 3600) -> Optional[Any]:
     
     # Check if cache is still valid
     if time.time() - cached_item.get('timestamp', 0) < ttl:
-        logger.debug(f"Cache hit: {category}/{key}")
+        logger.info(f"Cache hit: {category}/{key}")
         return cached_item['data']
     else:
-        logger.debug(f"Cache expired: {category}/{key}")
+        logger.info(f"Cache expired: {category}/{key}")
         return None
 
 def remove_from_cache(category: str, key: str) -> bool:
@@ -85,7 +85,7 @@ def remove_from_cache(category: str, key: str) -> bool:
     """
     if category in _cache and key in _cache[category]:
         del _cache[category][key]
-        logger.debug(f"Removed from cache: {category}/{key}")
+        logger.info(f"Removed from cache: {category}/{key}")
         return True
     return False
 
@@ -125,7 +125,7 @@ def clean_memory_cache(app) -> None:
             items_removed += 1
     
     app.logger.info(f"Cache cleaning complete. Removed {items_removed} expired items.")
-    app.logger.debug(f"Current cache size: {sum(len(items) for items in _cache.values())} items")
+    app.logger.info(f"Current cache size: {sum(len(items) for items in _cache.values())} items")
 
 def get_cache_stats() -> Dict[str, Any]:
     """

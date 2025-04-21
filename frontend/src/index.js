@@ -18,7 +18,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/serviceWorker.js')
       .then(registration => {
-        console.log('Service Worker registered with scope:', registration.scope);
+        
       })
       .catch(error => {
         console.error('Service Worker registration failed:', error);
@@ -37,6 +37,6 @@ if ('performance' in window && 'measure' in window.performance && 'mark' in wind
     performance.measure('app-load-time', 'app-start', 'app-loaded');
     
     const loadTime = performance.getEntriesByName('app-load-time')[0].duration;
-    console.log(`App loaded in ${loadTime.toFixed(2)}ms`);
+    
   });
 }

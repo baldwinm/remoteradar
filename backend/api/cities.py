@@ -36,7 +36,7 @@ def register_cities_routes(app, limiter):
             # For debugging, print full details of found cities
             current_app.logger.info(f"Found {len(cities)} cities for search query: '{search_query}'")
             for city in cities:
-                current_app.logger.debug(f"  - City details: {json.dumps(city)}")
+                current_app.logger.info(f"  - City details: {json.dumps(city)}")
             
             response = make_response(jsonify(cities))
             return add_cache_headers(response, max_age=86400)  # Cache for 1 day

@@ -7,12 +7,12 @@ function CityImage({ cityName, countryName }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  console.log("CityImage component rendering with:", { cityName, countryName });
+  
   
   useEffect(() => {
     // Only proceed if we have a city name
     if (!cityName) {
-      console.log("No city name provided to CityImage component");
+      
       setLoading(false);
       return;
     }
@@ -28,11 +28,11 @@ function CityImage({ cityName, countryName }) {
           : '';
         
         // Log the request we're about to make
-        console.log(`Fetching image from ${baseUrl}/api/city-image for city: ${cityName}`);
+        
         
         // Make the API request
         const apiUrl = `${baseUrl}/api/city-image?city=${encodeURIComponent(cityName)}${countryName ? `&country=${encodeURIComponent(countryName)}` : ''}`;
-        console.log(`API URL: ${apiUrl}`);
+        
         
         const response = await fetch(apiUrl, {
           method: 'GET',
@@ -43,7 +43,7 @@ function CityImage({ cityName, countryName }) {
         });
         
         // Log the response status
-        console.log(`Image API response status: ${response.status}`);
+        
         
         if (!response.ok) {
           const errorText = await response.text();
@@ -52,7 +52,7 @@ function CityImage({ cityName, countryName }) {
         }
         
         const data = await response.json();
-        console.log("Image data received:", data);
+        
         
         if (!data || !data.url) {
           console.error("Invalid image data format:", data);
@@ -82,7 +82,7 @@ function CityImage({ cityName, countryName }) {
   
   // Render error state
   if (error) {
-    console.log("Rendering error state:", error);
+    
     return (
       <div className="city-image-container error">
         <div className="city-image-error">
@@ -100,7 +100,7 @@ function CityImage({ cityName, countryName }) {
   
   // Render no image state
   if (!imageData || !imageData.url) {
-    console.log("No image data available");
+    
     return (
       <div className="city-image-container placeholder">
         <div className="city-image-placeholder">No image available for {cityName}</div>
@@ -109,7 +109,7 @@ function CityImage({ cityName, countryName }) {
   }
   
   // Render the image
-  console.log("Rendering image:", imageData.url);
+  
   return (
     <div className="city-image-container">
       <img 

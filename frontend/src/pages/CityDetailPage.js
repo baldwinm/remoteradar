@@ -67,7 +67,7 @@ function CityDetailPage() {
           throw new Error('Invalid city identifier');
         }
 
-        console.log(`Fetching city data for ${cityId}`);
+        
         const response = await fetch(`/api/places/${cityId}`);
         
         if (!response.ok) {
@@ -93,7 +93,7 @@ function CityDetailPage() {
           lng: data.longitude || 0  // Ensure lng is available
         };
         
-        console.log("Setting city state:", cityInfo);
+        
         setCity(cityInfo);
         
         // Also set places data since we already have it
@@ -119,14 +119,14 @@ function CityDetailPage() {
   // Fetch accommodation data once we have the city
   useEffect(() => {
     if (!city) {
-      console.log("Skipping accommodation fetch - no city data yet");
+      
       return;
     }
     
     async function fetchAccommodationData() {
       setLoading(prev => ({ ...prev, accommodation: true }));
       try {
-        console.log(`Fetching accommodation data for ${cityId} with ${occupants} occupants`);
+        
         const response = await fetch(`/api/accommodation/${cityId}?occupants=${occupants}`);
         
         if (!response.ok) {
@@ -136,7 +136,7 @@ function CityDetailPage() {
         }
         
         const data = await response.json();
-        console.log("Accommodation data received:", data);
+        
         
         if (!data || !data.accommodations) {
           throw new Error("Invalid accommodation data received from API");
@@ -190,7 +190,7 @@ function CityDetailPage() {
   const countryName = city.country || '';
   
   // Log the render with city data
-  console.log("Rendering CityDetailPage with city:", city);
+  
   
   return (
     <ErrorBoundary>

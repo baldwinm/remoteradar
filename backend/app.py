@@ -115,7 +115,7 @@ def create_app():
     def before_request_tasks():
         # Set start time for request timing
         g.start_time = time.time()
-        app.logger.debug(f"Request: {request.method} {request.path} from {request.remote_addr}")
+        app.logger.info(f"Request: {request.method} {request.path} from {request.remote_addr}")
         
         # Clean cache approximately once every 100 requests
         if random.randint(1, 100) == 1:
