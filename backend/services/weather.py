@@ -29,7 +29,7 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
         Dictionary with weather data including current conditions and forecast
     """
     # Extensive logging of input parameters
-    logger.debug(f"get_weather_data called with: lat={lat}, lng={lng}, units={units}")
+    logger.debug(f"get_weather_data CALLED with: lat={lat}, lng={lng}, units={units}")
     
     try:
         # Validate input parameters
@@ -37,7 +37,7 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
             logger.error(f"Invalid coordinates: lat={lat}, lng={lng}")
             return {"error": f"Invalid coordinates: lat={lat}, lng={lng}"}
         
-        # Ensure coordinates are converted to float
+        # Ensure coordinates are converted to float and within valid ranges
         try:
             lat = float(lat)
             lng = float(lng)
@@ -89,10 +89,11 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
             )
             
             # Log full response details
-            logger.debug(f"API Response Status Code: {response.status_code}")
-            logger.debug(f"API Response Headers: {response.headers}")
+            logger.debug(f"API Response Status: {response.status_code}")
+            logger.debug(f"API Response Headers: {dict(response.headers)}")
+            logger.debug(f"API Response Text: {response.text}")
             
-            # Detailed error handling
+            # Handle non-200 response
             if response.status_code != 200:
                 logger.error(f"Open-Meteo API error: {response.status_code}")
                 logger.error(f"Response Body: {response.text}")
@@ -113,9 +114,15 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
                     "response_body": response.text
                 }
             
-            # Log parsed data structure
-            logger.debug("Parsed API Response Structure:")
-            logger.debug(f"Keys in response: {list(data.keys())}")
+            # Validate response structure
+            required_keys = ['current', 'hourly', 'daily']
+            for key in required_keys:
+                if key not in data:
+                    logger.error(f"Missing required key in response: {key}")
+                    return {
+                        "error": f"Incomplete weather data: missing {key}",
+                        "response_body": data
+                    }
             
             # Process the API response
             processed_data = process_weather_data(data, units)
@@ -146,5 +153,5 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
             }
         }
 
-# Rest of the file remains the same as in the original implementation
+# Rest of the file remains the same
 # ... (keep other functions like process_weather_data, get_weather_condition, etc.)
