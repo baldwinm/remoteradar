@@ -6,7 +6,7 @@ from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_limiter.limits import RateLimitFailureError
+from flask_limiter.errors import RateLimitExceeded  # Updated import
 
 # Import API route registrations
 from api.cities import register_cities_routes
@@ -101,7 +101,6 @@ def create_app(test_config=None):
     @limiter.limit("500 per minute")  # Increased rate limit for health checks
     def health_check():
         """Health check endpoint with multiple route support."""
-        # Directly use app.logger instead of current_app
         app.logger.info(f"Health check from IP: {request.remote_addr}")
         return jsonify({
             "status": "ok", 
@@ -132,7 +131,7 @@ def create_app(test_config=None):
             return app.send_static_file('index.html')
     
     # Specific handler for rate limit exceeded errors
-    @app.errorhandler(RateLimitFailureError)
+    @app.errorhandler(RateLimitExceeded)
     def handle_rate_limit_error(e):
         """Handle rate limiting errors with a more informative response."""
         app.logger.warning(f"Rate limit exceeded: {str(e)}")
