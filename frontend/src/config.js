@@ -12,7 +12,7 @@ const environments = {
   production: {
     API_URL: 'https://remote-radar-backend.onrender.com', // Updated to match hardcoded URL
     MAPS_API_KEY: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-    DEBUG: false,
+    DEBUG: true,
     APP_NAME: 'Remote Radar'
   },
   // You can add more environments if needed (staging, testing, etc.)
