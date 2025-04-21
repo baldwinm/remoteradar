@@ -1,9 +1,9 @@
 # utils/http_helpers.py
-from flask import make_response, Response
+from flask import make_response, Response, jsonify
 from datetime import datetime, timedelta
-from typing import Union
+from typing import Union, Dict, Any
 
-def add_cache_headers(response: Union[Response, dict], max_age: int = 3600) -> Response:
+def add_cache_headers(response: Union[Response, Dict[str, Any]], max_age: int = 3600) -> Response:
     """
     Add caching headers to the response
     
@@ -16,7 +16,6 @@ def add_cache_headers(response: Union[Response, dict], max_age: int = 3600) -> R
     """
     # If response is a dictionary, convert it to a Response object
     if isinstance(response, dict):
-        from flask import jsonify
         response = jsonify(response)
     
     # Set Cache-Control header
@@ -26,5 +25,8 @@ def add_cache_headers(response: Union[Response, dict], max_age: int = 3600) -> R
     response.headers['Expires'] = (
         datetime.utcnow() + timedelta(seconds=max_age)
     ).strftime('%a, %d %b %Y %H:%M:%S GMT')
+    
+    # Add Vary header for better caching behavior
+    response.headers.setdefault('Vary', 'Accept-Encoding, Origin')
     
     return response

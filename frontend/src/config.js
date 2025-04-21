@@ -10,7 +10,7 @@ const environments = {
     APP_NAME: 'Remote Radar (Dev)'
   },
   production: {
-    API_URL: 'https://api.remoteradar.net', // Or your Render backend URL
+    API_URL: 'https://remote-radar-backend.onrender.com', // Updated to match hardcoded URL
     MAPS_API_KEY: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
     DEBUG: false,
     APP_NAME: 'Remote Radar'
@@ -53,6 +53,8 @@ config.endpoints = {
   PLACES_FILTERED: (cityId, type) => config.getApiUrl(`/places/${cityId}?type=${type}`),
   ACCOMMODATION: (cityId, occupants = 1) => config.getApiUrl(`/accommodation/${cityId}?occupants=${occupants}`),
   PLACE_DETAILS: (placeId) => config.getApiUrl(`/place-details/${placeId}`),
+  // Add weather endpoint
+  WEATHER: (cityId, units = 'metric') => config.getApiUrl(`/weather/${cityId}?units=${units}`),
 };
 
 export default config;

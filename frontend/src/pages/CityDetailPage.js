@@ -6,6 +6,7 @@ import AccommodationWidget from '../components/AccommodationWidget';
 import CityImage from '../components/CityImage';
 import WeatherWidget from '../components/WeatherWidget';
 import './CityDetailPage.css';
+import config from '../config';
 
 // Error Boundary component
 class ErrorBoundary extends React.Component {
@@ -50,7 +51,25 @@ function CityDetailPage() {
   
   // Get the units parameter from URL query string (default to metric)
   const urlParams = new URLSearchParams(window.location.search);
-  const units = urlParams.get('units') || 'metric';
+  const [units, setUnits] = useState(urlParams.get('units') || 'metric');
+  
+  // Function to handle units change
+  const handleUnitsChange = (newUnits) => {
+    if (newUnits !== units) {
+      setUnits(newUnits);
+      
+      // Update URL with new units parameter
+      const newUrlParams = new URLSearchParams(window.location.search);
+      newUrlParams.set('units', newUnits);
+      
+      // Use replaceState to update URL without causing a page reload
+      window.history.replaceState(
+        {},
+        '',
+        `${window.location.pathname}?${newUrlParams.toString()}`
+      );
+    }
+  };
 
   // Log component mounting and the cityId
   console.log("CityDetailPage mounted with cityId:", cityId);
@@ -61,7 +80,8 @@ function CityDetailPage() {
       setLoading(prev => ({ ...prev, city: true }));
       try {
         console.log(`Fetching city data for ${cityId}`);
-        const response = await fetch(`/api/places/${cityId}`);
+        // Use config for API URL
+        const response = await fetch(config.endpoints.PLACES(cityId));
         
         if (!response.ok) {
           const errorText = await response.text();
@@ -78,12 +98,14 @@ function CityDetailPage() {
         }
         
         // Extract city info from places data
+        // IMPORTANT: Include lat/lng coordinates from the places data
         const cityInfo = {
           id: cityId,
           name: data.city_name,
-          country: cityId.split('_').pop().toUpperCase() || '', 
-          lat: 0,
-          lng: 0
+          country: cityId.split('_').pop().toUpperCase() || '',
+          // Extract coordinates from the first place or from the city data if available
+          lat: data.places && data.places.length > 0 ? data.places[0].lat : 0,
+          lng: data.places && data.places.length > 0 ? data.places[0].lng : 0
         };
         
         console.log("Setting city state:", cityInfo);
@@ -114,7 +136,8 @@ function CityDetailPage() {
       setLoading(prev => ({ ...prev, accommodation: true }));
       try {
         console.log(`Fetching accommodation data for ${cityId} with ${occupants} occupants`);
-        const response = await fetch(`/api/accommodation/${cityId}?occupants=${occupants}`);
+        // Use config for API URL
+        const response = await fetch(config.endpoints.ACCOMMODATION(cityId, occupants));
         
         if (!response.ok) {
           const errorText = await response.text();
@@ -128,6 +151,18 @@ function CityDetailPage() {
         if (!data || !data.accommodations) {
           console.error("Invalid accommodation data format:", data);
           throw new Error("Invalid accommodation data received from API");
+        }
+        
+        // Update city coordinates if they're available in the accommodation data
+        if (data.accommodations && data.accommodations.length > 0) {
+          const firstAccommodation = data.accommodations[0];
+          if (firstAccommodation.lat && firstAccommodation.lng) {
+            setCity(prev => ({
+              ...prev,
+              lat: firstAccommodation.lat,
+              lng: firstAccommodation.lng
+            }));
+          }
         }
         
         setAccommodationData(data);
@@ -194,10 +229,14 @@ function CityDetailPage() {
         {/* City Image Section */}
         <CityImage cityName={cityName} countryName={countryName} />
 
-        {/* Weather Widget */}
+        {/* Weather Widget - Pass cityId, units and onUnitsChange handler */}
         <div className="content-row">
           <div className="content-section">
-            <WeatherWidget cityId={cityId} units={units} />
+            <WeatherWidget 
+              cityId={cityId} 
+              units={units} 
+              onUnitsChange={handleUnitsChange} 
+            />
           </div>
         </div>
 
@@ -280,6 +319,18 @@ function CityDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Add a debug section for coordinates (can be removed in production) */}
+        {config.DEBUG && (
+          <div className="debug-info">
+            <h3>Debug Information</h3>
+            <pre>{JSON.stringify({
+              cityId,
+              coordinates: { lat: city.lat, lng: city.lng },
+              units
+            }, null, 2)}</pre>
+          </div>
+        )}
       </div>
     </ErrorBoundary>
   );

@@ -1,8 +1,7 @@
 // src/components/WeatherWidget.js
 import React, { useState, useEffect } from 'react';
 import './WeatherWidget.css';
-
-const BACKEND_BASE_URL = 'https://remote-radar-backend.onrender.com';
+import config from '../config'; // Import config
 
 const WeatherWidget = ({ cityId, units = 'metric' }) => {
   const [weatherData, setWeatherData] = useState(null);
@@ -12,7 +11,6 @@ const WeatherWidget = ({ cityId, units = 'metric' }) => {
   
   console.group('WeatherWidget Initialization');
   console.log('Props received:', { cityId, units });
-  console.log('Backend Base URL:', BACKEND_BASE_URL);
   console.groupEnd();
   
   useEffect(() => {
@@ -22,6 +20,8 @@ const WeatherWidget = ({ cityId, units = 'metric' }) => {
     if (!cityId) {
       console.warn('No cityId provided');
       setLoading(false);
+      setError('No city ID provided');
+      console.groupEnd();
       return;
     }
     
@@ -31,7 +31,8 @@ const WeatherWidget = ({ cityId, units = 'metric' }) => {
       setError(null);
       
       try {
-        const apiUrl = `${BACKEND_BASE_URL}/api/weather/${cityId}?units=${units}`;
+        // Use config for API URL instead of hardcoded value
+        const apiUrl = `${config.API_URL}/api/weather/${cityId}?units=${units}`;
         
         console.group('Fetch Configuration');
         console.log('Full API URL:', apiUrl);
@@ -41,6 +42,7 @@ const WeatherWidget = ({ cityId, units = 'metric' }) => {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
+            'Content-Type': 'application/json',
             'Origin': window.location.origin
           },
           mode: 'cors',
@@ -94,8 +96,230 @@ const WeatherWidget = ({ cityId, units = 'metric' }) => {
     fetchWeatherData();
   }, [cityId, units]);
 
-  // Rest of the component remains the same as your original implementation
-  // ... (keep existing render methods)
-}
+  // Handle loading state
+  if (loading) {
+    return (
+      <div className="weather-widget loading">
+        <div className="loading-spinner"></div>
+        <p>Loading weather data...</p>
+      </div>
+    );
+  }
+
+  // Handle error state
+  if (error) {
+    return (
+      <div className="weather-widget error">
+        <div className="error-icon">⚠️</div>
+        <p>Unable to load weather data</p>
+        <div className="error-details">{error}</div>
+      </div>
+    );
+  }
+
+  // Handle no data state
+  if (!weatherData || !weatherData.weather) {
+    return (
+      <div className="weather-widget error">
+        <div className="error-icon">⚠️</div>
+        <p>No weather data available</p>
+      </div>
+    );
+  }
+
+  const { weather, city_name } = weatherData;
+  const { current, daily, hourly } = weather;
+
+  // Helper function to get weather icon
+  const getWeatherIcon = (weatherCode) => {
+    // Map weather code to icon - simplified example
+    const icons = {
+      0: '☀️', // Clear sky
+      1: '🌤️', // Mainly clear
+      2: '⛅', // Partly cloudy
+      3: '☁️', // Overcast
+      45: '🌫️', // Fog
+      48: '🌫️', // Depositing rime fog
+      51: '🌦️', // Light drizzle
+      53: '🌦️', // Moderate drizzle
+      55: '🌦️', // Dense drizzle
+      61: '🌧️', // Slight rain
+      63: '🌧️', // Moderate rain
+      65: '🌧️', // Heavy rain
+      71: '🌨️', // Slight snow fall
+      73: '🌨️', // Moderate snow fall
+      75: '🌨️', // Heavy snow fall
+      80: '🌦️', // Slight rain showers
+      81: '🌦️', // Moderate rain showers
+      82: '🌦️', // Violent rain showers
+      95: '⛈️', // Thunderstorm
+      96: '⛈️', // Thunderstorm with slight hail
+      99: '⛈️', // Thunderstorm with heavy hail
+    };
+    
+    return icons[weatherCode] || '❓';
+  };
+
+  // Helper function to format date
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  // Helper function to format time
+  const formatTime = (timeStr) => {
+    const date = new Date(timeStr);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  };
+
+  // Handle unit toggle
+  const handleUnitToggle = (newUnit) => {
+    if (newUnit !== units) {
+      // Log the unit change
+      console.log(`Changing units from ${units} to ${newUnit}`);
+      
+      // If onUnitsChange prop is provided, call it
+      if (props.onUnitsChange) {
+        props.onUnitsChange(newUnit);
+      } else {
+        // If no callback provided, log a message
+        console.log('No onUnitsChange callback provided');
+        
+        // Reload the widget with the new units as a fallback
+        window.location.href = `${window.location.pathname}?units=${newUnit}`;
+      }
+    }
+  };
+
+  return (
+    <div className="weather-widget">
+      <div className="weather-header">
+        <h3 className="weather-title">Weather in {city_name}</h3>
+        <div className="unit-toggle">
+          <button 
+            className={units === 'metric' ? 'active' : ''} 
+            onClick={() => handleUnitToggle('metric')}
+          >
+            °C
+          </button>
+          <button 
+            className={units === 'imperial' ? 'active' : ''} 
+            onClick={() => handleUnitToggle('imperial')}
+          >
+            °F
+          </button>
+        </div>
+      </div>
+      
+      <div className="weather-tabs">
+        <button 
+          className={activeTab === 'current' ? 'active' : ''} 
+          onClick={() => setActiveTab('current')}
+        >
+          Current
+        </button>
+        <button 
+          className={activeTab === 'daily' ? 'active' : ''} 
+          onClick={() => setActiveTab('daily')}
+        >
+          Forecast
+        </button>
+        <button 
+          className={activeTab === 'hourly' ? 'active' : ''} 
+          onClick={() => setActiveTab('hourly')}
+        >
+          Hourly
+        </button>
+      </div>
+      
+      {activeTab === 'current' && (
+        <div className="current-weather">
+          <div className="weather-now">
+            <div className="weather-icon">
+              {getWeatherIcon(current.weather_code)}
+            </div>
+            <div className="weather-info">
+              <div className="temp">{Math.round(current.temperature)}°{units === 'metric' ? 'C' : 'F'}</div>
+              <div className="description">
+                {current.weather_description || 'Current conditions'}
+              </div>
+              <div className="feels-like">
+                Feels like {Math.round(current.apparent_temperature)}°{units === 'metric' ? 'C' : 'F'}
+              </div>
+            </div>
+          </div>
+          
+          <div className="weather-details">
+            <div className="detail-row">
+              <div className="detail-item">
+                <div className="detail-label">Humidity</div>
+                <div className="detail-value">{current.relative_humidity}%</div>
+              </div>
+              <div className="detail-item">
+                <div className="detail-label">Wind</div>
+                <div className="detail-value">
+                  {Math.round(current.wind_speed_10m)} {units === 'metric' ? 'km/h' : 'mph'}
+                </div>
+              </div>
+            </div>
+            <div className="detail-row">
+              <div className="detail-item">
+                <div className="detail-label">Precipitation</div>
+                <div className="detail-value">
+                  {current.precipitation} {units === 'metric' ? 'mm' : 'in'}
+                </div>
+              </div>
+              <div className="detail-item">
+                <div className="detail-label">Pressure</div>
+                <div className="detail-value">
+                  {current.pressure_msl} hPa
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {activeTab === 'daily' && daily && daily.time && (
+        <div className="forecast-weather">
+          {daily.time.slice(0, 3).map((day, index) => (
+            <div className="forecast-day" key={index}>
+              <div className="day-name">{formatDate(day)}</div>
+              <div className="day-icon">{getWeatherIcon(daily.weather_code[index])}</div>
+              <div className="day-temps">
+                <span className="high">{Math.round(daily.temperature_2m_max[index])}°</span>
+                <span className="low">{Math.round(daily.temperature_2m_min[index])}°</span>
+              </div>
+              <div className="day-precip">
+                💧 {daily.precipitation_probability_max[index]}%
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {activeTab === 'hourly' && hourly && hourly.time && (
+        <div className="hourly-weather">
+          {hourly.time.slice(0, 8).map((time, index) => (
+            <div className="hourly-item" key={index}>
+              <div className="hour-time">{formatTime(time)}</div>
+              <div className="hour-icon">{getWeatherIcon(hourly.weather_code[index])}</div>
+              <div className="hour-temp">{Math.round(hourly.temperature_2m[index])}°</div>
+              <div className="hour-precip">
+                💧 {hourly.precipitation_probability[index]}%
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      <div className="weather-footer">
+        <div className="attribution">
+          Data provided by <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default WeatherWidget;

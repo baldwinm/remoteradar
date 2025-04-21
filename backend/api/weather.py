@@ -25,8 +25,10 @@ def register_weather_routes(app, limiter):
     @limiter.limit("10 per minute")
     def get_weather(city_id):
         """Get weather information for a city"""
-        # Parse units parameter
+        # Parse units parameter with validation
         units = request.args.get('units', 'metric')
+        if units not in ['metric', 'imperial']:
+            units = 'metric'  # Default to metric for invalid values
         
         # Enhanced logging with more context
         current_app.logger.info(f"WEATHER ENDPOINT CALLED")
@@ -34,8 +36,19 @@ def register_weather_routes(app, limiter):
         current_app.logger.info(f"City ID: {city_id}")
         current_app.logger.info(f"Units: {units}")
         current_app.logger.info(f"Full Request Args: {dict(request.args)}")
+        current_app.logger.info(f"Remote Address: {request.remote_addr}")
+        current_app.logger.info(f"User Agent: {request.user_agent}")
         
         try:
+            # Validate city_id
+            if not city_id or len(city_id) < 3:
+                current_app.logger.error(f"Invalid city_id: {city_id}")
+                return jsonify({
+                    "error": "Invalid city ID",
+                    "success": False,
+                    "city_id": city_id
+                }), 400
+            
             # First, find city info
             search_term = city_id.split('_')[0].replace('_', ' ')
             current_app.logger.info(f"Derived search term: '{search_term}'")
@@ -43,15 +56,17 @@ def register_weather_routes(app, limiter):
             # Perform city search
             cities = search_city(search_term)
             
-            # Log all found cities
-            current_app.logger.info(f"Cities found: {json.dumps(cities, indent=2)}")
+            # Log all found cities 
+            current_app.logger.info(f"Cities found: {len(cities)}")
+            for city_found in cities:
+                current_app.logger.info(f"  - Found city: {city_found['name']}, ID: {city_found['id']}")
             
             city = None
             # Try exact match first
             for c in cities:
                 if c['id'] == city_id:
                     city = c
-                    current_app.logger.info(f"Found exact match: {json.dumps(c, indent=2)}")
+                    current_app.logger.info(f"Found exact match: {c['id']}")
                     break
             
             if not city:
@@ -67,7 +82,7 @@ def register_weather_routes(app, limiter):
                 cities_retry = search_city(full_city_name)
                 
                 # Log retry search results
-                current_app.logger.info(f"Alternative search results: {json.dumps(cities_retry, indent=2)}")
+                current_app.logger.info(f"Alternative search results: {len(cities_retry)} cities")
                 
                 if cities_retry and country_code:
                     # Look for country code match
@@ -79,11 +94,12 @@ def register_weather_routes(app, limiter):
                             current_app.logger.info(f"Found match with country code: {c['id']}")
                             break
                 
-                # If still not found, take the first result
+                # If still not found, take the first result as fallback
                 if not city and cities_retry:
                     city = cities_retry[0]
-                    current_app.logger.info(f"Taking first result as fallback: {json.dumps(city, indent=2)}")
-            
+                    current_app.logger.info(f"Using first result as fallback: {city['id']}")
+                
+            # If still no city found after all matching attempts, return error
             if not city:
                 current_app.logger.error(f"No city found for city_id: {city_id}")
                 return jsonify({
@@ -92,7 +108,9 @@ def register_weather_routes(app, limiter):
                     "city_id": city_id,
                     "search_details": {
                         "original_search_term": search_term,
-                        "full_city_name": full_city_name if 'full_city_name' in locals() else None
+                        "full_city_name": full_city_name if 'full_city_name' in locals() else None,
+                        "cities_found": len(cities),
+                        "retry_cities_found": len(cities_retry) if 'cities_retry' in locals() else 0
                     }
                 }), 404
             
@@ -117,14 +135,48 @@ def register_weather_routes(app, limiter):
                     "city_details": city
                 }), 400
             
-            # Get weather data
+            # Try to convert coordinates to float and validate ranges
+            try:
+                lat = float(lat)
+                lng = float(lng)
+                
+                if abs(lat) > 90 or abs(lng) > 180:
+                    current_app.logger.error(f"Coordinates out of valid range: lat={lat}, lng={lng}")
+                    return jsonify({
+                        "error": f"Coordinates out of valid range: lat={lat}, lng={lng}",
+                        "success": False,
+                        "city_details": city
+                    }), 400
+            except (ValueError, TypeError) as e:
+                current_app.logger.error(f"Failed to convert coordinates to float: {e}")
+                return jsonify({
+                    "error": f"Invalid coordinate format: {e}",
+                    "success": False,
+                    "city_details": city
+                }), 400
+            
+            # Get weather data with validated coordinates
             weather_data = get_weather_data(
                 lat=lat,
                 lng=lng,
                 units=units
             )
             
-            # Build response
+            # Check if there was an error in the weather data
+            if 'error' in weather_data:
+                current_app.logger.error(f"Error in weather data: {weather_data['error']}")
+                return jsonify({
+                    "error": weather_data['error'],
+                    "success": False,
+                    "city_id": city['id'],
+                    "city_name": city['name'],
+                    "coordinates": {
+                        "lat": lat,
+                        "lng": lng
+                    }
+                }), 400
+            
+            # Build successful response
             response_data = {
                 "success": True,
                 "city_id": city['id'],
@@ -153,3 +205,5 @@ def register_weather_routes(app, limiter):
                     "full_trace": str(e)
                 }
             }), 500
+                
+                #
