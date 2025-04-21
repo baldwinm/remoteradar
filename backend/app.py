@@ -3,7 +3,7 @@ import os
 import time
 import logging
 from flask import Flask, jsonify, request, make_response
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_limiter.errors import RateLimitExceeded
@@ -39,21 +39,36 @@ def create_app(test_config=None):
         # Load the test config if passed in
         app.config.from_mapping(test_config)
     
-    # Enable CORS with maximum permissiveness 
-    CORS(app, 
-         resources={
-             r"*": {
-                 "origins": "*",
-                 "allow_headers": [
-                     "Content-Type", 
-                     "Authorization", 
-                     "Access-Control-Allow-Credentials"
-                 ],
-                 "supports_credentials": True,
-                 "methods": ["GET", "POST", "OPTIONS"]
-             }
-         }
-    )
+    # Comprehensive CORS configuration
+    cors_config = {
+        "origins": [
+            "https://remoteradar.net",
+            "http://localhost:3000",  # For local development
+            "https://www.remoteradar.net"
+        ],
+        "allow_headers": [
+            "Content-Type", 
+            "Authorization", 
+            "Origin"
+        ],
+        "supports_credentials": True,
+        "methods": ["GET", "POST", "OPTIONS"]
+    }
+    
+    # Apply CORS with detailed configuration
+    CORS(app, resources={
+        r"/api/city-image": {
+            **cors_config,
+            "origins": [
+                "https://remoteradar.net", 
+                "http://localhost:3000"
+            ]
+        },
+        r"*": {
+            **cors_config,
+            "origins": "*"
+        }
+    })
     
     # Set up logging
     setup_logging(app)
@@ -64,8 +79,8 @@ def create_app(test_config=None):
         key_func=get_remote_address,
         default_limits=["200 per day", "50 per hour"],
         storage_uri="memory://",
-        strategy="fixed-window",  # Use fixed window strategy
-        default_limits_deduct_when=lambda resp: resp.status_code < 500,  # Only count successful requests
+        strategy="fixed-window",
+        default_limits_deduct_when=lambda resp: resp.status_code < 500,
     )
     
     # Initialize the memory cache
@@ -77,6 +92,32 @@ def create_app(test_config=None):
     register_accommodation_routes(app, limiter)
     register_images_routes(app, limiter)
     register_weather_routes(app, limiter)
+    
+    # Comprehensive CORS preflight handler for city image endpoint
+    @app.route('/api/city-image', methods=['OPTIONS'])
+    def handle_city_image_preflight():
+        """Handle CORS preflight requests for city image endpoint"""
+        response = make_response()
+        
+        # Dynamically set origin based on request
+        origin = request.headers.get('Origin', 'https://remoteradar.net')
+        
+        # Validate and set origin
+        allowed_origins = [
+            "https://remoteradar.net", 
+            "http://localhost:3000"
+        ]
+        if origin in allowed_origins or origin.startswith('http://localhost:'):
+            response.headers.add("Access-Control-Allow-Origin", origin)
+        else:
+            response.headers.add("Access-Control-Allow-Origin", "https://remoteradar.net")
+        
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization,Origin")
+        response.headers.add("Access-Control-Allow-Methods", "GET,OPTIONS")
+        response.headers.add("Access-Control-Allow-Credentials", "true")
+        response.headers.add("Vary", "Origin")  # Important for caching proxies
+        
+        return response
     
     # Add memory cache cleaning endpoint (for admin use)
     @app.route('/api/admin/clean-cache', methods=['POST'])
@@ -93,7 +134,7 @@ def create_app(test_config=None):
     # Health check endpoint with very permissive rate limiting
     @app.route('/health', methods=['GET'])
     @app.route('/api/health', methods=['GET'])
-    @limiter.limit("500 per minute")  # Increased rate limit for health checks
+    @limiter.limit("500 per minute")
     def health_check():
         """Health check endpoint with multiple route support."""
         app.logger.info(f"Health check from IP: {request.remote_addr}")
@@ -102,20 +143,6 @@ def create_app(test_config=None):
             "timestamp": int(time.time()),
             "process_id": os.getpid()
         }), 200
-    
-    # Preflight request handler for CORS
-    @app.route('/api/city-image', methods=['OPTIONS'])
-    def handle_preflight():
-        """Handle CORS preflight requests for city image endpoint"""
-        response = make_response()
-        
-        # Allow any origin
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-        response.headers.add("Access-Control-Allow-Methods", "GET,OPTIONS")
-        response.headers.add("Access-Control-Allow-Credentials", "true")
-        
-        return response
     
     # Serve index.html for all routes (for SPA)
     @app.route('/', defaults={'path': ''})
@@ -136,10 +163,10 @@ def create_app(test_config=None):
         return jsonify({
             "error": "Rate limit exceeded", 
             "message": "Too many requests. Please wait and try again later.",
-            "retry_after": 60  # Suggest waiting 1 minute
+            "retry_after": 60
         }), 429
     
-    # Generic error handler
+    # Generic error handlers
     @app.errorhandler(404)
     def not_found(e):
         """Handle 404 errors."""
@@ -157,7 +184,10 @@ def create_app(test_config=None):
     def handle_exception(e):
         """Log all uncaught exceptions"""
         app.logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
-        return jsonify({"error": "Internal server error", "details": str(e)}), 500
+        return jsonify({
+            "error": "Internal server error", 
+            "details": str(e)
+        }), 500
     
     return app
 
