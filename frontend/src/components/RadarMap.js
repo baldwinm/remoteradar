@@ -26,6 +26,7 @@ const RadarMap = ({ lat, lng }) => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        console.log("Fetching radar data from RainViewer API...");
         
         // Use the public RainViewer API endpoint
         const response = await fetch('https://api.rainviewer.com/public/weather-maps.json');
@@ -35,13 +36,15 @@ const RadarMap = ({ lat, lng }) => {
         }
         
         const data = await response.json();
-        console.log("RainViewer API data:", data);
+        console.log("RainViewer API data received successfully");
         
         setRadarData(data);
         
         // Start with the most recent past frame
         if (data.radar && data.radar.past && data.radar.past.length > 0) {
-          setCurrentFrame(data.radar.past.length - 1);
+          const lastPastFrameIndex = data.radar.past.length - 1;
+          console.log(`Setting current frame to last past frame index: ${lastPastFrameIndex}`);
+          setCurrentFrame(lastPastFrameIndex);
         }
       } catch (err) {
         console.error('Error loading radar data:', err);
@@ -61,53 +64,32 @@ const RadarMap = ({ lat, lng }) => {
     };
   }, []);
 
-  // Function to find active precipitation areas
-  const findActivePrecipitationAreas = () => {
-    // These are known regions that typically have precipitation
-    // You can expand this list for better coverage
-    return [
-      { name: "US East Coast", lat: 40.7128, lng: -74.0060, zoom: 5 },
-      { name: "US West Coast", lat: 37.7749, lng: -122.4194, zoom: 5 },
-      { name: "US Gulf Coast", lat: 29.7604, lng: -95.3698, zoom: 5 },
-      { name: "US Midwest", lat: 41.8781, lng: -87.6298, zoom: 5 },
-      { name: "Europe", lat: 51.5074, lng: -0.1278, zoom: 4 },
-      { name: "East Asia", lat: 35.6762, lng: 139.6503, zoom: 4 },
-    ];
-  };
-
   // Initialize the map with Leaflet when component mounts
   useEffect(() => {
     if (!mapRef.current) return;
     
     const initMap = () => {
       if (window.L) {
+        console.log("Initializing Leaflet map...");
+        
         if (mapInstanceRef.current) {
+          console.log("Removing existing map instance");
           mapInstanceRef.current.remove();
         }
         
-        // Determine the initial center
-        let initialCenter = [lat || 39.8283, lng || -98.5795];
-        let initialZoom = 5;
+        // Use the provided coordinates or default to center of United States
+        const initialLat = lat || 39.8283;
+        const initialLng = lng || -98.5795;
+        const initialZoom = 5;
         
-        // If no specific coordinates are provided, use the first active precipitation area
-        if (!lat || !lng) {
-          const activeAreas = findActivePrecipitationAreas();
-          if (activeAreas.length > 0) {
-            const firstArea = activeAreas[0];
-            initialCenter = [firstArea.lat, firstArea.lng];
-            initialZoom = firstArea.zoom;
-            console.log(`No specific coordinates provided. Using ${firstArea.name} as default.`);
-          }
-        }
+        console.log(`Map center: [${initialLat}, ${initialLng}], zoom: ${initialZoom}`);
         
         // Create map instance
         const map = window.L.map(mapRef.current, {
-          center: initialCenter,
+          center: [initialLat, initialLng],
           zoom: initialZoom,
           attributionControl: true
         });
-        
-        console.log(`Map initialized with center: [${initialCenter[0]}, ${initialCenter[1]}], zoom: ${initialZoom}`);
         
         // Add OpenStreetMap tile layer
         window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -115,18 +97,24 @@ const RadarMap = ({ lat, lng }) => {
           maxZoom: 19
         }).addTo(map);
         
+        console.log("Base map tiles added");
         mapInstanceRef.current = map;
         
         // If radar data already loaded, update the radar layer
         if (radarData) {
+          console.log("Radar data already loaded, updating radar layer");
           updateRadarLayer();
         }
       } else {
+        console.log("Leaflet not found, loading library...");
         // Load Leaflet if not already loaded
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
         script.async = true;
-        script.onload = initMap;
+        script.onload = () => {
+          console.log("Leaflet library loaded successfully");
+          initMap();
+        };
         
         const link = document.createElement('link');
         link.rel = 'stylesheet';
@@ -153,14 +141,17 @@ const RadarMap = ({ lat, lng }) => {
   useEffect(() => {
     if (!radarData || !mapInstanceRef.current) return;
     
+    console.log(`Frame or radar data changed, updating layer for frame ${currentFrame}`);
     updateRadarLayer();
-  }, [currentFrame, radarData, colorScheme]);
+  }, [currentFrame, colorScheme, radarData]);
 
   // Handle animation playback
   useEffect(() => {
     if (isPlaying) {
+      console.log("Starting animation playback");
       playAnimation();
     } else if (animationRef.current) {
+      console.log("Stopping animation playback");
       clearTimeout(animationRef.current);
     }
     
@@ -169,16 +160,20 @@ const RadarMap = ({ lat, lng }) => {
         clearTimeout(animationRef.current);
       }
     };
-  }, [isPlaying, currentFrame, radarData]);
+  }, [isPlaying, currentFrame]);
 
   // Update the radar layer with the current frame
   const updateRadarLayer = () => {
-    if (!mapInstanceRef.current || !radarData) return;
+    if (!mapInstanceRef.current || !radarData) {
+      console.log("Cannot update radar layer: map or radar data not available");
+      return;
+    }
     
     const map = mapInstanceRef.current;
     
     // Remove existing radar layer if it exists
     if (radarLayerRef.current) {
+      console.log("Removing existing radar layer");
       map.removeLayer(radarLayerRef.current);
     }
     
@@ -200,8 +195,12 @@ const RadarMap = ({ lat, lng }) => {
     // Construct the correct URL format based on the RainViewer API documentation
     // Format should be: host + path + '/256/{z}/{x}/{y}/colorScheme/smooth_snow.png'
     try {
+      // Create the tile URL
+      const tileUrl = `${host}${frame.path}/${TILE_SIZE}/{z}/{x}/{y}/${colorScheme}/${SMOOTH_DATA}_${SNOW_COLORS}.${TILE_FORMAT}`;
+      console.log("Tile URL template:", tileUrl);
+      
       // Create the tile layer with the correct URL format
-      const tileLayer = window.L.tileLayer(`${host}${frame.path}/${TILE_SIZE}/{z}/{x}/{y}/${colorScheme}/${SMOOTH_DATA}_${SNOW_COLORS}.${TILE_FORMAT}`, {
+      const tileLayer = window.L.tileLayer(tileUrl, {
         tileSize: TILE_SIZE,
         opacity: 0.9,
         zIndex: 100
@@ -222,37 +221,6 @@ const RadarMap = ({ lat, lng }) => {
       tileLayer.on('load', () => {
         loadedTiles++;
         console.log(`Tile loaded. Total loaded: ${loadedTiles} of ${loadingTiles}`);
-        
-        // Add a custom overlay if no precipitation is visible
-        if (loadedTiles === loadingTiles && loadedTiles > 0) {
-          // Wait a bit to ensure all tiles are fully loaded
-          setTimeout(() => {
-            // Check if any precipitation is visible (simple heuristic)
-            // We'll add a message to notify users they can pan/zoom to find precipitation
-            if (!document.querySelector('.no-precipitation-message')) {
-              const container = document.createElement('div');
-              container.className = 'no-precipitation-message';
-              container.innerHTML = 'No precipitation is currently visible in this area. Try zooming out or panning to other regions.';
-              container.style.position = 'absolute';
-              container.style.top = '50%';
-              container.style.left = '50%';
-              container.style.transform = 'translate(-50%, -50%)';
-              container.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-              container.style.padding = '10px';
-              container.style.borderRadius = '5px';
-              container.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.2)';
-              container.style.zIndex = '1000';
-              container.style.pointerEvents = 'none'; // Allow clicking through
-              container.style.display = 'none'; // Hide initially
-              
-              // Add to the map container and show after a delay
-              mapRef.current.appendChild(container);
-              setTimeout(() => {
-                container.style.display = 'block';
-              }, 3000); // Show after 3 seconds if no precipitation data becomes visible
-            }
-          }, 1000);
-        }
       });
       
       tileLayer.on('tileerror', (error) => {
@@ -261,10 +229,12 @@ const RadarMap = ({ lat, lng }) => {
       
       // Add the layer to the map
       tileLayer.addTo(map);
+      console.log("Radar layer added to map");
       radarLayerRef.current = tileLayer;
       
       // Show frame timestamp
-      console.log(`Showing frame time: ${new Date(frame.time * 1000).toLocaleTimeString()}`);
+      const frameTime = new Date(frame.time * 1000).toLocaleTimeString();
+      console.log(`Showing frame time: ${frameTime}`);
       
     } catch (err) {
       console.error("Error creating radar layer:", err);
@@ -281,6 +251,7 @@ const RadarMap = ({ lat, lng }) => {
     
     // Move to next frame
     const nextFrame = (currentFrame + 1) % allFrames.length;
+    console.log(`Animation advancing to frame ${nextFrame} of ${allFrames.length}`);
     setCurrentFrame(nextFrame);
     
     // Schedule the next frame update (500ms per frame)
@@ -289,12 +260,15 @@ const RadarMap = ({ lat, lng }) => {
 
   // Toggle play/pause animation
   const togglePlay = () => {
+    console.log(`${isPlaying ? 'Pausing' : 'Playing'} animation`);
     setIsPlaying(!isPlaying);
   };
 
   // Handle color scheme change
   const handleColorSchemeChange = (e) => {
-    setColorScheme(parseInt(e.target.value, 10));
+    const newScheme = parseInt(e.target.value, 10);
+    console.log(`Changing color scheme from ${colorScheme} to ${newScheme}`);
+    setColorScheme(newScheme);
   };
 
   // Format timestamp for display
@@ -431,6 +405,12 @@ const RadarMap = ({ lat, lng }) => {
         className="radar-map"
         style={{ height: '400px', width: '100%' }}
       ></div>
+      
+      <div className="radar-info">
+        <p className="info-message">
+          Radar shows precipitation when available. Areas without rain or snow will appear clear.
+        </p>
+      </div>
       
       <div className="radar-legend">
         <p className="legend-title">Precipitation Intensity</p>
