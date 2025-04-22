@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import './WeatherWidget.css';
 import RadarMap from './RadarMap'; // Import the RadarMap component
+import LeafletTest from './LeafletTest'; // Import the new test component
 import config from '../config'; // Import config
 
 const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) => {
@@ -523,7 +524,12 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
           <RadarMap lat={coordinates.lat} lng={coordinates.lng} />
         </div>
       )}
-      
+      {/* New test tab */}
+      {activeTab === 'test' && (
+        <div className="test-container">
+          <LeafletTest />
+        </div>
+      )}
       {activeTab === 'alerts' && alerts && (
         <div className="alerts-container">
           {alerts.length > 0 ? (
