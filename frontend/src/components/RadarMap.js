@@ -112,60 +112,38 @@ const RadarMap = ({ lat, lng }) => {
 
   // Initialize the map with Leaflet when component mounts
   useEffect(() => {
-    const initMap = () => {
-      // Ensure mapRef exists
-      if (!mapRef.current) {
-        console.error("Map reference not found");
-        return;
-      }
-      
-      console.log("Attempting to initialize Leaflet map...");
-      
-      // Check if Leaflet is already loaded
-      if (typeof window.L !== 'undefined') {
-        console.log("Leaflet is already available");
-        createMap();
-      } else {
-        console.log("Leaflet not found, loading library...");
-        // Load Leaflet dynamically
-        loadLeaflet();
-      }
-    };
-    
-    // Function to load Leaflet scripts and styles
-    const loadLeaflet = () => {
-      // Create script element
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
-      script.integrity = 'sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==';
-      script.crossOrigin = '';
-      
-      // Create style element
+    // Add Leaflet CSS directly to head
+    const linkExists = document.querySelector('link[href*="leaflet"]');
+    if (!linkExists) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
       link.href = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css';
-      link.integrity = 'sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==';
-      link.crossOrigin = '';
-      
-      // Handle script load event
-      script.onload = () => {
-        console.log("Leaflet script loaded successfully");
-        createMap();
-      };
-      
-      // Handle script error
-      script.onerror = (error) => {
-        console.error("Error loading Leaflet script:", error);
-      };
-      
-      // Add elements to document
       document.head.appendChild(link);
-      document.body.appendChild(script);
-    };
+      console.log("Leaflet CSS added to head");
+    }
     
-    // Function to create the map
-    const createMap = () => {
-      // Check if map container exists
+    // Load Leaflet JS directly
+    const scriptExists = document.querySelector('script[src*="leaflet"]');
+    if (!scriptExists) {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
+      script.onload = initializeMap;
+      document.body.appendChild(script);
+      console.log("Leaflet script added to body");
+    } else {
+      console.log("Leaflet script already exists");
+      // Wait a bit and then try to init map
+      setTimeout(initializeMap, 500);
+    }
+    
+    function initializeMap() {
+      console.log("Initializing radar map");
+      
+      if (!window.L) {
+        console.error("Leaflet not loaded");
+        return;
+      }
+      
       if (!mapRef.current) {
         console.error("Map container not found");
         return;
@@ -173,72 +151,50 @@ const RadarMap = ({ lat, lng }) => {
       
       // Remove existing map if it exists
       if (mapInstanceRef.current) {
-        console.log("Cleaning up existing map");
         mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
       }
       
       try {
-        console.log("Creating new map instance");
-        
-        // Use the provided coordinates or default to center of United States
-        const initialLat = lat || 39.8283;
-        const initialLng = lng || -98.5795;
-        const initialZoom = 5;
-        
-        // Add a visible style to the map container to ensure it has dimensions
+        // Ensure the container has a height
         mapRef.current.style.height = '400px';
         mapRef.current.style.width = '100%';
-        mapRef.current.style.border = '1px solid #ccc';
         
-        // Create map instance with explicit container dimensions
+        // Create map
         const map = window.L.map(mapRef.current, {
-          center: [initialLat, initialLng],
-          zoom: initialZoom,
-          zoomControl: true,
-          attributionControl: true
+          center: [lat || 39.8283, lng || -98.5795],
+          zoom: 5,
+          zoomControl: true
         });
         
         // Add OpenStreetMap tile layer
         window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Radar data &copy; <a href="https://rainviewer.com">RainViewer</a>',
+          attribution: '&copy; OpenStreetMap contributors | Radar data &copy; <a href="https://rainviewer.com">RainViewer</a>',
           maxZoom: 19
         }).addTo(map);
         
-        // Add a marker to verify map is working
-        window.L.marker([initialLat, initialLng])
-          .addTo(map)
-          .bindPopup('Map initialized successfully!')
-          .openPopup();
-        
-        console.log("Map created successfully:", map);
+        console.log("Base map created successfully");
         mapInstanceRef.current = map;
         
-        // Force a resize event to ensure proper rendering
+        // Force a resize
         setTimeout(() => {
           if (mapInstanceRef.current) {
-            console.log("Triggering map resize");
+            console.log("Forcing map resize");
             mapInstanceRef.current.invalidateSize(true);
+            
+            // After resize, update radar layer if data is available
+            if (radarData) {
+              updateRadarLayer();
+            }
           }
-        }, 100);
-        
-        // Update radar layer if data is available
-        if (radarData) {
-          console.log("Updating radar layer with existing data");
-          updateRadarLayer();
-        }
+        }, 500);
       } catch (error) {
         console.error("Error creating map:", error);
       }
-    };
-    
-    // Initialize map
-    initMap();
+    }
     
     // Cleanup function
     return () => {
       if (mapInstanceRef.current) {
-        console.log("Cleaning up map on unmount");
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
@@ -427,7 +383,7 @@ const RadarMap = ({ lat, lng }) => {
       tileLayer.addTo(map);
       radarLayerRef.current = tileLayer;
       
-      // Show frame time for debugging
+      // Show frame timestamp
       const frameTime = new Date(frame.time * 1000).toLocaleTimeString();
       console.log(`Frame time: ${frameTime}`);
       
