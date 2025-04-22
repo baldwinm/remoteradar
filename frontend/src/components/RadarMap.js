@@ -1,6 +1,7 @@
 // src/components/RadarMap.js
 import React, { useState, useEffect, useRef } from 'react';
 import './RadarMap.css';
+import config from '../config'; // Import config
 
 const RadarMap = ({ lat, lng }) => {
   const [radarData, setRadarData] = useState(null);
@@ -26,23 +27,36 @@ const RadarMap = ({ lat, lng }) => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        console.log("Fetching radar data from RainViewer API...");
+        console.log("Fetching radar data from backend API...");
         
-        // Use the public RainViewer API endpoint
-        const response = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+        // Use our backend API endpoint instead of calling RainViewer directly
+        const response = await fetch(`${config.API_URL}/api/radar/data`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Origin': window.location.origin
+          },
+          mode: 'cors',
+          credentials: 'include'
+        });
         
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log("RainViewer API data received successfully");
+        console.log("Radar data received successfully");
         
-        setRadarData(data);
+        if (!data.success || !data.radar) {
+          throw new Error('Invalid radar data format from API');
+        }
+        
+        setRadarData(data.radar);
         
         // Start with the most recent past frame
-        if (data.radar && data.radar.past && data.radar.past.length > 0) {
-          const lastPastFrameIndex = data.radar.past.length - 1;
+        if (data.radar.radar && data.radar.radar.past && data.radar.radar.past.length > 0) {
+          const lastPastFrameIndex = data.radar.radar.past.length - 1;
           console.log(`Setting current frame to last past frame index: ${lastPastFrameIndex}`);
           setCurrentFrame(lastPastFrameIndex);
         }
@@ -164,7 +178,7 @@ const RadarMap = ({ lat, lng }) => {
 
   // Update the radar layer with the current frame
   const updateRadarLayer = () => {
-    if (!mapInstanceRef.current || !radarData) {
+    if (!mapInstanceRef.current || !radarData || !radarData.radar) {
       console.log("Cannot update radar layer: map or radar data not available");
       return;
     }
@@ -192,14 +206,26 @@ const RadarMap = ({ lat, lng }) => {
     console.log("Host:", host);
     console.log("Path:", frame.path);
     
-    // Construct the correct URL format based on the RainViewer API documentation
-    // Format should be: host + path + '/256/{z}/{x}/{y}/colorScheme/smooth_snow.png'
     try {
-      // Create the tile URL
-      const tileUrl = `${host}${frame.path}/${TILE_SIZE}/{z}/{x}/{y}/${colorScheme}/${SMOOTH_DATA}_${SNOW_COLORS}.${TILE_FORMAT}`;
-      console.log("Tile URL template:", tileUrl);
+      // Create custom tile URL function that uses our backend API
+      const tileUrl = (tilePoint) => {
+        // Build tile URL through our backend proxy
+        return `${config.API_URL}/api/radar/tile?` + 
+               `host=${encodeURIComponent(host)}` +
+               `&path=${encodeURIComponent(frame.path)}` +
+               `&x=${tilePoint.x}` +
+               `&y=${tilePoint.y}` +
+               `&z=${tilePoint.z}` +
+               `&color_scheme=${colorScheme}` +
+               `&smooth=${SMOOTH_DATA}` +
+               `&snow=${SNOW_COLORS}` +
+               `&size=${TILE_SIZE}` +
+               `&format=${TILE_FORMAT}`;
+      };
       
-      // Create the tile layer with the correct URL format
+      console.log("Tile URL function created");
+      
+      // Create the tile layer with our custom URL function
       const tileLayer = window.L.tileLayer(tileUrl, {
         tileSize: TILE_SIZE,
         opacity: 0.9,
@@ -243,7 +269,7 @@ const RadarMap = ({ lat, lng }) => {
 
   // Play radar animation
   const playAnimation = () => {
-    if (!radarData) return;
+    if (!radarData || !radarData.radar) return;
     
     const allFrames = [...(radarData.radar.past || []), ...(radarData.radar.nowcast || [])];
     

@@ -14,6 +14,7 @@ from api.places import register_places_routes
 from api.accommodation import register_accommodation_routes
 from api.images import register_images_routes
 from api.weather import register_weather_routes
+from api.radar import register_radar_routes
 
 # Import utilities
 from utils.logging_config import setup_logging
@@ -92,6 +93,7 @@ def create_app(test_config=None):
     register_accommodation_routes(app, limiter)
     register_images_routes(app, limiter)
     register_weather_routes(app, limiter)
+    register_radar_routes(app, limiter)
     
     # Comprehensive CORS preflight handler for city image endpoint
     @app.route('/api/city-image', methods=['OPTIONS'])
