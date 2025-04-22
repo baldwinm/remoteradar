@@ -3,9 +3,9 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './CityMapView.css';
 
-// Define a fallback token - only for development purposes
-// In production, you should always use environment variables
-const FALLBACK_TOKEN = "YOUR_FALLBACK_TOKEN"; // Replace this with your actual token if needed
+// *** IMPORTANT: Replace this with your actual Mapbox token ***
+// You can get your token from your Mapbox account dashboard
+const MAPBOX_TOKEN = "eyJ1IjoibWpiYWxkd2luIiwiYSI6ImNtOXB6bWRkNDE4NXUydnBxMXdkZm1lYTAifQ.70dqUOegckCY145fG-uokA";
 
 const CityMapView = ({ 
   city, 
@@ -40,38 +40,19 @@ const CityMapView = ({
     // Debug logs
     console.log("Initializing map with coordinates:", lat, lng);
     
-    // Try various ways to get the Mapbox token
-    // 1. First try window._env_ (sometimes used for runtime env vars)
-    // 2. Then try process.env
-    // 3. Finally use fallback token if all else fails
-    let token;
-    
-    // Try window._env_ first (used in some React setups for runtime env vars)
-    if (window._env_ && window._env_.REACT_APP_MAPBOX_TOKEN) {
-      token = window._env_.REACT_APP_MAPBOX_TOKEN;
-      console.log("Using token from window._env_");
-    }
-    // Then try process.env
-    else if (process.env.REACT_APP_MAPBOX_TOKEN) {
-      token = process.env.REACT_APP_MAPBOX_TOKEN;
-      console.log("Using token from process.env");
-    }
-    // Finally use fallback token
-    else {
-      token = FALLBACK_TOKEN;
-      console.log("Using fallback token");
-    }
+    // Use hardcoded token
+    const token = MAPBOX_TOKEN;
     
     // Check if token is valid
-    if (!token || token === "YOUR_FALLBACK_TOKEN") {
-      console.error("Mapbox token is missing or invalid");
-      setMapError("Mapbox token is missing. Please check your environment variables or set a fallback token.");
+    if (!token || token === "pk.YOUR_ACTUAL_MAPBOX_TOKEN_HERE") {
+      console.error("Please replace the placeholder with your actual Mapbox token");
+      setMapError("Please replace the placeholder with your actual Mapbox token in CityMapView.js");
       return;
     }
     
     // Set the access token
     mapboxgl.accessToken = token;
-    console.log("Mapbox token set successfully");
+    console.log("Mapbox token set:", token.substring(0, 10) + "...");
     
     try {
       // Create new map instance
@@ -176,19 +157,13 @@ const CityMapView = ({
     }
   };
 
-  // Render error state with more helpful message
+  // Render error state
   if (mapError) {
     return (
       <div className="city-map-container">
         <div className="map-error">
           <h3>Map Loading Error</h3>
           <p>{mapError}</p>
-          <p>To fix this issue:</p>
-          <ol style={{ textAlign: 'left' }}>
-            <li>Ensure you have a Mapbox access token in your .env file</li>
-            <li>The variable should be named REACT_APP_MAPBOX_TOKEN</li>
-            <li>Restart your development server after changes</li>
-          </ol>
           <button onClick={() => window.location.reload()} className="retry-button">
             Reload Page
           </button>
