@@ -313,6 +313,13 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
         >
           Radar
         </button>
+        {/* Add this new test tab button */}
+        <button 
+        className={activeTab === 'test' ? 'active' : ''} 
+        onClick={() => setActiveTab('test')}
+        >
+        Map Test
+        </button>		
         {alerts && alerts.length > 0 && (
           <button 
             className={activeTab === 'alerts' ? 'active' : ''} 
