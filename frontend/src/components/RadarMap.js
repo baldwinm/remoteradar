@@ -112,93 +112,133 @@ const RadarMap = ({ lat, lng }) => {
 
   // Initialize the map with Leaflet when component mounts
   useEffect(() => {
-    if (!mapRef.current) {
-      debugLog("Map reference not found, skipping initialization");
-      return;
-    }
-    
     const initMap = () => {
-      debugLog("Checking if Leaflet is available:", !!window.L);
+      // Ensure mapRef exists
+      if (!mapRef.current) {
+        console.error("Map reference not found");
+        return;
+      }
       
-      if (window.L) {
-        debugLog("Initializing Leaflet map...");
-        
-        if (mapInstanceRef.current) {
-          debugLog("Removing existing map instance");
-          mapInstanceRef.current.remove();
-        }
+      console.log("Attempting to initialize Leaflet map...");
+      
+      // Check if Leaflet is already loaded
+      if (typeof window.L !== 'undefined') {
+        console.log("Leaflet is already available");
+        createMap();
+      } else {
+        console.log("Leaflet not found, loading library...");
+        // Load Leaflet dynamically
+        loadLeaflet();
+      }
+    };
+    
+    // Function to load Leaflet scripts and styles
+    const loadLeaflet = () => {
+      // Create script element
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
+      script.integrity = 'sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==';
+      script.crossOrigin = '';
+      
+      // Create style element
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css';
+      link.integrity = 'sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==';
+      link.crossOrigin = '';
+      
+      // Handle script load event
+      script.onload = () => {
+        console.log("Leaflet script loaded successfully");
+        createMap();
+      };
+      
+      // Handle script error
+      script.onerror = (error) => {
+        console.error("Error loading Leaflet script:", error);
+      };
+      
+      // Add elements to document
+      document.head.appendChild(link);
+      document.body.appendChild(script);
+    };
+    
+    // Function to create the map
+    const createMap = () => {
+      // Check if map container exists
+      if (!mapRef.current) {
+        console.error("Map container not found");
+        return;
+      }
+      
+      // Remove existing map if it exists
+      if (mapInstanceRef.current) {
+        console.log("Cleaning up existing map");
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+      
+      try {
+        console.log("Creating new map instance");
         
         // Use the provided coordinates or default to center of United States
         const initialLat = lat || 39.8283;
         const initialLng = lng || -98.5795;
         const initialZoom = 5;
         
-        debugLog(`Map center: [${initialLat}, ${initialLng}], zoom: ${initialZoom}`);
+        // Add a visible style to the map container to ensure it has dimensions
+        mapRef.current.style.height = '400px';
+        mapRef.current.style.width = '100%';
+        mapRef.current.style.border = '1px solid #ccc';
         
-        try {
-          // Create map instance
-          const map = window.L.map(mapRef.current, {
-            center: [initialLat, initialLng],
-            zoom: initialZoom,
-            attributionControl: true
-          });
-          
-          debugLog("Map instance created:", !!map);
-          
-          // Add OpenStreetMap tile layer
-          const tileLayer = window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Radar data &copy; <a href="https://rainviewer.com">RainViewer</a>',
-            maxZoom: 19
-          });
-          
-          tileLayer.on('loading', () => debugLog("Base map tiles loading started"));
-          tileLayer.on('load', () => debugLog("Base map tiles loaded"));
-          tileLayer.on('tileerror', (e) => console.error("Base map tile error:", e));
-          
-          tileLayer.addTo(map);
-          
-          debugLog("Base map tiles added");
-          mapInstanceRef.current = map;
-          
-          // Add a marker to verify map is working
-          const marker = window.L.marker([initialLat, initialLng]).addTo(map);
-          marker.bindPopup("Map initialized!").openPopup();
-          debugLog("Test marker added to map");
-          
-          // If radar data already loaded, update the radar layer
-          if (radarData) {
-            debugLog("Radar data already loaded, updating radar layer");
-            updateRadarLayer();
+        // Create map instance with explicit container dimensions
+        const map = window.L.map(mapRef.current, {
+          center: [initialLat, initialLng],
+          zoom: initialZoom,
+          zoomControl: true,
+          attributionControl: true
+        });
+        
+        // Add OpenStreetMap tile layer
+        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Radar data &copy; <a href="https://rainviewer.com">RainViewer</a>',
+          maxZoom: 19
+        }).addTo(map);
+        
+        // Add a marker to verify map is working
+        window.L.marker([initialLat, initialLng])
+          .addTo(map)
+          .bindPopup('Map initialized successfully!')
+          .openPopup();
+        
+        console.log("Map created successfully:", map);
+        mapInstanceRef.current = map;
+        
+        // Force a resize event to ensure proper rendering
+        setTimeout(() => {
+          if (mapInstanceRef.current) {
+            console.log("Triggering map resize");
+            mapInstanceRef.current.invalidateSize(true);
           }
-        } catch (e) {
-          console.error("Error initializing map:", e);
+        }, 100);
+        
+        // Update radar layer if data is available
+        if (radarData) {
+          console.log("Updating radar layer with existing data");
+          updateRadarLayer();
         }
-      } else {
-        debugLog("Leaflet not found, loading library...");
-        // Load Leaflet if not already loaded
-        const script = document.createElement('script');
-        script.src = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
-        script.async = true;
-        script.onload = () => {
-          debugLog("Leaflet library loaded successfully");
-          initMap();
-        };
-        
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css';
-        
-        document.head.appendChild(link);
-        document.body.appendChild(script);
+      } catch (error) {
+        console.error("Error creating map:", error);
       }
     };
     
     // Initialize map
     initMap();
     
-    // Cleanup
+    // Cleanup function
     return () => {
       if (mapInstanceRef.current) {
+        console.log("Cleaning up map on unmount");
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
@@ -235,12 +275,56 @@ const RadarMap = ({ lat, lng }) => {
 
   // Update the radar layer with the current frame
   const updateRadarLayer = () => {
-    if (!mapInstanceRef.current || !radarData || !radarData.radar) {
-      debugLog("Cannot update radar layer: map or radar data not available", {
-        mapExists: !!mapInstanceRef.current,
-        radarDataExists: !!radarData,
-        radarStructureExists: radarData && !!radarData.radar
-      });
+    console.log("updateRadarLayer called");
+    
+    // Check if we have the map and data
+    if (!mapInstanceRef.current) {
+      console.error("Cannot update radar layer: Map is not initialized");
+      return;
+    }
+    
+    if (!radarData) {
+      console.error("Cannot update radar layer: No radar data available");
+      return;
+    }
+    
+    // Check the structure of radarData
+    console.log("Radar data structure:", Object.keys(radarData));
+    
+    // Verify we have radar.past or radar.radar.past
+    let pastFrames = [];
+    let forecastFrames = [];
+    
+    // Handle both possible data structures (data.radar.past or data.radar.radar.past)
+    if (radarData.radar && Array.isArray(radarData.radar.past)) {
+      console.log("Found frames in radarData.radar.past");
+      pastFrames = radarData.radar.past;
+    } else if (radarData.radar && radarData.radar.radar && Array.isArray(radarData.radar.radar.past)) {
+      console.log("Found frames in radarData.radar.radar.past");
+      pastFrames = radarData.radar.radar.past;
+    } else {
+      console.error("No past frames found in radar data");
+      console.log("Radar data structure:", JSON.stringify(radarData));
+      return;
+    }
+    
+    // Get forecast frames
+    if (radarData.radar && Array.isArray(radarData.radar.nowcast)) {
+      forecastFrames = radarData.radar.nowcast;
+    } else if (radarData.radar && radarData.radar.radar && Array.isArray(radarData.radar.radar.nowcast)) {
+      forecastFrames = radarData.radar.radar.nowcast;
+    }
+    
+    const allFrames = [...pastFrames, ...forecastFrames];
+    console.log(`Total frames available: ${allFrames.length} (${pastFrames.length} past, ${forecastFrames.length} forecast)`);
+    
+    if (allFrames.length === 0) {
+      console.error("No frames available in radar data");
+      return;
+    }
+    
+    if (currentFrame >= allFrames.length) {
+      console.error(`Invalid current frame: ${currentFrame} (max: ${allFrames.length - 1})`);
       return;
     }
     
@@ -248,27 +332,17 @@ const RadarMap = ({ lat, lng }) => {
     
     // Remove existing radar layer if it exists
     if (radarLayerRef.current) {
-      debugLog("Removing existing radar layer");
+      console.log("Removing existing radar layer");
       map.removeLayer(radarLayerRef.current);
     }
     
-    // Get all frames (past and forecast)
-    const allFrames = [...(radarData.radar.past || []), ...(radarData.radar.nowcast || [])];
-    
-    if (currentFrame >= allFrames.length || allFrames.length === 0) {
-      console.error("Invalid current frame or no frames available", {
-        currentFrame,
-        framesLength: allFrames.length
-      });
-      return;
-    }
-    
+    // Get the frame data
     const frame = allFrames[currentFrame];
-    const host = radarData.host;
+    console.log("Using frame:", frame);
     
-    debugLog("Creating radar layer for frame:", frame);
-    debugLog("Host:", host);
-    debugLog("Path:", frame.path);
+    // Get the host
+    const host = radarData.host || "https://tilecache.rainviewer.com";
+    console.log("Using host:", host);
     
     try {
       // Create custom tile URL function that uses our backend API
@@ -286,78 +360,76 @@ const RadarMap = ({ lat, lng }) => {
                `&size=${TILE_SIZE}` +
                `&format=${TILE_FORMAT}`;
                
-        // Log the first tile URL for debugging
-        if (tilePoint.x === 0 && tilePoint.y === 0) {
-          debugLog("Example tile URL:", url);
+        // Test the first tile URL
+        if (tilePoint.x === 0 && tilePoint.y === 0 && tilePoint.z === 0) {
+          console.log("Sample tile URL:", url);
+          
+          // Test direct fetch for debugging (don't await it)
+          fetch(url)
+            .then(response => {
+              console.log("Test tile response:", response.status);
+              return response.blob();
+            })
+            .then(blob => {
+              console.log("Test tile content type:", blob.type, "size:", blob.size);
+            })
+            .catch(err => {
+              console.error("Test tile fetch error:", err);
+            });
         }
         
         return url;
       };
       
-      debugLog("Tile URL function created");
-      
-      // Create the tile layer with our custom URL function
+      // Create the tile layer
+      console.log("Creating radar tile layer");
       const tileLayer = window.L.tileLayer(tileUrl, {
         tileSize: TILE_SIZE,
         opacity: 0.9,
         zIndex: 100
       });
       
-      // Cache the layer
-      radarLayersRef.current[frame.path] = tileLayer;
-      
-      // Add event handlers for loading/loaded tiles
-      let loadingTiles = 0;
-      let loadedTiles = 0;
-      
-      tileLayer.on('loading', () => {
-        loadingTiles++;
-        debugLog(`Tile loading started. Total loading: ${loadingTiles}`);
-      });
-      
-      tileLayer.on('load', () => {
-        loadedTiles++;
-        debugLog(`Tile loaded. Total loaded: ${loadedTiles} of ${loadingTiles}`);
-      });
+      // Add event handlers
+      tileLayer.on('loading', () => console.log("Radar tiles loading started"));
+      tileLayer.on('load', () => console.log("Radar tiles loaded"));
       
       tileLayer.on('tileerror', (error) => {
-        console.error('Tile loading error:', error);
-        // Attempt to load a sample tile directly to test
-        const sampleTileUrl = `${config.API_URL}/api/radar/tile?` + 
-                           `host=${encodeURIComponent(host)}` +
-                           `&path=${encodeURIComponent(frame.path)}` +
-                           `&x=0&y=0&z=0` +
-                           `&color_scheme=${colorScheme}` +
-                           `&smooth=${SMOOTH_DATA}` +
-                           `&snow=${SNOW_COLORS}` +
-                           `&size=${TILE_SIZE}` +
-                           `&format=${TILE_FORMAT}`;
+        console.error("Radar tile error:", error);
         
-        debugLog("Testing direct tile fetch:", sampleTileUrl);
+        // Test a direct tile fetch
+        const testUrl = `${config.API_URL}/api/radar/tile?` + 
+                     `host=${encodeURIComponent(host)}` +
+                     `&path=${encodeURIComponent(frame.path)}` +
+                     `&x=0&y=0&z=0` +
+                     `&color_scheme=${colorScheme}` +
+                     `&smooth=${SMOOTH_DATA}` +
+                     `&snow=${SNOW_COLORS}` +
+                     `&size=${TILE_SIZE}` +
+                     `&format=${TILE_FORMAT}`;
         
-        // Try to fetch a test tile directly
-        fetch(sampleTileUrl)
+        console.log("Testing tile URL directly:", testUrl);
+        
+        fetch(testUrl)
           .then(response => {
-            debugLog("Test tile response:", response.status, response.statusText);
+            console.log("Direct tile fetch response:", response.status);
             return response.blob();
           })
           .then(blob => {
-            debugLog("Test tile content type:", blob.type);
-            debugLog("Test tile size:", blob.size);
+            console.log("Direct tile content:", blob.type, blob.size);
           })
-          .catch(error => {
-            console.error("Test tile fetch error:", error);
+          .catch(err => {
+            console.error("Direct tile fetch error:", err);
           });
       });
       
-      // Add the layer to the map
+      // Add layer to map
+      console.log("Adding radar layer to map");
       tileLayer.addTo(map);
-      debugLog("Radar layer added to map");
       radarLayerRef.current = tileLayer;
       
-      // Show frame timestamp
+      // Show frame time for debugging
       const frameTime = new Date(frame.time * 1000).toLocaleTimeString();
-      debugLog(`Showing frame time: ${frameTime}`);
+      console.log(`Frame time: ${frameTime}`);
       
     } catch (err) {
       console.error("Error creating radar layer:", err);
@@ -368,7 +440,14 @@ const RadarMap = ({ lat, lng }) => {
   const playAnimation = () => {
     if (!radarData || !radarData.radar) return;
     
-    const allFrames = [...(radarData.radar.past || []), ...(radarData.radar.nowcast || [])];
+    // Get frames based on data structure
+    let allFrames = [];
+    
+    if (radarData.radar && Array.isArray(radarData.radar.past)) {
+      allFrames = [...radarData.radar.past, ...(radarData.radar.nowcast || [])];
+    } else if (radarData.radar && radarData.radar.radar && Array.isArray(radarData.radar.radar.past)) {
+      allFrames = [...radarData.radar.radar.past, ...(radarData.radar.radar.nowcast || [])];
+    }
     
     if (allFrames.length === 0) return;
     
@@ -444,8 +523,14 @@ const RadarMap = ({ lat, lng }) => {
     );
   }
 
-  // Combine past and forecast frames for display
-  const allFrames = [...(radarData.radar.past || []), ...(radarData.radar.nowcast || [])];
+  // Determine frames based on data structure
+  let allFrames = [];
+  if (radarData.radar && Array.isArray(radarData.radar.past)) {
+    allFrames = [...radarData.radar.past, ...(radarData.radar.nowcast || [])];
+  } else if (radarData.radar && radarData.radar.radar && Array.isArray(radarData.radar.radar.past)) {
+    allFrames = [...radarData.radar.radar.past, ...(radarData.radar.radar.nowcast || [])];
+  }
+  
   const currentFrameData = allFrames[currentFrame];
   
   // Get available color schemes
