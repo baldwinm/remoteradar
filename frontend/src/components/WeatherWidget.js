@@ -228,4 +228,139 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
       }
     }
   };
-    
+
+  // Get current hour index
+  const currentHourIndex = getCurrentHourIndex();
+
+  return (
+    <div className="weather-widget">
+      <div className="weather-header">
+        <h3 className="weather-title">Weather in {city_name}</h3>
+        <div className="unit-toggle">
+          <button 
+            className={units === 'metric' ? 'active' : ''} 
+            onClick={() => handleUnitToggle('metric')}
+          >
+            °C
+          </button>
+          <button 
+            className={units === 'imperial' ? 'active' : ''} 
+            onClick={() => handleUnitToggle('imperial')}
+          >
+            °F
+          </button>
+        </div>
+      </div>
+      
+      <div className="weather-tabs">
+        <button 
+          className={activeTab === 'current' ? 'active' : ''} 
+          onClick={() => setActiveTab('current')}
+        >
+          Current
+        </button>
+        <button 
+          className={activeTab === 'daily' ? 'active' : ''} 
+          onClick={() => setActiveTab('daily')}
+        >
+          Forecast
+        </button>
+        <button 
+          className={activeTab === 'hourly' ? 'active' : ''} 
+          onClick={() => setActiveTab('hourly')}
+        >
+          Hourly
+        </button>
+      </div>
+      
+      {activeTab === 'current' && current && (
+        <div className="current-weather">
+          <div className="weather-now">
+            <div className="weather-icon">
+              {getWeatherIcon(current.weather_code)}
+            </div>
+            <div className="weather-info">
+              <div className="temp">{Math.round(current.temperature)}°{units === 'metric' ? 'C' : 'F'}</div>
+              <div className="description">
+                {current.weather_description || 'Current conditions'}
+              </div>
+              <div className="feels-like">
+                Feels like {Math.round(current.apparent_temperature)}°{units === 'metric' ? 'C' : 'F'}
+              </div>
+            </div>
+          </div>
+          
+          <div className="weather-details">
+            <div className="detail-row">
+              <div className="detail-item">
+                <div className="detail-label">Humidity</div>
+                <div className="detail-value">{current.relative_humidity}%</div>
+              </div>
+              <div className="detail-item">
+                <div className="detail-label">Wind</div>
+                <div className="detail-value">
+                  {Math.round(current.wind_speed_10m)} {units === 'metric' ? 'km/h' : 'mph'}
+                </div>
+              </div>
+            </div>
+            <div className="detail-row">
+              <div className="detail-item">
+                <div className="detail-label">Precipitation</div>
+                <div className="detail-value">
+                  {current.precipitation} {units === 'metric' ? 'mm' : 'in'}
+                </div>
+              </div>
+              <div className="detail-item">
+                <div className="detail-label">Pressure</div>
+                <div className="detail-value">
+                  {current.pressure_msl} hPa
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {activeTab === 'daily' && daily && daily.time && (
+        <div className="forecast-weather">
+          {daily.time.slice(0, 7).map((day, index) => (
+            <div className="forecast-day" key={index}>
+              <div className="day-name">{formatDate(day)}</div>
+              <div className="day-icon">{getWeatherIcon(daily.weather_code[index])}</div>
+              <div className="day-temps">
+                <span className="high">{Math.round(daily.temperature_2m_max[index])}°</span>
+                <span className="low">{Math.round(daily.temperature_2m_min[index])}°</span>
+              </div>
+              <div className="day-precip">
+                💧 {daily.precipitation_probability_max[index]}%
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {activeTab === 'hourly' && hourly && hourly.time && (
+        <div className="hourly-weather">
+          {hourly.time.slice(currentHourIndex, currentHourIndex + 12).map((time, index) => (
+            <div className="hourly-item" key={index}>
+              <div className="hour-time">{formatTime(time)}</div>
+              <div className="hour-icon">{getWeatherIcon(hourly.weather_code[currentHourIndex + index])}</div>
+              <div className="hour-temp">{Math.round(hourly.temperature_2m[currentHourIndex + index])}°</div>
+              <div className="hour-precip">
+                💧 {hourly.precipitation_probability[currentHourIndex + index]}%
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      <div className="weather-footer">
+        <div className="attribution">
+          Data provided by <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default WeatherWidget;
