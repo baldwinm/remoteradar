@@ -152,7 +152,7 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
   }
 
   const { weather, city_name } = weatherData;
-  const { current, daily, hourly } = weather;
+  const { current, daily, hourly, air_quality, pollen, alerts } = weather;
 
   // Helper function to get weather icon
   const getWeatherIcon = (weatherCode) => {
@@ -176,6 +176,8 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
       80: '🌦️', // Slight rain showers
       81: '🌦️', // Moderate rain showers
       82: '🌦️', // Violent rain showers
+      85: '🌨️', // Slight snow showers
+      86: '🌨️', // Heavy snow showers
       95: '⛈️', // Thunderstorm
       96: '⛈️', // Thunderstorm with slight hail
       99: '⛈️', // Thunderstorm with heavy hail
@@ -232,6 +234,27 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
   // Get current hour index
   const currentHourIndex = getCurrentHourIndex();
 
+  // Function to get AQI level description
+  const getAqiLevel = (aqi) => {
+    if (!aqi) return 'Unknown';
+    if (aqi < 20) return 'Good';
+    if (aqi < 40) return 'Fair';
+    if (aqi < 60) return 'Moderate';
+    if (aqi < 80) return 'Poor';
+    if (aqi < 100) return 'Very Poor';
+    return 'Hazardous';
+  };
+
+  // Function to get pollen level description
+  const getPollenLevel = (value) => {
+    if (!value) return 'Unknown';
+    if (value < 1) return 'None';
+    if (value < 2) return 'Low';
+    if (value < 3) return 'Moderate';
+    if (value < 4) return 'High';
+    return 'Very High';
+  };
+
   return (
     <div className="weather-widget">
       <div className="weather-header">
@@ -271,6 +294,22 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
         >
           Hourly
         </button>
+        {alerts && alerts.length > 0 && (
+          <button 
+            className={activeTab === 'alerts' ? 'active' : ''} 
+            onClick={() => setActiveTab('alerts')}
+          >
+            Alerts
+          </button>
+        )}
+        {pollen && Object.keys(pollen).length > 0 && (
+          <button 
+            className={activeTab === 'pollen' ? 'active' : ''} 
+            onClick={() => setActiveTab('pollen')}
+          >
+            Pollen
+          </button>
+        )}
       </div>
       
       {activeTab === 'current' && current && (
@@ -289,6 +328,26 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
               </div>
             </div>
           </div>
+          
+          {/* Display sunrise/sunset times */}
+          {daily && daily.sunrise && daily.sunset && daily.sunrise.length > 0 && daily.sunset.length > 0 && (
+            <div className="sun-times">
+              <div className="sun-time">
+                <div className="sun-icon">🌅</div>
+                <div className="sun-info">
+                  <div className="sun-label">Sunrise</div>
+                  <div className="sun-value">{formatTime(daily.sunrise[0])}</div>
+                </div>
+              </div>
+              <div className="sun-time">
+                <div className="sun-icon">🌇</div>
+                <div className="sun-info">
+                  <div className="sun-label">Sunset</div>
+                  <div className="sun-value">{formatTime(daily.sunset[0])}</div>
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="weather-details">
             <div className="detail-row">
@@ -351,6 +410,61 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
               </div>
             </div>
           ))}
+        </div>
+      )}
+      
+      {activeTab === 'alerts' && alerts && (
+        <div className="alerts-container">
+          {alerts.length > 0 ? (
+            alerts.map((alert, index) => (
+              <div key={index} className={`alert-item alert-${alert.severity}`}>
+                <div className="alert-icon">
+                  {alert.severity === 'severe' ? '⚠️' : '⚠'}
+                </div>
+                <div className="alert-content">
+                  <div className="alert-title">{alert.title}</div>
+                  <div className="alert-description">{alert.description}</div>
+                  <div className="alert-date">{formatDate(alert.date)}</div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="no-alerts">
+              <p>No weather alerts at this time.</p>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {activeTab === 'pollen' && pollen && (
+        <div className="pollen-container">
+          {Object.keys(pollen).length > 0 ? (
+            <div className="pollen-forecast">
+              <div className="pollen-header">
+                <div className="pollen-title">Pollen Forecast</div>
+                <div className="pollen-subtitle">Next 5 days</div>
+              </div>
+              <div className="pollen-types">
+                {Object.entries(pollen).map(([type, values]) => (
+                  <div key={type} className="pollen-type">
+                    <div className="pollen-type-name">{type.replace('_pollen', '').charAt(0).toUpperCase() + type.replace('_pollen', '').slice(1)}</div>
+                    <div className="pollen-levels">
+                      {values.slice(0, 5).map((value, index) => (
+                        <div key={index} className={`pollen-level level-${getPollenLevel(value).toLowerCase().replace(' ', '-')}`}>
+                          <div className="pollen-day">{formatDate(daily.time[index])}</div>
+                          <div className="pollen-value">{getPollenLevel(value)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="no-pollen-data">
+              <p>Pollen data is not available for this location.</p>
+            </div>
+          )}
         </div>
       )}
       

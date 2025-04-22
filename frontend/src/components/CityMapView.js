@@ -6,8 +6,7 @@ import './CityMapView.css';
 const CityMapView = ({ 
   city, 
   lat, 
-  lng, 
-  mapboxToken 
+  lng 
 }) => {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -28,28 +27,36 @@ const CityMapView = ({
     // Prevent multiple map initializations
     if (map.current) return;
 
-    // Set Mapbox access token
-    mapboxgl.accessToken = mapboxToken;
+    // Set Mapbox access token directly from environment variable
+    // This is the key change - direct access to env variable
+    mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
+    
+    // Log for debugging
+    console.log("Mapbox Token:", process.env.REACT_APP_MAPBOX_TOKEN ? "Token exists" : "Token missing");
 
     // Create map
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: `mapbox://styles/mapbox/${style}`,
-      center: [lng, lat],
-      zoom: zoom
-    });
+    try {
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: `mapbox://styles/mapbox/${style}`,
+        center: [lng, lat],
+        zoom: zoom
+      });
 
-    // Add navigation controls
-    map.current.addControl(new mapboxgl.NavigationControl());
+      // Add navigation controls
+      map.current.addControl(new mapboxgl.NavigationControl());
 
-    // Add marker for city
-    new mapboxgl.Marker()
-      .setLngLat([lng, lat])
-      .addTo(map.current);
+      // Add marker for city
+      new mapboxgl.Marker()
+        .setLngLat([lng, lat])
+        .addTo(map.current);
+    } catch (error) {
+      console.error("Error initializing Mapbox:", error);
+    }
 
     // Clean up on unmount
     return () => map.current?.remove();
-  }, [lng, lat, style, mapboxToken]);
+  }, [lng, lat, style]);
 
   // Handle style change
   const handleStyleChange = (newStyle) => {

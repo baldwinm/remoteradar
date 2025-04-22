@@ -15,6 +15,7 @@ _cache = {}
 
 # Open-Meteo base URL
 OPEN_METEO_BASE_URL = "https://api.open-meteo.com/v1/forecast"
+OPEN_METEO_AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
 def get_weather_data(lat: float, lng: float, units: str = 'imperial') -> Dict[str, Any]:
     """
@@ -116,8 +117,14 @@ def get_weather_data(lat: float, lng: float, units: str = 'imperial') -> Dict[st
                     "response_body": response.text[:200]  # Include just a portion
                 }
             
+            # Get air quality and pollen data
+            air_quality_data = get_air_quality_data(lat, lng)
+            
+            # Get weather alerts if available
+            alerts_data = get_weather_alerts(lat, lng)
+            
             # Process the API response
-            processed_data = process_weather_data(data, units)
+            processed_data = process_weather_data(data, air_quality_data, alerts_data, units)
             
             # Cache the result
             _cache[cache_key] = {
@@ -145,12 +152,103 @@ def get_weather_data(lat: float, lng: float, units: str = 'imperial') -> Dict[st
             }
         }
 
-def process_weather_data(data: Dict[str, Any], units: str) -> Dict[str, Any]:
+def get_air_quality_data(lat: float, lng: float) -> Dict[str, Any]:
+    """
+    Get air quality data including pollen from Open-Meteo Air Quality API
+    
+    Args:
+        lat: Latitude
+        lng: Longitude
+        
+    Returns:
+        Dictionary with air quality data
+    """
+    logger.debug(f"get_air_quality_data CALLED with: lat={lat}, lng={lng}")
+    
+    try:
+        # Create cache key
+        cache_key = f"air_quality_{lat}_{lng}"
+        
+        # Check cache (valid for 1 hour)
+        if cache_key in _cache:
+            cache_entry = _cache[cache_key]
+            if time.time() - cache_entry.get('timestamp', 0) < 3600:
+                logger.debug(f"Using cached air quality data for {cache_key}")
+                return cache_entry.get('data', {})
+        
+        # Prepare API request parameters for air quality
+        params = {
+            'latitude': lat,
+            'longitude': lng,
+            'hourly': 'pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,ozone,sulphur_dioxide,european_aqi',
+            'timezone': 'auto'
+        }
+        
+        # Check if the location is in Europe to include pollen data
+        # Rough check for Europe: longitude between -25 and 40, latitude between 35 and 70
+        if -25 <= lng <= 40 and 35 <= lat <= 70:
+            params['hourly'] += ',alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen'
+        
+        # Make API request
+        response = requests.get(
+            OPEN_METEO_AIR_QUALITY_URL,
+            params=params,
+            timeout=10
+        )
+        
+        # Handle non-200 response
+        if response.status_code != 200:
+            logger.error(f"Air Quality API error: {response.status_code}")
+            return {}
+        
+        # Parse JSON response
+        try:
+            data = response.json()
+            
+            # Cache the result
+            _cache[cache_key] = {
+                'data': data,
+                'timestamp': time.time()
+            }
+            
+            return data
+        except ValueError as json_err:
+            logger.error(f"Failed to parse air quality JSON response: {json_err}")
+            return {}
+            
+    except Exception as e:
+        logger.error(f"Error getting air quality data: {str(e)}", exc_info=True)
+        return {}
+
+def get_weather_alerts(lat: float, lng: float) -> List[Dict[str, Any]]:
+    """
+    Get weather alerts for a location
+    
+    Args:
+        lat: Latitude
+        lng: Longitude
+        
+    Returns:
+        List of weather alerts
+    """
+    # Note: Open-Meteo doesn't currently offer a direct weather alerts API
+    # This is a placeholder for future implementation or to use a different provider
+    # For now, we'll create some sample alerts based on the forecast for demonstration
+    
+    # In a real implementation, this would make a call to a provider that offers weather alerts
+    
+    # Return empty list for now - will be populated with sample data in process_weather_data
+    return []
+
+def process_weather_data(data: Dict[str, Any], air_quality_data: Dict[str, Any], 
+                         alerts_data: List[Dict[str, Any]], units: str) -> Dict[str, Any]:
     """
     Process and transform raw weather data from Open-Meteo API
     
     Args:
         data: Raw API response from Open-Meteo
+        air_quality_data: Air quality data from Open-Meteo Air Quality API
+        alerts_data: Weather alerts data
         units: Units system (metric or imperial)
         
     Returns:
@@ -161,6 +259,64 @@ def process_weather_data(data: Dict[str, Any], units: str) -> Dict[str, Any]:
         current_data = data.get('current', {})
         daily_data = data.get('daily', {})
         hourly_data = data.get('hourly', {})
+        
+        # Generate sample weather alerts based on precipitation probability
+        alerts = []
+        if daily_data and 'precipitation_probability_max' in daily_data:
+            # For demonstration purposes, generate alerts based on high precipitation probability
+            for i, precip_prob in enumerate(daily_data.get('precipitation_probability_max', [])):
+                if precip_prob >= 70:  # 70% or higher chance of precipitation
+                    date = daily_data.get('time', [])[i] if i < len(daily_data.get('time', [])) else 'upcoming day'
+                    alerts.append({
+                        'title': 'Heavy Precipitation Alert',
+                        'description': f'High probability ({precip_prob}%) of significant precipitation on {date}.',
+                        'severity': 'moderate',
+                        'date': date
+                    })
+            
+            # Add severe weather alert for extreme temperatures if applicable
+            if 'temperature_2m_max' in daily_data:
+                for i, temp in enumerate(daily_data.get('temperature_2m_max', [])):
+                    if (units == 'imperial' and temp > 95) or (units == 'metric' and temp > 35):
+                        date = daily_data.get('time', [])[i] if i < len(daily_data.get('time', [])) else 'upcoming day'
+                        alerts.append({
+                            'title': 'Extreme Heat Alert',
+                            'description': f'Extreme heat expected on {date} with temperatures reaching {temp}°{units == "imperial" and "F" or "C"}.',
+                            'severity': 'severe',
+                            'date': date
+                        })
+        
+        # Process air quality data
+        air_quality = {}
+        pollen = {}
+        
+        if air_quality_data and 'hourly' in air_quality_data:
+            aq_hourly = air_quality_data.get('hourly', {})
+            
+            # Get current air quality data (first hour)
+            air_quality = {
+                'pm10': aq_hourly.get('pm10', [None])[0] if 'pm10' in aq_hourly and aq_hourly['pm10'] else None,
+                'pm2_5': aq_hourly.get('pm2_5', [None])[0] if 'pm2_5' in aq_hourly and aq_hourly['pm2_5'] else None,
+                'carbon_monoxide': aq_hourly.get('carbon_monoxide', [None])[0] if 'carbon_monoxide' in aq_hourly and aq_hourly['carbon_monoxide'] else None,
+                'nitrogen_dioxide': aq_hourly.get('nitrogen_dioxide', [None])[0] if 'nitrogen_dioxide' in aq_hourly and aq_hourly['nitrogen_dioxide'] else None,
+                'ozone': aq_hourly.get('ozone', [None])[0] if 'ozone' in aq_hourly and aq_hourly['ozone'] else None,
+                'sulphur_dioxide': aq_hourly.get('sulphur_dioxide', [None])[0] if 'sulphur_dioxide' in aq_hourly and aq_hourly['sulphur_dioxide'] else None,
+                'european_aqi': aq_hourly.get('european_aqi', [None])[0] if 'european_aqi' in aq_hourly and aq_hourly['european_aqi'] else None,
+            }
+            
+            # Get pollen data if available
+            pollen_types = ['alder_pollen', 'birch_pollen', 'grass_pollen', 
+                          'mugwort_pollen', 'olive_pollen', 'ragweed_pollen']
+            
+            for pollen_type in pollen_types:
+                if pollen_type in aq_hourly and aq_hourly[pollen_type]:
+                    # Get daily max values for pollen
+                    daily_values = []
+                    for i in range(0, len(aq_hourly[pollen_type]), 24):
+                        daily_max = max([x for x in aq_hourly[pollen_type][i:i+24] if x is not None], default=None)
+                        daily_values.append(daily_max)
+                    
+                    pollen[pollen_type] = daily_values
         
         # Create standardized weather object
         weather = {
@@ -186,7 +342,10 @@ def process_weather_data(data: Dict[str, Any], units: str) -> Dict[str, Any]:
                 "weather_description": get_weather_description(current_data.get('weather_code'))
             },
             "daily": daily_data,  # Keep as is
-            "hourly": hourly_data  # Keep as is
+            "hourly": hourly_data,  # Keep as is
+            "air_quality": air_quality,
+            "pollen": pollen,
+            "alerts": alerts
         }
         
         # Return processed data

@@ -216,7 +216,6 @@ function CityDetailPage() {
               city={cityName}
               lat={city.lat}
               lng={city.lng}
-              mapboxToken={process.env.REACT_APP_MAPBOX_TOKEN}
             />
           </div>
         </div>
