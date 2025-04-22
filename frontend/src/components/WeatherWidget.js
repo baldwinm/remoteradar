@@ -320,14 +320,6 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
             Alerts
           </button>
         )}
-        {pollen && Object.keys(pollen).length > 0 && (
-          <button 
-            className={activeTab === 'pollen' ? 'active' : ''} 
-            onClick={() => setActiveTab('pollen')}
-          >
-            Pollen
-          </button>
-        )}
       </div>
       
       {activeTab === 'current' && current && (
@@ -394,6 +386,68 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
                 </div>
               </div>
             </div>
+            
+            {/* Air Quality Information */}
+            {air_quality && Object.keys(air_quality).length > 0 && (
+              <div className="air-quality-section">
+                <h4 className="section-title">Air Quality</h4>
+                <div className="detail-row">
+                  {air_quality.european_aqi && (
+                    <div className="detail-item">
+                      <div className="detail-label">AQI</div>
+                      <div className="detail-value">
+                        {air_quality.european_aqi} - {getAqiLevel(air_quality.european_aqi)}
+                      </div>
+                    </div>
+                  )}
+                  {air_quality.pm2_5 && (
+                    <div className="detail-item">
+                      <div className="detail-label">PM2.5</div>
+                      <div className="detail-value">
+                        {air_quality.pm2_5} μg/m³
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {air_quality.pm10 && air_quality.ozone && (
+                  <div className="detail-row">
+                    <div className="detail-item">
+                      <div className="detail-label">PM10</div>
+                      <div className="detail-value">
+                        {air_quality.pm10} μg/m³
+                      </div>
+                    </div>
+                    <div className="detail-item">
+                      <div className="detail-label">Ozone</div>
+                      <div className="detail-value">
+                        {air_quality.ozone} μg/m³
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Pollen Information */}
+            {pollen && Object.keys(pollen).length > 0 && (
+              <div className="pollen-section">
+                <h4 className="section-title">Today's Pollen Levels</h4>
+                <div className="pollen-current-levels">
+                  {Object.entries(pollen).map(([type, values], index) => (
+                    values[0] != null && (
+                      <div key={index} className="pollen-item">
+                        <div className="pollen-type-label">
+                          {type.replace('_pollen', '').charAt(0).toUpperCase() + type.replace('_pollen', '').slice(1)}
+                        </div>
+                        <div className={`pollen-level-indicator level-${getPollenLevel(values[0]).toLowerCase().replace(' ', '-')}`}>
+                          {getPollenLevel(values[0])}
+                        </div>
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -484,6 +538,7 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
       
       {activeTab === 'pollen' && pollen && (
         <div className="pollen-container">
+          {/* Keeping this for backward compatibility but users will no longer see this tab */}
           {Object.keys(pollen).length > 0 ? (
             <div className="pollen-forecast">
               <div className="pollen-header">
