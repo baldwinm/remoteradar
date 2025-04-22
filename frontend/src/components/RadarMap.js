@@ -1,7 +1,6 @@
 // src/components/RadarMap.js
 import React, { useState, useEffect, useRef } from 'react';
-import { fetchRadarData, generateTileUrl, formatTimestamp, isTimestampInPast } from '../services/radar';
-import './RadarMap.css'; // We'll create this next
+import './RadarMap.css';
 
 const RadarMap = ({ lat, lng }) => {
   const [radarData, setRadarData] = useState(null);
@@ -14,13 +13,30 @@ const RadarMap = ({ lat, lng }) => {
   const mapInstanceRef = useRef(null);
   const radarLayerRef = useRef(null);
   const animationRef = useRef(null);
+  const radarLayersRef = useRef({}); // Store all radar layers
 
+  // Constants for tile configuration
+  const TILE_SIZE = 256;
+  const SMOOTH_DATA = 1; // 0 - not smooth, 1 - smooth
+  const SNOW_COLORS = 1; // 0 - do not show snow colors, 1 - show snow colors
+  const TILE_FORMAT = 'png'; // 'png' is more compatible than 'webp'
+  
   // Load radar data
   useEffect(() => {
-    const loadRadarData = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const data = await fetchRadarData();
+        
+        // Use the public RainViewer API endpoint
+        const response = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log("RainViewer API data:", data);
+        
         setRadarData(data);
         
         // Start with the most recent past frame
@@ -29,13 +45,13 @@ const RadarMap = ({ lat, lng }) => {
         }
       } catch (err) {
         console.error('Error loading radar data:', err);
-        setError('Failed to load radar data');
+        setError(`Failed to load radar data: ${err.message}`);
       } finally {
         setLoading(false);
       }
     };
 
-    loadRadarData();
+    fetchData();
     
     // Cleanup animation on unmount
     return () => {
@@ -45,32 +61,55 @@ const RadarMap = ({ lat, lng }) => {
     };
   }, []);
 
-  // Initialize the map
+  // Initialize the map with Leaflet when component mounts
   useEffect(() => {
-    if (!window.L) {
-      // If Leaflet is not loaded, add it to the document
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
-      script.async = true;
-      script.onload = initializeMap;
-      
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css';
-      
-      document.head.appendChild(link);
-      document.body.appendChild(script);
-      
-      return () => {
-        document.body.removeChild(script);
-        document.head.removeChild(link);
-      };
-    } else {
-      // If Leaflet is already loaded, initialize the map directly
-      initializeMap();
-    }
+    if (!mapRef.current) return;
     
-    // Cleanup function to destroy the map when component unmounts
+    const initMap = () => {
+      if (window.L) {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.remove();
+        }
+        
+        // Create map instance centered on the provided coordinates or default to a central US location
+        const map = window.L.map(mapRef.current, {
+          center: [lat || 39.8283, lng || -98.5795],
+          zoom: 5,
+          attributionControl: true
+        });
+        
+        // Add OpenStreetMap tile layer
+        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Radar data &copy; <a href="https://rainviewer.com">RainViewer</a>',
+          maxZoom: 19
+        }).addTo(map);
+        
+        mapInstanceRef.current = map;
+        
+        // If radar data already loaded, update the radar layer
+        if (radarData) {
+          updateRadarLayer();
+        }
+      } else {
+        // Load Leaflet if not already loaded
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
+        script.async = true;
+        script.onload = initMap;
+        
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css';
+        
+        document.head.appendChild(link);
+        document.body.appendChild(script);
+      }
+    };
+    
+    // Initialize map
+    initMap();
+    
+    // Cleanup
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
@@ -79,7 +118,7 @@ const RadarMap = ({ lat, lng }) => {
     };
   }, [lat, lng]);
 
-  // Update radar layer when current frame changes
+  // Update radar layer when current frame or radar data changes
   useEffect(() => {
     if (!radarData || !mapInstanceRef.current) return;
     
@@ -90,10 +129,8 @@ const RadarMap = ({ lat, lng }) => {
   useEffect(() => {
     if (isPlaying) {
       playAnimation();
-    } else {
-      if (animationRef.current) {
-        clearTimeout(animationRef.current);
-      }
+    } else if (animationRef.current) {
+      clearTimeout(animationRef.current);
     }
     
     return () => {
@@ -103,81 +140,89 @@ const RadarMap = ({ lat, lng }) => {
     };
   }, [isPlaying, currentFrame, radarData]);
 
-  // Initialize the map with Leaflet
-  const initializeMap = () => {
-    if (!mapRef.current || !window.L) return;
-    
-    // If a map already exists, destroy it first
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-    }
-    
-    // Create the map instance
-    const map = window.L.map(mapRef.current, {
-      center: [lat || 40.7128, lng || -74.0060], // Default to NYC if no coords
-      zoom: 8,
-      attributionControl: true,
-    });
-    
-    // Add attribution
-    map.attributionControl.addAttribution('Radar data © <a href="https://rainviewer.com">RainViewer</a>');
-    
-    // Add OpenStreetMap tile layer
-    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
-    
-    // Save the map instance to ref
-    mapInstanceRef.current = map;
-    
-    // If radar data is already loaded, add the radar layer
-    if (radarData) {
-      updateRadarLayer();
-    }
-  };
-
   // Update the radar layer with the current frame
-  const updateRadarLayer = async () => {
+  const updateRadarLayer = () => {
     if (!mapInstanceRef.current || !radarData) return;
+    
+    const map = mapInstanceRef.current;
     
     // Remove existing radar layer if it exists
     if (radarLayerRef.current) {
-      mapInstanceRef.current.removeLayer(radarLayerRef.current);
-      radarLayerRef.current = null;
+      map.removeLayer(radarLayerRef.current);
     }
     
-    // Determine which collection (past or forecast) to use
-    const allFrames = [...radarData.radar.past, ...radarData.radar.forecast];
-    if (currentFrame >= allFrames.length) return;
+    // Get all frames (past and forecast)
+    const allFrames = [...(radarData.radar.past || []), ...(radarData.radar.nowcast || [])];
+    
+    if (currentFrame >= allFrames.length || allFrames.length === 0) {
+      console.error("Invalid current frame or no frames available");
+      return;
+    }
     
     const frame = allFrames[currentFrame];
     const host = radarData.host;
     
-    // Create a new TileLayer for the radar
-    const tileLayer = window.L.tileLayer(`${host}${frame.path}/{z}/{x}/{y}/${colorScheme}/1_1.png`, {
-      tileSize: 256,
-      opacity: 0.9,
-      zIndex: 100
-    });
+    console.log("Creating radar layer for frame:", frame);
+    console.log("Host:", host);
+    console.log("Path:", frame.path);
     
-    // Add the layer to the map
-    tileLayer.addTo(mapInstanceRef.current);
-    radarLayerRef.current = tileLayer;
+    // Construct the correct URL format based on the RainViewer API documentation
+    // Format should be: host + path + '/256/{z}/{x}/{y}/colorScheme/smooth_snow.png'
+    try {
+      // Create the tile layer with the correct URL format
+      const tileLayer = window.L.tileLayer(`${host}${frame.path}/${TILE_SIZE}/{z}/{x}/{y}/${colorScheme}/${SMOOTH_DATA}_${SNOW_COLORS}.${TILE_FORMAT}`, {
+        tileSize: TILE_SIZE,
+        opacity: 0.9,
+        zIndex: 100
+      });
+      
+      // Cache the layer
+      radarLayersRef.current[frame.path] = tileLayer;
+      
+      // Add event handlers for loading/loaded tiles
+      let loadingTiles = 0;
+      let loadedTiles = 0;
+      
+      tileLayer.on('loading', () => {
+        loadingTiles++;
+        console.log(`Tile loading started. Total loading: ${loadingTiles}`);
+      });
+      
+      tileLayer.on('load', () => {
+        loadedTiles++;
+        console.log(`Tile loaded. Total loaded: ${loadedTiles} of ${loadingTiles}`);
+      });
+      
+      tileLayer.on('tileerror', (error) => {
+        console.error('Tile loading error:', error);
+      });
+      
+      // Add the layer to the map
+      tileLayer.addTo(map);
+      radarLayerRef.current = tileLayer;
+      
+      // Show frame timestamp
+      console.log(`Showing frame time: ${new Date(frame.time * 1000).toLocaleTimeString()}`);
+      
+    } catch (err) {
+      console.error("Error creating radar layer:", err);
+    }
   };
 
   // Play radar animation
   const playAnimation = () => {
     if (!radarData) return;
     
-    const allFrames = [...radarData.radar.past, ...radarData.radar.forecast];
+    const allFrames = [...(radarData.radar.past || []), ...(radarData.radar.nowcast || [])];
+    
+    if (allFrames.length === 0) return;
     
     // Move to next frame
     const nextFrame = (currentFrame + 1) % allFrames.length;
     setCurrentFrame(nextFrame);
     
-    // Schedule the next frame update
-    animationRef.current = setTimeout(playAnimation, 500); // 500ms per frame
+    // Schedule the next frame update (500ms per frame)
+    animationRef.current = setTimeout(playAnimation, 500);
   };
 
   // Toggle play/pause animation
@@ -188,6 +233,19 @@ const RadarMap = ({ lat, lng }) => {
   // Handle color scheme change
   const handleColorSchemeChange = (e) => {
     setColorScheme(parseInt(e.target.value, 10));
+  };
+
+  // Format timestamp for display
+  const formatTimestamp = (unixTime) => {
+    if (!unixTime) return '';
+    const date = new Date(unixTime * 1000);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+  
+  // Check if a timestamp is in the past
+  const isTimestampInPast = (unixTime) => {
+    if (!unixTime) return true;
+    return unixTime < Math.floor(Date.now() / 1000);
   };
 
   if (loading) {
@@ -203,12 +261,13 @@ const RadarMap = ({ lat, lng }) => {
     return (
       <div className="radar-error">
         <div className="error-icon">⚠️</div>
-        <p>Error loading radar data: {error}</p>
+        <p>Error loading radar data</p>
+        <div className="error-details">{error}</div>
       </div>
     );
   }
   
-  if (!radarData) {
+  if (!radarData || !radarData.radar) {
     return (
       <div className="radar-error">
         <div className="error-icon">⚠️</div>
@@ -218,8 +277,23 @@ const RadarMap = ({ lat, lng }) => {
   }
 
   // Combine past and forecast frames for display
-  const allFrames = [...radarData.radar.past, ...radarData.radar.forecast];
+  const allFrames = [...(radarData.radar.past || []), ...(radarData.radar.nowcast || [])];
   const currentFrameData = allFrames[currentFrame];
+  
+  // Get available color schemes
+  const colorSchemes = radarData.options && radarData.options.color_schemes 
+    ? radarData.options.color_schemes 
+    : [
+        { name: 'Original', value: 0 },
+        { name: 'Universal Blue', value: 1 },
+        { name: 'TITAN', value: 2 },
+        { name: 'The Weather Channel', value: 3 },
+        { name: 'Meteored', value: 4 },
+        { name: 'NEXRAD Level-III', value: 5 },
+        { name: 'Rainbow @ SELEX-SI', value: 6 },
+        { name: 'Dark Sky', value: 7 },
+        { name: 'Skyview', value: 8 }
+      ];
   
   return (
     <div className="radar-component">
@@ -265,7 +339,7 @@ const RadarMap = ({ lat, lng }) => {
             value={colorScheme} 
             onChange={handleColorSchemeChange}
           >
-            {radarData.options.color_schemes.map((scheme) => (
+            {colorSchemes.map((scheme) => (
               <option key={scheme.value} value={scheme.value}>
                 {scheme.name}
               </option>
