@@ -347,34 +347,24 @@ const RadarMap = ({ lat, lng }) => {
     console.log("Using host:", host);
     
     try {
-      // Create the tile URL function that Leaflet will call
-      console.log("Creating radar tile layer");
-      
-      // Define a proper function that returns the tile URL
-      const tileUrl = function(tilePoint) {
-        // Build the URL
-        const url = `${config.API_URL}/api/radar/tile?` + 
+      // FIXED: Use a URL template string instead of a function
+      // This is the proper format Leaflet expects
+      const tileUrlTemplate = `${config.API_URL}/api/radar/tile?` + 
                  `host=${encodeURIComponent(host)}` +
                  `&path=${encodeURIComponent(frame.path)}` +
-                 `&x=${tilePoint.x}` +
-                 `&y=${tilePoint.y}` +
-                 `&z=${tilePoint.z}` +
+                 `&x={x}` +
+                 `&y={y}` +
+                 `&z={z}` +
                  `&color_scheme=${colorScheme}` +
                  `&smooth=${SMOOTH_DATA}` +
                  `&snow=${SNOW_COLORS}` +
                  `&size=${TILE_SIZE}` +
                  `&format=${TILE_FORMAT}`;
-        
-        // Log only the first tile URL for debugging
-        if (tilePoint.x === 0 && tilePoint.y === 0 && tilePoint.z === 0) {
-          console.log("Sample tile URL:", url);
-        }
-        
-        return url;
-      };
       
-      // Create the tile layer
-      const tileLayer = window.L.tileLayer(tileUrl, {
+      console.log("Tile URL template:", tileUrlTemplate);
+      
+      // Create the tile layer with the template string
+      const tileLayer = window.L.tileLayer(tileUrlTemplate, {
         tileSize: TILE_SIZE,
         opacity: 0.9,
         zIndex: 100
@@ -447,8 +437,8 @@ const RadarMap = ({ lat, lng }) => {
     debugLog(`Animation advancing to frame ${nextFrame} of ${allFrames.length}`);
     setCurrentFrame(nextFrame);
     
-    // Schedule the next frame update (500ms per frame)
-    animationRef.current = setTimeout(playAnimation, 500);
+    // IMPROVED: Increased animation delay for smoother playback
+    animationRef.current = setTimeout(playAnimation, 750); // Changed from 500ms to 750ms
   };
 
   // Toggle play/pause animation
