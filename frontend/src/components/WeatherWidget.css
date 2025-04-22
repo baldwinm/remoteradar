@@ -140,7 +140,7 @@
 /* Forecast styling */
 .forecast-weather {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 1rem;
 }
 
@@ -224,7 +224,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
 }
 
@@ -330,16 +330,16 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .forecast-weather {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
   
   .hourly-weather {
-    max-height: 250px;
+    max-height: 350px;
   }
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
   .forecast-weather {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }

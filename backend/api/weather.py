@@ -26,9 +26,9 @@ def register_weather_routes(app, limiter):
     def get_weather(city_id):
         """Get weather information for a city"""
         # Parse units parameter with validation
-        units = request.args.get('units', 'metric')
+        units = request.args.get('units', 'imperial')
         if units not in ['metric', 'imperial']:
-            units = 'metric'  # Default to metric for invalid values
+            units = 'imperial'  # Default to imperial for invalid values
         
         # Check if coordinates are directly provided in the query parameters
         # This is a new direct approach that bypasses city lookup if coordinates are provided
