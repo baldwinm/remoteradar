@@ -12,6 +12,8 @@ const CityMapView = ({
   const map = useRef(null);
   const [zoom, setZoom] = useState(12);
   const [style, setStyle] = useState('streets-v11');
+  const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState(null);
 
   // Mapbox styles available
   const mapStyles = [
@@ -23,61 +25,144 @@ const CityMapView = ({
     { id: 'outdoors-v11', name: 'Outdoors' }
   ];
 
+  // Initialize the map
   useEffect(() => {
-    // Prevent multiple map initializations
-    if (map.current) return;
-
-    // Set Mapbox access token directly from environment variable
-    // This is the key change - direct access to env variable
-    mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
+    // Skip if no container or coordinates
+    if (!mapContainer.current || !lat || !lng) return;
     
-    // Log for debugging
-    console.log("Mapbox Token:", process.env.REACT_APP_MAPBOX_TOKEN ? "Token exists" : "Token missing");
-
-    // Create map
+    // Skip if map already initialized
+    if (map.current) return;
+    
+    // Debug logs
+    console.log("Initializing map with coordinates:", lat, lng);
+    console.log("Environment variables available:", !!process.env.REACT_APP_MAPBOX_TOKEN);
+    
+    // Set Mapbox access token
+    const token = process.env.REACT_APP_MAPBOX_TOKEN;
+    if (!token) {
+      console.error("Mapbox token is missing");
+      setMapError("Mapbox token is missing. Please check your environment variables.");
+      return;
+    }
+    
+    mapboxgl.accessToken = token;
+    
     try {
-      map.current = new mapboxgl.Map({
+      // Create new map instance
+      const newMap = new mapboxgl.Map({
         container: mapContainer.current,
         style: `mapbox://styles/mapbox/${style}`,
         center: [lng, lat],
-        zoom: zoom
+        zoom: zoom,
+        interactive: true,
+        attributionControl: true,
+        preserveDrawingBuffer: true,
+        antialias: true,
+        failIfMajorPerformanceCaveat: false
       });
-
-      // Add navigation controls
-      map.current.addControl(new mapboxgl.NavigationControl());
-
-      // Add marker for city
-      new mapboxgl.Marker()
-        .setLngLat([lng, lat])
-        .addTo(map.current);
-    } catch (error) {
-      console.error("Error initializing Mapbox:", error);
+      
+      // Set map reference
+      map.current = newMap;
+      
+      // Add event listeners
+      newMap.on('load', () => {
+        console.log("Map loaded successfully");
+        setMapReady(true);
+        
+        // Add marker
+        try {
+          new mapboxgl.Marker()
+            .setLngLat([lng, lat])
+            .addTo(newMap);
+        } catch (err) {
+          console.error("Error adding marker:", err);
+        }
+        
+        // Add navigation controls
+        try {
+          newMap.addControl(new mapboxgl.NavigationControl());
+        } catch (err) {
+          console.error("Error adding navigation controls:", err);
+        }
+      });
+      
+      // Handle map errors
+      newMap.on('error', (e) => {
+        console.error("Mapbox error:", e);
+        setMapError(`Map error: ${e.error?.message || 'Unknown error'}`);
+      });
+      
+      // Update zoom state on zoom end
+      newMap.on('zoomend', () => {
+        if (map.current) {
+          setZoom(map.current.getZoom());
+        }
+      });
+      
+    } catch (err) {
+      console.error("Error initializing map:", err);
+      setMapError(`Failed to initialize map: ${err.message}`);
     }
-
-    // Clean up on unmount
-    return () => map.current?.remove();
-  }, [lng, lat, style]);
+    
+    // Cleanup on unmount
+    return () => {
+      if (map.current) {
+        console.log("Cleaning up map");
+        map.current.remove();
+        map.current = null;
+      }
+    };
+  }, [lat, lng]); // Only re-run if coordinates change
+  
+  // Handle style changes in a separate effect
+  useEffect(() => {
+    if (map.current && mapReady) {
+      try {
+        console.log("Changing map style to:", style);
+        map.current.setStyle(`mapbox://styles/mapbox/${style}`);
+      } catch (err) {
+        console.error("Error changing map style:", err);
+      }
+    }
+  }, [style, mapReady]);
 
   // Handle style change
   const handleStyleChange = (newStyle) => {
-    if (map.current) {
-      map.current.setStyle(`mapbox://styles/mapbox/${newStyle}`);
-      setStyle(newStyle);
+    console.log("Style change requested:", newStyle);
+    setStyle(newStyle);
+  };
+
+  // Handle zoom change with better error handling
+  const handleZoomChange = (direction) => {
+    if (map.current && mapReady) {
+      try {
+        const currentZoom = map.current.getZoom();
+        const newZoom = direction === 'in' 
+          ? Math.min(currentZoom + 1, 20) 
+          : Math.max(currentZoom - 1, 2);
+        
+        console.log("Zooming to:", newZoom);
+        map.current.zoomTo(newZoom);
+        setZoom(newZoom);
+      } catch (err) {
+        console.error("Error changing zoom:", err);
+      }
     }
   };
 
-  // Handle zoom change
-  const handleZoomChange = (direction) => {
-    if (map.current) {
-      const currentZoom = map.current.getZoom();
-      const newZoom = direction === 'in' 
-        ? Math.min(currentZoom + 1, 20) 
-        : Math.max(currentZoom - 1, 2);
-      
-      map.current.zoomTo(newZoom);
-      setZoom(newZoom);
-    }
-  };
+  // Render error state
+  if (mapError) {
+    return (
+      <div className="city-map-container">
+        <div className="map-error">
+          <p>{mapError}</p>
+          <button onClick={() => window.location.reload()} className="retry-button">
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="city-map-container">
@@ -92,6 +177,7 @@ const CityMapView = ({
           <select 
             value={style} 
             onChange={(e) => handleStyleChange(e.target.value)}
+            disabled={!mapReady}
           >
             {mapStyles.map((mapStyle) => (
               <option key={mapStyle.id} value={mapStyle.id}>
@@ -102,9 +188,19 @@ const CityMapView = ({
         </div>
         
         <div className="map-zoom-controls">
-          <button onClick={() => handleZoomChange('out')}>-</button>
+          <button 
+            onClick={() => handleZoomChange('out')}
+            disabled={!mapReady}
+          >
+            -
+          </button>
           <span>Zoom: {zoom.toFixed(1)}</span>
-          <button onClick={() => handleZoomChange('in')}>+</button>
+          <button 
+            onClick={() => handleZoomChange('in')}
+            disabled={!mapReady}
+          >
+            +
+          </button>
         </div>
       </div>
     </div>
