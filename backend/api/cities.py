@@ -37,6 +37,13 @@ def register_cities_routes(app, limiter):
             current_app.logger.info(f"Found {len(cities)} cities for search query: '{search_query}'")
             for city in cities:
                 current_app.logger.info(f"  - City details: {json.dumps(city)}")
+                
+                # Log the city ID format for clarity
+                current_app.logger.info(f"  - City ID format: {city['id']}")
+                
+                # Ensure state_code is included for US cities
+                if city['country_code'] == 'us' and city.get('state_code'):
+                    current_app.logger.info(f"  - US city with state code: {city['state_code']}")
             
             response = make_response(jsonify(cities))
             return add_cache_headers(response, max_age=86400)  # Cache for 1 day

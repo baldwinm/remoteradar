@@ -109,7 +109,13 @@ def search_city(query: str) -> List[Dict[str, Any]]:
                 continue
             
             country_code = components.get('country_code', '').lower()
-            city_id = f"{city_name.lower().replace(' ', '_')}_{country_code}"
+            state_code = components.get('state_code', '').lower()
+            
+            # Updated ID format to include state_code when available
+            if country_code == 'us' and state_code:
+                city_id = f"{city_name.lower().replace(' ', '_')}_{state_code}_{country_code}"
+            else:
+                city_id = f"{city_name.lower().replace(' ', '_')}_{country_code}"
             
             # Create city object with enhanced state and country_code info
             city = {
@@ -118,7 +124,7 @@ def search_city(query: str) -> List[Dict[str, Any]]:
                 'country': components.get('country', ''),
                 'country_code': country_code,
                 'state': components.get('state', ''),
-                'state_code': components.get('state_code', ''),
+                'state_code': state_code,
                 'county': components.get('county', ''),
                 'lat': result.get('geometry', {}).get('lat'),
                 'lng': result.get('geometry', {}).get('lng'),

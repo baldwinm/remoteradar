@@ -146,6 +146,28 @@ def create_app(test_config=None):
             "process_id": os.getpid()
         }), 200
     
+    # Set Cache-Control headers for SPA routes
+    @app.after_request
+    def add_cache_headers(response):
+        """Add appropriate cache headers to responses."""
+        path = request.path
+        
+        # For API endpoints (no caching)
+        if path.startswith('/api/'):
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            return response
+            
+        # For static assets (cache for 1 day)
+        if path.startswith('/static/'):
+            response.headers['Cache-Control'] = 'public, max-age=86400'
+            return response
+            
+        # For SPA routes (cache for 5 minutes, but revalidate)
+        if 'text/html' in response.headers.get('Content-Type', ''):
+            response.headers['Cache-Control'] = 'public, max-age=300, must-revalidate'
+            
+        return response
+    
     # Serve index.html for all routes (for SPA)
     @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')

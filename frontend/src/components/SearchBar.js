@@ -84,6 +84,7 @@ function SearchBar() {
   };
 
   const handleCitySelect = (city) => {
+    // Navigate to the city page using the updated cityId format
     navigate(`/city/${city.id}`);
     setIsOpen(false);
     setResults([]);

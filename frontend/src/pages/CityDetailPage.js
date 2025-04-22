@@ -1,6 +1,6 @@
 // src/pages/CityDetailPage.js
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import PlacesList from '../components/PlacesList';
 import AccommodationWidget from '../components/AccommodationWidget';
 import CityImage from '../components/CityImage';
@@ -41,6 +41,9 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// City data cache
+const cityDataCache = {};
+
 function CityDetailPage() {
   const { cityId } = useParams();
   const [city, setCity] = useState(null);
@@ -49,7 +52,8 @@ function CityDetailPage() {
   const [occupants, setOccupants] = useState(1);
   const [loading, setLoading] = useState({ city: true, places: true, accommodation: true });
   const [error, setError] = useState({ city: null, places: null, accommodation: null });
-  
+  const navigate = useNavigate();
+
   // Get the units parameter from URL query string (default to metric)
   const urlParams = new URLSearchParams(window.location.search);
   const [units, setUnits] = useState(urlParams.get('units') || 'metric');
@@ -72,54 +76,107 @@ function CityDetailPage() {
     }
   };
 
-  // Fetch city data
+  // Cache city data in sessionStorage and browsers history state
   useEffect(() => {
-    async function fetchCityData() {
-      setLoading(prev => ({ ...prev, city: true }));
+    // If we already have city data in the browser history state, use it
+    const historyState = window.history.state;
+    if (historyState && historyState.cityData && historyState.cityData.id === cityId) {
+      console.log("Using city data from history state");
+      setCity(historyState.cityData);
+      setPlacesData(historyState.placesData);
+      setLoading(prev => ({ ...prev, city: false, places: false }));
+      return;
+    }
+    
+    // Check if we have cached data in sessionStorage
+    const cachedData = sessionStorage.getItem(`city_${cityId}`);
+    if (cachedData) {
       try {
-        console.log(`Fetching city data for ${cityId}`);
-        const response = await fetch(`/api/places/${cityId}`);
+        const { cityData, placesData: cachedPlacesData, timestamp } = JSON.parse(cachedData);
         
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Error response from places API: ${errorText}`);
-          throw new Error(`Failed to fetch city data: ${response.status} ${response.statusText}`);
+        // Use cache if it's less than 1 hour old
+        if (timestamp && (Date.now() - timestamp) < 3600000) {
+          console.log("Using cached city data");
+          setCity(cityData);
+          setPlacesData(cachedPlacesData);
+          setLoading(prev => ({ ...prev, city: false, places: false }));
+          
+          // Update history state
+          window.history.replaceState(
+            { cityData, placesData: cachedPlacesData },
+            '',
+            window.location.pathname + window.location.search
+          );
+          return;
         }
-        
-        const data = await response.json();
-        console.log("City data received:", data);
-        
-        if (!data || !data.city_name) {
-          console.error("Invalid places data format:", data);
-          throw new Error("Invalid data format received from API");
-        }
-        
-        // Extract city info from places data
-        const cityInfo = {
-          id: cityId,
-          name: data.city_name,
-          country: cityId.split('_').pop().toUpperCase() || '',
-          // Extract coordinates from the first place or from the city data if available
-          lat: data.places && data.places.length > 0 ? data.places[0].lat : 0,
-          lng: data.places && data.places.length > 0 ? data.places[0].lng : 0
-        };
-        
-        console.log("Setting city state:", cityInfo);
-        setCity(cityInfo);
-        
-        // Also set places data since we already have it
-        setPlacesData(data);
-        setLoading(prev => ({ ...prev, places: false }));
       } catch (err) {
-        console.error('Error fetching city:', err);
-        setError(prev => ({ ...prev, city: err.message }));
-      } finally {
-        setLoading(prev => ({ ...prev, city: false }));
+        console.error("Error parsing cached city data:", err);
+        // Continue to fetch fresh data if cache parsing fails
       }
     }
     
+    // Fetch fresh data if no cache or cache is expired
     fetchCityData();
   }, [cityId]);
+
+  // Fetch city data
+  async function fetchCityData() {
+    setLoading(prev => ({ ...prev, city: true }));
+    try {
+      console.log(`Fetching city data for ${cityId}`);
+      const response = await fetch(`/api/places/${cityId}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Error response from places API: ${errorText}`);
+        throw new Error(`Failed to fetch city data: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log("City data received:", data);
+      
+      if (!data || !data.city_name) {
+        console.error("Invalid places data format:", data);
+        throw new Error("Invalid data format received from API");
+      }
+      
+      // Extract city info from places data
+      const cityInfo = {
+        id: cityId,
+        name: data.city_name,
+        country: cityId.split('_').pop().toUpperCase() || '',
+        // Extract coordinates from the first place or from the city data if available
+        lat: data.places && data.places.length > 0 ? data.places[0].lat : 0,
+        lng: data.places && data.places.length > 0 ? data.places[0].lng : 0
+      };
+      
+      console.log("Setting city state:", cityInfo);
+      setCity(cityInfo);
+      
+      // Also set places data since we already have it
+      setPlacesData(data);
+      setLoading(prev => ({ ...prev, places: false }));
+      
+      // Cache the data in sessionStorage
+      sessionStorage.setItem(`city_${cityId}`, JSON.stringify({
+        cityData: cityInfo,
+        placesData: data,
+        timestamp: Date.now()
+      }));
+      
+      // Update history state to prevent data loss on back/forward navigation
+      window.history.replaceState(
+        { cityData: cityInfo, placesData: data },
+        '',
+        window.location.pathname + window.location.search
+      );
+    } catch (err) {
+      console.error('Error fetching city:', err);
+      setError(prev => ({ ...prev, city: err.message }));
+    } finally {
+      setLoading(prev => ({ ...prev, city: false }));
+    }
+  }
 
   // Fetch accommodation data once we have the city
   useEffect(() => {
@@ -128,37 +185,65 @@ function CityDetailPage() {
       return;
     }
     
-    async function fetchAccommodationData() {
-      setLoading(prev => ({ ...prev, accommodation: true }));
+    // Check if we have cached accommodation data
+    const cacheKey = `accommodation_${cityId}_${occupants}`;
+    const cachedData = sessionStorage.getItem(cacheKey);
+    
+    if (cachedData) {
       try {
-        console.log(`Fetching accommodation data for ${cityId} with ${occupants} occupants`);
-        const response = await fetch(`/api/accommodation/${cityId}?occupants=${occupants}`);
+        const { data: accommodationCachedData, timestamp } = JSON.parse(cachedData);
         
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Error response from accommodation API: ${errorText}`);
-          throw new Error(`Failed to fetch accommodation data: ${response.status}`);
+        // Use cache if it's less than 1 hour old
+        if (timestamp && (Date.now() - timestamp) < 3600000) {
+          console.log("Using cached accommodation data");
+          setAccommodationData(accommodationCachedData);
+          setLoading(prev => ({ ...prev, accommodation: false }));
+          return;
         }
-        
-        const data = await response.json();
-        console.log("Accommodation data received:", data);
-        
-        if (!data || !data.accommodations) {
-          console.error("Invalid accommodation data format:", data);
-          throw new Error("Invalid accommodation data received from API");
-        }
-        
-        setAccommodationData(data);
       } catch (err) {
-        console.error('Error fetching accommodation:', err);
-        setError(prev => ({ ...prev, accommodation: err.message }));
-      } finally {
-        setLoading(prev => ({ ...prev, accommodation: false }));
+        console.error("Error parsing cached accommodation data:", err);
+        // Continue to fetch fresh data if cache parsing fails
       }
     }
     
     fetchAccommodationData();
   }, [city, cityId, occupants]);
+
+  async function fetchAccommodationData() {
+    setLoading(prev => ({ ...prev, accommodation: true }));
+    try {
+      console.log(`Fetching accommodation data for ${cityId} with ${occupants} occupants`);
+      const response = await fetch(`/api/accommodation/${cityId}?occupants=${occupants}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Error response from accommodation API: ${errorText}`);
+        throw new Error(`Failed to fetch accommodation data: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("Accommodation data received:", data);
+      
+      if (!data || !data.accommodations) {
+        console.error("Invalid accommodation data format:", data);
+        throw new Error("Invalid accommodation data received from API");
+      }
+      
+      setAccommodationData(data);
+      
+      // Cache the accommodation data
+      const cacheKey = `accommodation_${cityId}_${occupants}`;
+      sessionStorage.setItem(cacheKey, JSON.stringify({
+        data,
+        timestamp: Date.now()
+      }));
+    } catch (err) {
+      console.error('Error fetching accommodation:', err);
+      setError(prev => ({ ...prev, accommodation: err.message }));
+    } finally {
+      setLoading(prev => ({ ...prev, accommodation: false }));
+    }
+  }
 
   // Handle occupants change
   const handleOccupantsChange = (e) => {
@@ -193,7 +278,16 @@ function CityDetailPage() {
 
   // Get city name for display
   const cityName = city.name || '';
+  // Extract country from cityId (last part)
+  const cityIdParts = cityId.split('_');
+  const countryCode = cityIdParts[cityIdParts.length - 1] || '';
   const countryName = city.country || '';
+  
+  // If US city, extract state from cityId (second to last part if 3 parts)
+  let stateCode = '';
+  if (countryCode === 'us' && cityIdParts.length >= 3) {
+    stateCode = cityIdParts[cityIdParts.length - 2] || '';
+  }
   
   return (
     <ErrorBoundary>
@@ -201,13 +295,14 @@ function CityDetailPage() {
         <div className="city-header">
           <div className="city-header-content">
             <h1 className="city-name">{cityName}</h1>
-            {countryName && <p className="city-country">{countryName}</p>}
+            {stateCode && <p className="city-country">{stateCode.toUpperCase()}, {countryName}</p>}
+            {!stateCode && countryName && <p className="city-country">{countryName}</p>}
             <Link to="/" className="back-button">← Back to Search</Link>
           </div>
         </div>
 
         {/* City Image Section */}
-        <CityImage cityName={cityName} countryName={countryName} />
+        <CityImage cityName={cityName} countryName={countryName} stateCode={stateCode} />
 
         {/* City Map View Section */}
         <div className="content-row">

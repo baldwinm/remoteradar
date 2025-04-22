@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import './CityImage.css';
 
-function CityImage({ cityName, countryName, state }) {
+function CityImage({ cityName, countryName, stateCode }) {
   const [imageData, setImageData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,7 +12,7 @@ function CityImage({ cityName, countryName, state }) {
   console.log('Rendering with:', { 
     cityName, 
     countryName, 
-    state,
+    stateCode,
     origin: window.location.origin,
     href: window.location.href
   });
@@ -21,12 +21,14 @@ function CityImage({ cityName, countryName, state }) {
   useEffect(() => {
     // Diagnostic logging for effect
     console.group('CityImage Fetch Effect');
-    console.log('Effect triggered with:', { cityName, countryName, state });
+    console.log('Effect triggered with:', { cityName, countryName, stateCode });
 
     // Early exit if no city name
     if (!cityName) {
       console.warn('No city name provided');
       setLoading(false);
+      setError('No city name provided');
+      console.groupEnd();
       return;
     }
     
@@ -36,8 +38,41 @@ function CityImage({ cityName, countryName, state }) {
       setError(null);
       
       try {
+        // Check cache first
+        const cacheKey = `cityImage_${cityName}_${stateCode || ''}_${countryName}`;
+        const cachedImage = sessionStorage.getItem(cacheKey);
+        
+        if (cachedImage) {
+          try {
+            const { imageData, timestamp } = JSON.parse(cachedImage);
+            
+            // Use cache if it's less than 24 hours old
+            if (timestamp && (Date.now() - timestamp) < 86400000) {
+              console.log("Using cached city image");
+              setImageData(imageData);
+              setLoading(false);
+              console.groupEnd();
+              return;
+            }
+          } catch (err) {
+            console.error("Error parsing cached image data:", err);
+            // Continue to fetch fresh data if cache parsing fails
+          }
+        }
+        
+        // Build query with state information if available
+        let query = cityName;
+        
+        if (stateCode && (countryName === 'USA' || countryName === 'United States of America' || countryName.toUpperCase() === 'US')) {
+          query = `${cityName}, ${stateCode.toUpperCase()}`;
+        } else if (countryName) {
+          query = `${cityName}, ${countryName}`;
+        }
+        
+        console.log(`Fetching image for: ${query}`);
+        
         // Construct URL with comprehensive logging
-        const baseUrl = 'https://remote-radar-backend.onrender.com/api/city-image';
+        const baseUrl = '/api/city-image';
         const params = new URLSearchParams();
         params.append('city', cityName);
         
@@ -45,8 +80,8 @@ function CityImage({ cityName, countryName, state }) {
           params.append('country', countryName);
         }
         
-        if (state) {
-          params.append('state', state);
+        if (stateCode) {
+          params.append('state', stateCode);
         }
         
         const apiUrl = `${baseUrl}?${params.toString()}`;
@@ -106,7 +141,14 @@ function CityImage({ cityName, countryName, state }) {
           throw new Error("Invalid image data received from API");
         }
         
+        // Save to state
         setImageData(data);
+        
+        // Cache the image data
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+          imageData: data,
+          timestamp: Date.now()
+        }));
       } catch (err) {
         // Comprehensive error logging
         console.group('Fetch Error');
@@ -126,27 +168,21 @@ function CityImage({ cityName, countryName, state }) {
     };
     
     fetchCityImage();
-  }, [cityName, countryName, state]);
+  }, [cityName, countryName, stateCode]);
   
-  // Render methods remain the same as in previous version
-  // ... (keep existing render logic)
+  if (loading) {
+    return (
+      <div className="city-image-container">
+        <div className="image-loading-placeholder">Loading city image...</div>
+      </div>
+    );
+  }
 
-  // Additional error rendering with more diagnostic information
-  if (error) {
+  if (error || !imageData) {
     return (
       <div className="city-image-container error">
         <div className="city-image-error">
-          <p>Unable to load image</p>
-          <pre>Error: {error}</pre>
-          <pre>
-            {JSON.stringify({
-              cityName, 
-              countryName, 
-              state,
-              origin: window.location.origin,
-              href: window.location.href
-            }, null, 2)}
-          </pre>
+          <p>Unable to load image for {cityName}</p>
           <button 
             onClick={() => window.location.reload()} 
             className="retry-button"
@@ -158,8 +194,54 @@ function CityImage({ cityName, countryName, state }) {
     );
   }
 
-  // Rest of the component remains the same
-  // ... (keep existing render methods)
+  // Determine the image URL from the response
+  const imageUrl = imageData.url || imageData.image_url;
+  
+  if (!imageUrl) {
+    return (
+      <div className="city-image-container">
+        <div className="city-image-placeholder">
+          No image available for {cityName}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="city-image-container">
+      <img 
+        src={imageUrl} 
+        alt={`City view of ${cityName}${stateCode ? `, ${stateCode.toUpperCase()}` : ''}`} 
+        className="city-image"
+        loading="lazy"
+      />
+      {imageData.attribution && (
+        <div className="city-image-attribution">
+          {typeof imageData.attribution === 'string' ? (
+            imageData.attribution.includes('http') ? (
+              <a 
+                href={imageData.attribution} 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                Photo source
+              </a>
+            ) : (
+              <span>{imageData.attribution}</span>
+            )
+          ) : (
+            <a 
+              href={imageData.attribution.link || '#'} 
+              target="_blank" 
+              rel="noopener noreferrer"
+            >
+              {imageData.attribution.name || 'Photo by ' + imageData.attribution.username || 'Photo source'}
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default CityImage;

@@ -111,13 +111,31 @@ def register_weather_routes(app, limiter):
                     # Fall back to city lookup if direct coordinates fail
                     current_app.logger.info("Falling back to city lookup due to coordinate error")
             
-            # If we get here, we need to look up the city
-            # First, find city info
-            search_term = city_id.split('_')[0].replace('_', ' ')
-            current_app.logger.info(f"Looking up city with search term: '{search_term}'")
+            # Enhanced city ID parsing that handles the new format (city_state_country)
+            city_id_parts = city_id.split('_')
+            
+            # Determine search strategy based on city_id format
+            if len(city_id_parts) >= 3 and city_id_parts[-1] == 'us':
+                # Format is city_state_us (e.g., lafayette_co_us)
+                city_name = '_'.join(city_id_parts[:-2]).replace('_', ' ')
+                state_code = city_id_parts[-2]
+                search_query = f"{city_name}, {state_code}, USA"
+                current_app.logger.info(f"US city with state code detected. Search query: '{search_query}'")
+            elif len(city_id_parts) == 2:
+                # Format is city_country (e.g., paris_fr)
+                city_name = city_id_parts[0].replace('_', ' ')
+                country_code = city_id_parts[1]
+                search_query = city_name
+                current_app.logger.info(f"Standard city_country format detected. Search query: '{search_query}'")
+            else:
+                # Fallback for other formats
+                city_name = city_id.split('_')[0].replace('_', ' ')
+                search_query = city_name
+                current_app.logger.info(f"Using simple city name for search: '{search_query}'")
             
             # Perform city search
-            cities = search_city(search_term)
+            current_app.logger.info(f"Looking up city with search term: '{search_query}'")
+            cities = search_city(search_query)
             
             # Log all found cities 
             current_app.logger.info(f"Cities found: {len(cities)}")
@@ -125,55 +143,42 @@ def register_weather_routes(app, limiter):
                 current_app.logger.info(f"  - Found city: {city_found['name']}, ID: {city_found['id']}")
             
             city = None
-            # Try exact match first
+            
+            # First, try to find an exact match by ID
             for c in cities:
                 if c['id'] == city_id:
                     city = c
                     current_app.logger.info(f"Found exact match: {c['id']}")
                     break
             
-            if not city:
-                # Try alternative matching approaches
-                current_app.logger.info("No exact match found, attempting alternative matching...")
-                parts = city_id.split('_')
-                country_code = parts[-1] if len(parts) > 1 else None
-                
-                # Try full city name search
-                full_city_name = '_'.join(parts[:-1]).replace('_', ' ') if country_code else city_id.replace('_', ' ')
-                current_app.logger.info(f"Attempting match with full city name: '{full_city_name}'")
-                
-                cities_retry = search_city(full_city_name)
-                
-                # Log retry search results
-                current_app.logger.info(f"Alternative search results: {len(cities_retry)} cities")
-                
-                if cities_retry and country_code:
-                    # Look for country code match
-                    for c in cities_retry:
-                        c_country_code = c['id'].split('_')[-1] if '_' in c['id'] else None
-                        current_app.logger.info(f"Checking city: {c['id']}, Country Code: {c_country_code}")
-                        if c_country_code == country_code:
+            # If no exact match, try to find the best match
+            if not city and cities:
+                # For US cities with state code
+                if len(city_id_parts) >= 3 and city_id_parts[-1] == 'us':
+                    state_code = city_id_parts[-2]
+                    
+                    # Look for city with the same state code
+                    for c in cities:
+                        if c['country_code'] == 'us' and c.get('state_code', '').lower() == state_code:
                             city = c
-                            current_app.logger.info(f"Found match with country code: {c['id']}")
+                            current_app.logger.info(f"Found US city by state code: {c['id']}")
                             break
                 
-                # If still not found, take the first result as fallback
-                if not city and cities_retry:
-                    city = cities_retry[0]
+                # If still no match, take the first result as fallback
+                if not city:
+                    city = cities[0]
                     current_app.logger.info(f"Using first result as fallback: {city['id']}")
-                
+            
             # If still no city found after all matching attempts, return error
             if not city:
                 current_app.logger.error(f"No city found for city_id: {city_id}")
                 return jsonify({
-                    "error": f"City not found for ID: {city_id}. Search term was: {search_term}",
+                    "error": f"City not found for ID: {city_id}. Search term was: {search_query}",
                     "success": False,
                     "city_id": city_id,
                     "search_details": {
-                        "original_search_term": search_term,
-                        "full_city_name": full_city_name if 'full_city_name' in locals() else None,
-                        "cities_found": len(cities),
-                        "retry_cities_found": len(cities_retry) if 'cities_retry' in locals() else 0
+                        "original_search_term": search_query,
+                        "cities_found": len(cities)
                     }
                 }), 404
             
@@ -185,6 +190,7 @@ def register_weather_routes(app, limiter):
             current_app.logger.info(f"Longitude: {city.get('lng', 'N/A')}")
             current_app.logger.info(f"Country: {city.get('country', 'N/A')}")
             current_app.logger.info(f"State: {city.get('state', 'N/A')}")
+            current_app.logger.info(f"State Code: {city.get('state_code', 'N/A')}")
             
             # Validate coordinates before weather data fetch
             lat = city.get('lat')
@@ -246,6 +252,7 @@ def register_weather_routes(app, limiter):
                 "city_name": city['name'],
                 "country": city.get('country', ''),
                 "state": city.get('state', ''),
+                "state_code": city.get('state_code', ''),  # Include state_code in response
                 "weather": weather_data,
                 "coordinates": {
                     "lat": lat,
