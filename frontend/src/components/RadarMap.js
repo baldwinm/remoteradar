@@ -1,345 +1,309 @@
 // src/components/RadarMap.js
 import React, { useState, useEffect, useRef } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import radarService from '../services/radar';
+import { fetchRadarData, generateTileUrl, formatTimestamp, isTimestampInPast } from '../services/radar';
+import './RadarMap.css'; // We'll create this next
 
-// Import custom styles
-import './RadarMap.css';
-
-const RadarMap = ({ lat, lng, zoom = 8 }) => {
-  const [apiData, setApiData] = useState(null);
-  const [mapFrames, setMapFrames] = useState([]);
-  const [animationPosition, setAnimationPosition] = useState(0);
+const RadarMap = ({ lat, lng }) => {
+  const [radarData, setRadarData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentFrame, setCurrentFrame] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [radarLayers, setRadarLayers] = useState([]);
-  const [currentLayerIndex, setCurrentLayerIndex] = useState(-1);
-  const [mapType, setMapType] = useState('past'); // 'past' or 'forecast'
-  const [loadingStatus, setLoadingStatus] = useState('loading');
-  
+  const [colorScheme, setColorScheme] = useState(2); // Default TITAN color scheme
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const animationTimerRef = useRef(null);
-  
-  // Options for radar display
-  const options = {
-    colorScheme: 2,
-    smoothData: 1,
-    snowColors: 1,
-    tileSize: 256,
-    format: 'webp'
-  };
-  
-  // Initialize the map on component mount
+  const radarLayerRef = useRef(null);
+  const animationRef = useRef(null);
+
+  // Load radar data
   useEffect(() => {
-    // Create map instance if it doesn't exist
-    if (!mapInstanceRef.current && mapRef.current) {
-      // Set default coordinates if not provided
-      const defaultLat = lat || 39.8283;
-      const defaultLng = lng || -98.5795;
+    const loadRadarData = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchRadarData();
+        setRadarData(data);
+        
+        // Start with the most recent past frame
+        if (data.radar && data.radar.past && data.radar.past.length > 0) {
+          setCurrentFrame(data.radar.past.length - 1);
+        }
+      } catch (err) {
+        console.error('Error loading radar data:', err);
+        setError('Failed to load radar data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRadarData();
+    
+    // Cleanup animation on unmount
+    return () => {
+      if (animationRef.current) {
+        clearTimeout(animationRef.current);
+      }
+    };
+  }, []);
+
+  // Initialize the map
+  useEffect(() => {
+    if (!window.L) {
+      // If Leaflet is not loaded, add it to the document
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
+      script.async = true;
+      script.onload = initializeMap;
       
-      // Initialize the map
-      mapInstanceRef.current = L.map(mapRef.current).setView([defaultLat, defaultLng], zoom);
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css';
       
-      // Add OpenStreetMap tile layer
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(mapInstanceRef.current);
+      document.head.appendChild(link);
+      document.body.appendChild(script);
+      
+      return () => {
+        document.body.removeChild(script);
+        document.head.removeChild(link);
+      };
+    } else {
+      // If Leaflet is already loaded, initialize the map directly
+      initializeMap();
     }
     
-    // Fetch radar data
-    fetchRadarData();
-    
-    // Clean up map instance on component unmount
+    // Cleanup function to destroy the map when component unmounts
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
-      
-      // Clear animation timer
-      if (animationTimerRef.current) {
-        clearTimeout(animationTimerRef.current);
-        animationTimerRef.current = null;
-      }
     };
-  }, [lat, lng, zoom]);
-  
-  // Update animation when frames change or animation position changes
+  }, [lat, lng]);
+
+  // Update radar layer when current frame changes
   useEffect(() => {
-    if (mapFrames.length > 0 && mapInstanceRef.current) {
-      showFrame(animationPosition);
-    }
-  }, [mapFrames, animationPosition]);
-  
-  // Handle animation when playing status changes
+    if (!radarData || !mapInstanceRef.current) return;
+    
+    updateRadarLayer();
+  }, [currentFrame, radarData, colorScheme]);
+
+  // Handle animation playback
   useEffect(() => {
     if (isPlaying) {
-      moveNext();
-    } else if (animationTimerRef.current) {
-      clearTimeout(animationTimerRef.current);
-      animationTimerRef.current = null;
+      playAnimation();
+    } else {
+      if (animationRef.current) {
+        clearTimeout(animationRef.current);
+      }
     }
     
     return () => {
-      if (animationTimerRef.current) {
-        clearTimeout(animationTimerRef.current);
-        animationTimerRef.current = null;
+      if (animationRef.current) {
+        clearTimeout(animationRef.current);
       }
     };
-  }, [isPlaying, animationPosition, mapFrames.length]);
-  
-  // Fetch radar data from the backend
-  const fetchRadarData = async () => {
-    try {
-      setLoadingStatus('loading');
-      
-      // Fetch data from our backend API
-      const data = await radarService.fetchRadarData();
-      setApiData(data);
-      
-      // Initialize with past frames by default
-      initializeRadar(data, 'past');
-      
-      setLoadingStatus('loaded');
-    } catch (error) {
-      console.error('Failed to fetch radar data:', error);
-      setLoadingStatus('error');
+  }, [isPlaying, currentFrame, radarData]);
+
+  // Initialize the map with Leaflet
+  const initializeMap = () => {
+    if (!mapRef.current || !window.L) return;
+    
+    // If a map already exists, destroy it first
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
     }
-  };
-  
-  // Initialize radar with the specified type (past or forecast)
-  const initializeRadar = (data, type) => {
-    if (!data || !data.radar) return;
     
-    // Clear previous layers
-    clearLayers();
-    
-    // Set the map type
-    setMapType(type);
-    
-    // Get frames based on type
-    const frames = type === 'past' ? data.radar.past : data.radar.forecast;
-    
-    // Set frames for animation
-    setMapFrames(frames);
-    
-    // Reset animation position
-    setAnimationPosition(0);
-    
-    // Create new radar layers
-    createRadarLayers(data.host, frames);
-  };
-  
-  // Clear all radar layers from the map
-  const clearLayers = () => {
-    radarLayers.forEach(layer => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.removeLayer(layer);
-      }
+    // Create the map instance
+    const map = window.L.map(mapRef.current, {
+      center: [lat || 40.7128, lng || -74.0060], // Default to NYC if no coords
+      zoom: 8,
+      attributionControl: true,
     });
     
-    setRadarLayers([]);
-    setCurrentLayerIndex(-1);
-  };
-  
-  // Create radar layers for each frame
-  const createRadarLayers = (host, frames) => {
-    if (!mapInstanceRef.current) return;
+    // Add attribution
+    map.attributionControl.addAttribution('Radar data © <a href="https://rainviewer.com">RainViewer</a>');
     
-    const createLayer = async (frame, index) => {
-      try {
-        // Generate tile URL template
-        const tileUrl = await radarService.generateTileUrl(
-          host, 
-          frame.path, 
-          '{x}', 
-          '{y}', 
-          '{z}', 
-          options
-        );
-        
-        // Create a tile layer for the frame
-        return L.tileLayer(tileUrl, {
-          tileSize: options.tileSize,
-          opacity: 0,
-          zIndex: 1
-        });
-      } catch (error) {
-        console.error(`Error creating layer for frame ${index}:`, error);
-        return null;
-      }
-    };
+    // Add OpenStreetMap tile layer
+    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
     
-    // Create all layers
-    Promise.all(frames.map(createLayer))
-      .then(layers => {
-        // Filter out null layers
-        const validLayers = layers.filter(layer => layer !== null);
-        setRadarLayers(validLayers);
-      })
-      .catch(error => {
-        console.error('Error creating radar layers:', error);
-      });
-  };
-  
-  // Show the frame at the specified position
-  const showFrame = (position) => {
-    if (position >= mapFrames.length) {
-      position = 0;
+    // Save the map instance to ref
+    mapInstanceRef.current = map;
+    
+    // If radar data is already loaded, add the radar layer
+    if (radarData) {
+      updateRadarLayer();
     }
-    if (position < 0) {
-      position = mapFrames.length - 1;
+  };
+
+  // Update the radar layer with the current frame
+  const updateRadarLayer = async () => {
+    if (!mapInstanceRef.current || !radarData) return;
+    
+    // Remove existing radar layer if it exists
+    if (radarLayerRef.current) {
+      mapInstanceRef.current.removeLayer(radarLayerRef.current);
+      radarLayerRef.current = null;
     }
     
-    setAnimationPosition(position);
+    // Determine which collection (past or forecast) to use
+    const allFrames = [...radarData.radar.past, ...radarData.radar.forecast];
+    if (currentFrame >= allFrames.length) return;
     
-    // Hide all layers
-    radarLayers.forEach((layer, index) => {
-      if (index === position) {
-        // Show the current layer if it's not already on the map
-        if (!mapInstanceRef.current.hasLayer(layer)) {
-          layer.addTo(mapInstanceRef.current);
-        }
-        layer.setOpacity(0.7); // Set opacity to show the layer
-        setCurrentLayerIndex(index);
-      } else {
-        // Hide other layers
-        layer.setOpacity(0);
-        // Optionally remove layers not in view to save resources
-        if (mapInstanceRef.current.hasLayer(layer)) {
-          mapInstanceRef.current.removeLayer(layer);
-        }
-      }
+    const frame = allFrames[currentFrame];
+    const host = radarData.host;
+    
+    // Create a new TileLayer for the radar
+    const tileLayer = window.L.tileLayer(`${host}${frame.path}/{z}/{x}/{y}/${colorScheme}/1_1.png`, {
+      tileSize: 256,
+      opacity: 0.9,
+      zIndex: 100
     });
-  };
-  
-  // Move to the next frame
-  const moveNext = () => {
-    // Calculate next position
-    const nextPosition = (animationPosition + 1) % mapFrames.length;
     
-    // Show next frame
-    showFrame(nextPosition);
-    
-    // Schedule next frame change if playing
-    if (isPlaying) {
-      animationTimerRef.current = setTimeout(() => {
-        moveNext();
-      }, 500); // Animation speed: 500ms between frames
-    }
+    // Add the layer to the map
+    tileLayer.addTo(mapInstanceRef.current);
+    radarLayerRef.current = tileLayer;
   };
-  
-  // Toggle play/pause
+
+  // Play radar animation
+  const playAnimation = () => {
+    if (!radarData) return;
+    
+    const allFrames = [...radarData.radar.past, ...radarData.radar.forecast];
+    
+    // Move to next frame
+    const nextFrame = (currentFrame + 1) % allFrames.length;
+    setCurrentFrame(nextFrame);
+    
+    // Schedule the next frame update
+    animationRef.current = setTimeout(playAnimation, 500); // 500ms per frame
+  };
+
+  // Toggle play/pause animation
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
   };
-  
-  // Move to previous frame
-  const movePrevious = () => {
-    const prevPosition = animationPosition - 1;
-    showFrame(prevPosition < 0 ? mapFrames.length - 1 : prevPosition);
+
+  // Handle color scheme change
+  const handleColorSchemeChange = (e) => {
+    setColorScheme(parseInt(e.target.value, 10));
   };
+
+  if (loading) {
+    return (
+      <div className="radar-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading radar data...</p>
+      </div>
+    );
+  }
   
-  // Move to next frame
-  const moveForward = () => {
-    const nextPosition = animationPosition + 1;
-    showFrame(nextPosition >= mapFrames.length ? 0 : nextPosition);
-  };
+  if (error) {
+    return (
+      <div className="radar-error">
+        <div className="error-icon">⚠️</div>
+        <p>Error loading radar data: {error}</p>
+      </div>
+    );
+  }
   
-  // Toggle between past and forecast radar
-  const toggleRadarType = () => {
-    const newType = mapType === 'past' ? 'forecast' : 'past';
-    initializeRadar(apiData, newType);
-  };
-  
-  // Format current frame time
-  const formatCurrentFrameTime = () => {
-    if (!mapFrames.length || animationPosition >= mapFrames.length) {
-      return 'No data';
-    }
-    
-    const frame = mapFrames[animationPosition];
-    return frame.timestamp || radarService.formatTimestamp(frame.time);
-  };
+  if (!radarData) {
+    return (
+      <div className="radar-error">
+        <div className="error-icon">⚠️</div>
+        <p>No radar data available</p>
+      </div>
+    );
+  }
+
+  // Combine past and forecast frames for display
+  const allFrames = [...radarData.radar.past, ...radarData.radar.forecast];
+  const currentFrameData = allFrames[currentFrame];
   
   return (
-    <div className="radar-container">
+    <div className="radar-component">
       <div className="radar-controls">
-        <div className="radar-type-toggle">
-          <button
-            className={mapType === 'past' ? 'active' : ''}
-            onClick={() => initializeRadar(apiData, 'past')}
+        <div className="radar-timestamp">
+          {currentFrameData && (
+            <span className={isTimestampInPast(currentFrameData.time) ? 'timestamp-past' : 'timestamp-forecast'}>
+              {isTimestampInPast(currentFrameData.time) ? 'Past: ' : 'Forecast: '}
+              {formatTimestamp(currentFrameData.time)}
+            </span>
+          )}
+        </div>
+        
+        <div className="radar-buttons">
+          <button 
+            className="radar-button" 
+            onClick={() => setCurrentFrame(Math.max(0, currentFrame - 1))}
+            disabled={currentFrame === 0}
           >
-            Past
+            ⏮
           </button>
-          <button
-            className={mapType === 'forecast' ? 'active' : ''}
-            onClick={() => initializeRadar(apiData, 'forecast')}
-            disabled={!apiData?.radar?.forecast?.length}
+          
+          <button 
+            className="radar-button play-pause" 
+            onClick={togglePlay}
           >
-            Forecast
+            {isPlaying ? '⏸' : '▶️'}
+          </button>
+          
+          <button 
+            className="radar-button" 
+            onClick={() => setCurrentFrame(Math.min(allFrames.length - 1, currentFrame + 1))}
+            disabled={currentFrame === allFrames.length - 1}
+          >
+            ⏭
           </button>
         </div>
         
-        <div className="radar-animation-controls">
-          <button onClick={movePrevious} title="Previous Frame">
-            &lt;
-          </button>
-          <button onClick={togglePlay} title={isPlaying ? 'Pause' : 'Play'}>
-            {isPlaying ? '⏸' : '▶'}
-          </button>
-          <button onClick={moveForward} title="Next Frame">
-            &gt;
-          </button>
-        </div>
-        
-        <div className="radar-time">
-          {formatCurrentFrameTime()}
+        <div className="radar-options">
+          <label htmlFor="colorScheme">Color Scheme: </label>
+          <select 
+            id="colorScheme" 
+            value={colorScheme} 
+            onChange={handleColorSchemeChange}
+          >
+            {radarData.options.color_schemes.map((scheme) => (
+              <option key={scheme.value} value={scheme.value}>
+                {scheme.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
       
-      {loadingStatus === 'loading' && (
-        <div className="radar-loading">
-          <div className="radar-loading-spinner"></div>
-          <p>Loading radar data...</p>
+      <div className="radar-timeline">
+        {allFrames.map((frame, index) => (
+          <div 
+            key={index}
+            className={`timeline-marker ${index === currentFrame ? 'active' : ''} ${isTimestampInPast(frame.time) ? 'past' : 'forecast'}`}
+            onClick={() => setCurrentFrame(index)}
+            title={formatTimestamp(frame.time)}
+          />
+        ))}
+        
+        <div className="timeline-labels">
+          <span className="timeline-label past">Past</span>
+          <span className="timeline-label forecast">Forecast</span>
         </div>
-      )}
-      
-      {loadingStatus === 'error' && (
-        <div className="radar-error">
-          <p>Failed to load radar data. Please try again later.</p>
-          <button onClick={fetchRadarData}>Retry</button>
-        </div>
-      )}
+      </div>
       
       <div 
         ref={mapRef} 
-        className="radar-map" 
-        style={{ 
-          display: loadingStatus === 'loaded' ? 'block' : 'none',
-          height: '400px',
-          width: '100%'
-        }}
+        className="radar-map"
+        style={{ height: '400px', width: '100%' }}
       ></div>
       
-      {loadingStatus === 'loaded' && mapFrames.length > 0 && (
-        <div className="radar-timeline">
-          {mapFrames.map((frame, index) => (
-            <div
-              key={frame.time}
-              className={`radar-timeline-item ${index === animationPosition ? 'active' : ''}`}
-              onClick={() => showFrame(index)}
-              title={frame.timestamp || radarService.formatTimestamp(frame.time)}
-            >
-              <div className="radar-timeline-marker"></div>
-            </div>
-          ))}
+      <div className="radar-legend">
+        <p className="legend-title">Precipitation Intensity</p>
+        <div className="legend-scale">
+          <div className="legend-item" style={{ backgroundColor: '#40a4df' }}><span>Light</span></div>
+          <div className="legend-item" style={{ backgroundColor: '#0f9d58' }}><span>Moderate</span></div>
+          <div className="legend-item" style={{ backgroundColor: '#ffdd57' }}><span>Heavy</span></div>
+          <div className="legend-item" style={{ backgroundColor: '#ff5252' }}><span>Severe</span></div>
         </div>
-      )}
-      
-      <div className="radar-attribution">
-        Weather radar data provided by <a href="https://www.rainviewer.com" target="_blank" rel="noopener noreferrer">RainViewer</a>
       </div>
     </div>
   );

@@ -531,3 +531,14 @@
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+/* Radar container styles */
+.radar-container {
+  padding: 0.5rem;
+}
+
+.radar-container .radar-component {
+  box-shadow: none;
+  padding: 0;
+  margin-bottom: 0;
+}

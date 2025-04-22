@@ -152,7 +152,7 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
     );
   }
 
-  const { weather, city_name } = weatherData;
+  const { weather, city_name, coordinates } = weatherData;
   const { current, daily, hourly, air_quality, pollen, alerts } = weather;
 
   // Helper function to get weather icon
@@ -295,6 +295,13 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
         >
           Hourly
         </button>
+        {/* Add Radar tab */}
+        <button 
+          className={activeTab === 'radar' ? 'active' : ''} 
+          onClick={() => setActiveTab('radar')}
+        >
+          Radar
+        </button>
         {alerts && alerts.length > 0 && (
           <button 
             className={activeTab === 'alerts' ? 'active' : ''} 
@@ -411,6 +418,13 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
               </div>
             </div>
           ))}
+        </div>
+      )}
+      
+      {/* Add the Radar tab content section */}
+      {activeTab === 'radar' && coordinates && (
+        <div className="radar-container">
+          <RadarMap lat={coordinates.lat} lng={coordinates.lng} />
         </div>
       )}
       
