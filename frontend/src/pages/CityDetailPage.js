@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import PlacesList from '../components/PlacesList';
 import AccommodationWidget from '../components/AccommodationWidget';
-import CityImage from '../components/CityImage';
 import WeatherWidget from '../components/WeatherWidget';
 import CityMapView from '../components/CityMapView';
 import './CityDetailPage.css';
@@ -300,9 +299,6 @@ function CityDetailPage() {
             <Link to="/" className="back-button">← Back to Search</Link>
           </div>
         </div>
-
-        {/* City Image Section */}
-        <CityImage cityName={cityName} countryName={countryName} stateCode={stateCode} />
 
         {/* City Map View Section */}
         <div className="content-row">
