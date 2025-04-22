@@ -15,6 +15,7 @@ const RadarMap = ({ lat, lng }) => {
   const radarLayerRef = useRef(null);
   const animationRef = useRef(null);
   const radarLayersRef = useRef({}); // Store all radar layers
+  const debugMode = true; // Enable debug mode
 
   // Constants for tile configuration
   const TILE_SIZE = 256;
@@ -22,12 +23,20 @@ const RadarMap = ({ lat, lng }) => {
   const SNOW_COLORS = 1; // 0 - do not show snow colors, 1 - show snow colors
   const TILE_FORMAT = 'png'; // 'png' is more compatible than 'webp'
   
+  // Debug logging function
+  const debugLog = (...args) => {
+    if (debugMode) {
+      console.log('[RADAR DEBUG]', ...args);
+    }
+  };
+  
   // Load radar data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        console.log("Fetching radar data from backend API...");
+        debugLog("Fetching radar data from backend API...");
+        console.log(`API URL: ${config.API_URL}/api/radar/data`);
         
         // Use our backend API endpoint instead of calling RainViewer directly
         const response = await fetch(`${config.API_URL}/api/radar/data`, {
@@ -41,23 +50,46 @@ const RadarMap = ({ lat, lng }) => {
           credentials: 'include'
         });
         
+        debugLog("Response status:", response.status);
+        
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log("Radar data received successfully");
+        debugLog("Radar data received:", data);
         
         if (!data.success || !data.radar) {
           throw new Error('Invalid radar data format from API');
         }
         
+        // Full dump of the data structure for debugging
+        console.log("Full radar data structure:", JSON.stringify(data, null, 2));
+        
         setRadarData(data.radar);
+        
+        // Validate the structure of the data
+        debugLog("Validating radar data structure...");
+        if (!data.radar.host) {
+          console.warn("Missing host in radar data");
+        }
+        
+        if (!data.radar.radar || !data.radar.radar.past) {
+          console.warn("Missing radar.past in data structure");
+        } else {
+          debugLog(`Found ${data.radar.radar.past.length} past frames`);
+        }
+        
+        if (!data.radar.radar || !data.radar.radar.nowcast) {
+          console.warn("Missing radar.nowcast in data structure");
+        } else {
+          debugLog(`Found ${data.radar.radar.nowcast.length} forecast frames`);
+        }
         
         // Start with the most recent past frame
         if (data.radar.radar && data.radar.radar.past && data.radar.radar.past.length > 0) {
           const lastPastFrameIndex = data.radar.radar.past.length - 1;
-          console.log(`Setting current frame to last past frame index: ${lastPastFrameIndex}`);
+          debugLog(`Setting current frame to last past frame index: ${lastPastFrameIndex}`);
           setCurrentFrame(lastPastFrameIndex);
         }
       } catch (err) {
@@ -80,14 +112,19 @@ const RadarMap = ({ lat, lng }) => {
 
   // Initialize the map with Leaflet when component mounts
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current) {
+      debugLog("Map reference not found, skipping initialization");
+      return;
+    }
     
     const initMap = () => {
+      debugLog("Checking if Leaflet is available:", !!window.L);
+      
       if (window.L) {
-        console.log("Initializing Leaflet map...");
+        debugLog("Initializing Leaflet map...");
         
         if (mapInstanceRef.current) {
-          console.log("Removing existing map instance");
+          debugLog("Removing existing map instance");
           mapInstanceRef.current.remove();
         }
         
@@ -96,37 +133,54 @@ const RadarMap = ({ lat, lng }) => {
         const initialLng = lng || -98.5795;
         const initialZoom = 5;
         
-        console.log(`Map center: [${initialLat}, ${initialLng}], zoom: ${initialZoom}`);
+        debugLog(`Map center: [${initialLat}, ${initialLng}], zoom: ${initialZoom}`);
         
-        // Create map instance
-        const map = window.L.map(mapRef.current, {
-          center: [initialLat, initialLng],
-          zoom: initialZoom,
-          attributionControl: true
-        });
-        
-        // Add OpenStreetMap tile layer
-        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Radar data &copy; <a href="https://rainviewer.com">RainViewer</a>',
-          maxZoom: 19
-        }).addTo(map);
-        
-        console.log("Base map tiles added");
-        mapInstanceRef.current = map;
-        
-        // If radar data already loaded, update the radar layer
-        if (radarData) {
-          console.log("Radar data already loaded, updating radar layer");
-          updateRadarLayer();
+        try {
+          // Create map instance
+          const map = window.L.map(mapRef.current, {
+            center: [initialLat, initialLng],
+            zoom: initialZoom,
+            attributionControl: true
+          });
+          
+          debugLog("Map instance created:", !!map);
+          
+          // Add OpenStreetMap tile layer
+          const tileLayer = window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Radar data &copy; <a href="https://rainviewer.com">RainViewer</a>',
+            maxZoom: 19
+          });
+          
+          tileLayer.on('loading', () => debugLog("Base map tiles loading started"));
+          tileLayer.on('load', () => debugLog("Base map tiles loaded"));
+          tileLayer.on('tileerror', (e) => console.error("Base map tile error:", e));
+          
+          tileLayer.addTo(map);
+          
+          debugLog("Base map tiles added");
+          mapInstanceRef.current = map;
+          
+          // Add a marker to verify map is working
+          const marker = window.L.marker([initialLat, initialLng]).addTo(map);
+          marker.bindPopup("Map initialized!").openPopup();
+          debugLog("Test marker added to map");
+          
+          // If radar data already loaded, update the radar layer
+          if (radarData) {
+            debugLog("Radar data already loaded, updating radar layer");
+            updateRadarLayer();
+          }
+        } catch (e) {
+          console.error("Error initializing map:", e);
         }
       } else {
-        console.log("Leaflet not found, loading library...");
+        debugLog("Leaflet not found, loading library...");
         // Load Leaflet if not already loaded
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
         script.async = true;
         script.onload = () => {
-          console.log("Leaflet library loaded successfully");
+          debugLog("Leaflet library loaded successfully");
           initMap();
         };
         
@@ -153,19 +207,22 @@ const RadarMap = ({ lat, lng }) => {
 
   // Update radar layer when current frame or radar data changes
   useEffect(() => {
+    debugLog(`Frame or radar data changed, updating layer for frame ${currentFrame}`);
+    debugLog("Radar data exists:", !!radarData);
+    debugLog("Map exists:", !!mapInstanceRef.current);
+    
     if (!radarData || !mapInstanceRef.current) return;
     
-    console.log(`Frame or radar data changed, updating layer for frame ${currentFrame}`);
     updateRadarLayer();
   }, [currentFrame, colorScheme, radarData]);
 
   // Handle animation playback
   useEffect(() => {
     if (isPlaying) {
-      console.log("Starting animation playback");
+      debugLog("Starting animation playback");
       playAnimation();
     } else if (animationRef.current) {
-      console.log("Stopping animation playback");
+      debugLog("Stopping animation playback");
       clearTimeout(animationRef.current);
     }
     
@@ -179,7 +236,11 @@ const RadarMap = ({ lat, lng }) => {
   // Update the radar layer with the current frame
   const updateRadarLayer = () => {
     if (!mapInstanceRef.current || !radarData || !radarData.radar) {
-      console.log("Cannot update radar layer: map or radar data not available");
+      debugLog("Cannot update radar layer: map or radar data not available", {
+        mapExists: !!mapInstanceRef.current,
+        radarDataExists: !!radarData,
+        radarStructureExists: radarData && !!radarData.radar
+      });
       return;
     }
     
@@ -187,7 +248,7 @@ const RadarMap = ({ lat, lng }) => {
     
     // Remove existing radar layer if it exists
     if (radarLayerRef.current) {
-      console.log("Removing existing radar layer");
+      debugLog("Removing existing radar layer");
       map.removeLayer(radarLayerRef.current);
     }
     
@@ -195,22 +256,25 @@ const RadarMap = ({ lat, lng }) => {
     const allFrames = [...(radarData.radar.past || []), ...(radarData.radar.nowcast || [])];
     
     if (currentFrame >= allFrames.length || allFrames.length === 0) {
-      console.error("Invalid current frame or no frames available");
+      console.error("Invalid current frame or no frames available", {
+        currentFrame,
+        framesLength: allFrames.length
+      });
       return;
     }
     
     const frame = allFrames[currentFrame];
     const host = radarData.host;
     
-    console.log("Creating radar layer for frame:", frame);
-    console.log("Host:", host);
-    console.log("Path:", frame.path);
+    debugLog("Creating radar layer for frame:", frame);
+    debugLog("Host:", host);
+    debugLog("Path:", frame.path);
     
     try {
       // Create custom tile URL function that uses our backend API
       const tileUrl = (tilePoint) => {
         // Build tile URL through our backend proxy
-        return `${config.API_URL}/api/radar/tile?` + 
+        const url = `${config.API_URL}/api/radar/tile?` + 
                `host=${encodeURIComponent(host)}` +
                `&path=${encodeURIComponent(frame.path)}` +
                `&x=${tilePoint.x}` +
@@ -221,9 +285,16 @@ const RadarMap = ({ lat, lng }) => {
                `&snow=${SNOW_COLORS}` +
                `&size=${TILE_SIZE}` +
                `&format=${TILE_FORMAT}`;
+               
+        // Log the first tile URL for debugging
+        if (tilePoint.x === 0 && tilePoint.y === 0) {
+          debugLog("Example tile URL:", url);
+        }
+        
+        return url;
       };
       
-      console.log("Tile URL function created");
+      debugLog("Tile URL function created");
       
       // Create the tile layer with our custom URL function
       const tileLayer = window.L.tileLayer(tileUrl, {
@@ -241,26 +312,52 @@ const RadarMap = ({ lat, lng }) => {
       
       tileLayer.on('loading', () => {
         loadingTiles++;
-        console.log(`Tile loading started. Total loading: ${loadingTiles}`);
+        debugLog(`Tile loading started. Total loading: ${loadingTiles}`);
       });
       
       tileLayer.on('load', () => {
         loadedTiles++;
-        console.log(`Tile loaded. Total loaded: ${loadedTiles} of ${loadingTiles}`);
+        debugLog(`Tile loaded. Total loaded: ${loadedTiles} of ${loadingTiles}`);
       });
       
       tileLayer.on('tileerror', (error) => {
         console.error('Tile loading error:', error);
+        // Attempt to load a sample tile directly to test
+        const sampleTileUrl = `${config.API_URL}/api/radar/tile?` + 
+                           `host=${encodeURIComponent(host)}` +
+                           `&path=${encodeURIComponent(frame.path)}` +
+                           `&x=0&y=0&z=0` +
+                           `&color_scheme=${colorScheme}` +
+                           `&smooth=${SMOOTH_DATA}` +
+                           `&snow=${SNOW_COLORS}` +
+                           `&size=${TILE_SIZE}` +
+                           `&format=${TILE_FORMAT}`;
+        
+        debugLog("Testing direct tile fetch:", sampleTileUrl);
+        
+        // Try to fetch a test tile directly
+        fetch(sampleTileUrl)
+          .then(response => {
+            debugLog("Test tile response:", response.status, response.statusText);
+            return response.blob();
+          })
+          .then(blob => {
+            debugLog("Test tile content type:", blob.type);
+            debugLog("Test tile size:", blob.size);
+          })
+          .catch(error => {
+            console.error("Test tile fetch error:", error);
+          });
       });
       
       // Add the layer to the map
       tileLayer.addTo(map);
-      console.log("Radar layer added to map");
+      debugLog("Radar layer added to map");
       radarLayerRef.current = tileLayer;
       
       // Show frame timestamp
       const frameTime = new Date(frame.time * 1000).toLocaleTimeString();
-      console.log(`Showing frame time: ${frameTime}`);
+      debugLog(`Showing frame time: ${frameTime}`);
       
     } catch (err) {
       console.error("Error creating radar layer:", err);
@@ -277,7 +374,7 @@ const RadarMap = ({ lat, lng }) => {
     
     // Move to next frame
     const nextFrame = (currentFrame + 1) % allFrames.length;
-    console.log(`Animation advancing to frame ${nextFrame} of ${allFrames.length}`);
+    debugLog(`Animation advancing to frame ${nextFrame} of ${allFrames.length}`);
     setCurrentFrame(nextFrame);
     
     // Schedule the next frame update (500ms per frame)
@@ -286,14 +383,14 @@ const RadarMap = ({ lat, lng }) => {
 
   // Toggle play/pause animation
   const togglePlay = () => {
-    console.log(`${isPlaying ? 'Pausing' : 'Playing'} animation`);
+    debugLog(`${isPlaying ? 'Pausing' : 'Playing'} animation`);
     setIsPlaying(!isPlaying);
   };
 
   // Handle color scheme change
   const handleColorSchemeChange = (e) => {
     const newScheme = parseInt(e.target.value, 10);
-    console.log(`Changing color scheme from ${colorScheme} to ${newScheme}`);
+    debugLog(`Changing color scheme from ${colorScheme} to ${newScheme}`);
     setColorScheme(newScheme);
   };
 
@@ -325,6 +422,12 @@ const RadarMap = ({ lat, lng }) => {
         <div className="error-icon">⚠️</div>
         <p>Error loading radar data</p>
         <div className="error-details">{error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          style={{ marginTop: '10px', padding: '5px 10px' }}
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -334,6 +437,9 @@ const RadarMap = ({ lat, lng }) => {
       <div className="radar-error">
         <div className="error-icon">⚠️</div>
         <p>No radar data available</p>
+        <div className="error-details">
+          Radar data structure is invalid or empty.
+        </div>
       </div>
     );
   }
@@ -429,8 +535,31 @@ const RadarMap = ({ lat, lng }) => {
       <div 
         ref={mapRef} 
         className="radar-map"
-        style={{ height: '400px', width: '100%' }}
+        style={{ height: '400px', width: '100%', border: debugMode ? '1px solid red' : 'none' }}
       ></div>
+      
+      {debugMode && (
+        <div className="radar-debug" style={{ marginTop: '10px', backgroundColor: '#f8f9fa', padding: '10px', borderRadius: '4px' }}>
+          <h4 style={{ margin: '0 0 10px 0' }}>Debug Information</h4>
+          <p>Map initialized: {mapInstanceRef.current ? '✅' : '❌'}</p>
+          <p>Radar data: {radarData ? '✅' : '❌'}</p>
+          <p>Current frame: {currentFrame}</p>
+          <p>Frames available: {allFrames.length}</p>
+          <p>Color scheme: {colorScheme}</p>
+          <button 
+            onClick={() => console.log("Full radar data:", radarData)}
+            style={{ marginRight: '10px', padding: '5px 10px' }}
+          >
+            Log Radar Data
+          </button>
+          <button 
+            onClick={() => mapInstanceRef.current && mapInstanceRef.current.invalidateSize()}
+            style={{ padding: '5px 10px' }}
+          >
+            Refresh Map
+          </button>
+        </div>
+      )}
       
       <div className="radar-info">
         <p className="info-message">

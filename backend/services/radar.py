@@ -2,10 +2,22 @@
 import requests
 import logging
 import time
+import json
 from typing import Dict, Any, Optional
 
 # Initialize logger
 logger = logging.getLogger(__name__)
+
+# Set logging level to DEBUG for development
+logger.setLevel(logging.DEBUG)
+
+# Add a console handler if not present
+if not logger.handlers:
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
 # In-memory cache
 _cache = {}
@@ -40,6 +52,10 @@ def get_radar_data() -> Dict[str, Any]:
             timeout=10
         )
         
+        # Log detailed response info
+        logger.debug(f"RainViewer API Response Status: {response.status_code}")
+        logger.debug(f"RainViewer API Response Headers: {response.headers}")
+        
         # Handle non-200 response
         if response.status_code != 200:
             logger.error(f"RainViewer API error: {response.status_code}")
@@ -50,6 +66,23 @@ def get_radar_data() -> Dict[str, Any]:
             data = response.json()
             logger.debug(f"Received radar data: {len(str(data))} bytes")
             
+            # Log a sample of the data structure
+            logger.debug(f"Data structure sample: {json.dumps(data, indent=2)[:500]}...")
+            
+            # Validate the expected structure
+            if not data.get('host'):
+                logger.warning("Missing 'host' field in radar data")
+                
+            if not data.get('radar') or not data.get('radar', {}).get('past'):
+                logger.warning("Missing 'radar.past' field in data structure")
+            else:
+                logger.debug(f"Found {len(data['radar']['past'])} past frames")
+                
+            if not data.get('radar') or not data.get('radar', {}).get('nowcast'):
+                logger.warning("Missing 'radar.nowcast' field in data structure")
+            else:
+                logger.debug(f"Found {len(data['radar']['nowcast'])} forecast frames")
+            
             # Cache the result
             _cache[cache_key] = {
                 'data': data,
@@ -59,6 +92,7 @@ def get_radar_data() -> Dict[str, Any]:
             return data
         except ValueError as json_err:
             logger.error(f"Failed to parse radar JSON response: {json_err}")
+            logger.error(f"Raw response content: {response.text[:500]}...")
             return {"error": "Failed to parse radar data"}
             
     except Exception as e:
@@ -103,14 +137,29 @@ def get_radar_tile(host: str, path: str, x: int, y: int, z: int, color_scheme: i
                 return cache_entry.get('data')
         
         # Make API request
+        logger.debug(f"Requesting tile from: {tile_url}")
         response = requests.get(
             tile_url,
             timeout=10
         )
         
+        # Log response details for debugging
+        logger.debug(f"Tile response status: {response.status_code}")
+        logger.debug(f"Tile response content type: {response.headers.get('Content-Type')}")
+        logger.debug(f"Tile response size: {len(response.content)} bytes")
+        
         # Handle non-200 response
         if response.status_code != 200:
             logger.error(f"Radar tile error: {response.status_code}")
+            logger.error(f"Response headers: {response.headers}")
+            
+            # Try to get response content for error analysis
+            try:
+                error_content = response.text[:200]
+                logger.error(f"Error response content: {error_content}")
+            except:
+                logger.error("Could not read error response content")
+                
             return None
         
         # Cache the result
