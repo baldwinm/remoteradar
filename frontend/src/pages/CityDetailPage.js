@@ -5,6 +5,7 @@ import PlacesList from '../components/PlacesList';
 import AccommodationWidget from '../components/AccommodationWidget';
 import CityImage from '../components/CityImage';
 import WeatherWidget from '../components/WeatherWidget';
+import CityMapView from '../components/CityMapView';
 import './CityDetailPage.css';
 import config from '../config';
 
@@ -208,6 +209,18 @@ function CityDetailPage() {
         {/* City Image Section */}
         <CityImage cityName={cityName} countryName={countryName} />
 
+        {/* City Map View Section */}
+        <div className="content-row">
+          <div className="content-section">
+            <CityMapView 
+              city={cityName}
+              lat={city.lat}
+              lng={city.lng}
+              mapboxToken={config.mapboxToken}
+            />
+          </div>
+        </div>
+
         {/* Simple Weather Widget */}
         <div className="content-row">
           <div className="content-section">
@@ -296,6 +309,17 @@ function CityDetailPage() {
                     <div className="stat-label">Restaurants</div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Support/Donation Section */}
+          <div className="content-row">
+            <div className="content-section">
+              <div className="support-container">
+                <a href="https://www.buymeacoffee.com/remoteradar" target="_blank" rel="noopener noreferrer" className="coffee-button">
+                  ☕ Buy me a coffee
+                </a>
               </div>
             </div>
           </div>
