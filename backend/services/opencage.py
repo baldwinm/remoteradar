@@ -111,12 +111,15 @@ def search_city(query: str) -> List[Dict[str, Any]]:
             country_code = components.get('country_code', '').lower()
             city_id = f"{city_name.lower().replace(' ', '_')}_{country_code}"
             
-            # Create city object
+            # Create city object with enhanced state and country_code info
             city = {
                 'id': city_id,
                 'name': city_name,
                 'country': components.get('country', ''),
+                'country_code': country_code,
                 'state': components.get('state', ''),
+                'state_code': components.get('state_code', ''),
+                'county': components.get('county', ''),
                 'lat': result.get('geometry', {}).get('lat'),
                 'lng': result.get('geometry', {}).get('lng'),
                 'formatted': result.get('formatted', '')
@@ -132,7 +135,14 @@ def search_city(query: str) -> List[Dict[str, Any]]:
         # Log found cities
         logger.info(f"Found {len(cities)} valid cities for query: '{query}'")
         for city in cities:
-            logger.info(f"  - {city['name']} (ID: {city['id']}, Coords: {city['lat']}, {city['lng']})")
+            # Enhanced logging with state info for US cities
+            location_str = f"{city['name']}"
+            if city['country_code'] == 'us' and city['state']:
+                location_str += f", {city['state']}, USA"
+            else:
+                location_str += f", {city['country']}"
+                
+            logger.info(f"  - {location_str} (ID: {city['id']}, Coords: {city['lat']}, {city['lng']})")
         
         # Cache the result
         _cache[cache_key] = {
@@ -146,5 +156,28 @@ def search_city(query: str) -> List[Dict[str, Any]]:
         logger.critical(f"FATAL error searching for city: {str(e)}", exc_info=True)
         return []
 
-# Rest of the file remains the same
-# ... (keep existing clear_cache and clean_expired_cache functions)
+# Functions for cache management
+def clear_cache():
+    """Clear the entire search cache"""
+    global _cache
+    _cache = {}
+    return {"success": True, "message": "Cache cleared successfully"}
+
+def clean_expired_cache():
+    """Remove expired entries from the cache"""
+    global _cache
+    now = time.time()
+    expired_keys = []
+    
+    for key, value in _cache.items():
+        if now - value['timestamp'] >= 604800:  # 7 days
+            expired_keys.append(key)
+    
+    for key in expired_keys:
+        del _cache[key]
+    
+    return {
+        "success": True,
+        "message": f"Cleaned {len(expired_keys)} expired cache entries",
+        "removed_keys": expired_keys
+    }

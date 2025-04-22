@@ -94,6 +94,30 @@ function SearchBar() {
     setQuery(e.target.value);
   };
 
+  // Helper function to format location display
+  const formatLocation = (city) => {
+    const isUS = city.country === 'United States of America' || city.country_code === 'us';
+    
+    if (isUS && city.state) {
+      return (
+        <>
+          <span className="city-name">{city.name}</span>
+          <div className="location-details">
+            <span className="city-state">{city.state}</span>
+            <span className="city-country">USA</span>
+          </div>
+        </>
+      );
+    } else {
+      return (
+        <>
+          <span className="city-name">{city.name}</span>
+          <span className="city-country">{city.country}</span>
+        </>
+      );
+    }
+  };
+
   return (
     <div className="search-bar" ref={searchRef}>
       <form onSubmit={handleSearch}>
@@ -132,8 +156,7 @@ function SearchBar() {
                 className="search-result-item"
                 onClick={() => handleCitySelect(city)}
               >
-                <span className="city-name">{city.name}</span>
-                <span className="city-country">{city.country}</span>
+                {formatLocation(city)}
               </li>
             ))}
           </ul>
