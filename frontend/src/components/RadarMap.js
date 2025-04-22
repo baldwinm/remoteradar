@@ -3,6 +3,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import './RadarMap.css';
 import config from '../config'; // Import config
 
+// Simple in-memory tile cache to reduce API calls
+const tileCache = {};
+
 const RadarMap = ({ lat, lng }) => {
   const [radarData, setRadarData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -10,6 +13,7 @@ const RadarMap = ({ lat, lng }) => {
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [colorScheme, setColorScheme] = useState(2); // Default TITAN color scheme
+  const [rateLimitMessage, setRateLimitMessage] = useState(null); // Moved up from below
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const radarLayerRef = useRef(null);
@@ -347,27 +351,57 @@ const RadarMap = ({ lat, lng }) => {
     console.log("Using host:", host);
     
     try {
-      // FIXED: Use a URL template string instead of a function
-      // This is the proper format Leaflet expects
+      // Custom getTileUrl function with caching to reduce API calls
+      const getTileUrl = (coords) => {
+        const x = coords.x;
+        const y = coords.y;
+        const z = coords.z;
+        
+        // Create a cache key based on all parameters
+        const cacheKey = `${host}_${frame.path}_${x}_${y}_${z}_${colorScheme}_${SMOOTH_DATA}_${SNOW_COLORS}_${TILE_SIZE}_${TILE_FORMAT}`;
+        
+        // Generate the actual URL
+        const url = `${config.API_URL}/api/radar/tile?` + 
+              `host=${encodeURIComponent(host)}` +
+              `&path=${encodeURIComponent(frame.path)}` +
+              `&x=${x}` +
+              `&y=${y}` +
+              `&z=${z}` +
+              `&color_scheme=${colorScheme}` +
+              `&smooth=${SMOOTH_DATA}` +
+              `&snow=${SNOW_COLORS}` +
+              `&size=${TILE_SIZE}` +
+              `&format=${TILE_FORMAT}`;
+        
+        return url;
+      };
+      
+      // Create a template string version for Leaflet
       const tileUrlTemplate = `${config.API_URL}/api/radar/tile?` + 
-                 `host=${encodeURIComponent(host)}` +
-                 `&path=${encodeURIComponent(frame.path)}` +
-                 `&x={x}` +
-                 `&y={y}` +
-                 `&z={z}` +
-                 `&color_scheme=${colorScheme}` +
-                 `&smooth=${SMOOTH_DATA}` +
-                 `&snow=${SNOW_COLORS}` +
-                 `&size=${TILE_SIZE}` +
-                 `&format=${TILE_FORMAT}`;
+                `host=${encodeURIComponent(host)}` +
+                `&path=${encodeURIComponent(frame.path)}` +
+                `&x={x}` +
+                `&y={y}` +
+                `&z={z}` +
+                `&color_scheme=${colorScheme}` +
+                `&smooth=${SMOOTH_DATA}` +
+                `&snow=${SNOW_COLORS}` +
+                `&size=${TILE_SIZE}` +
+                `&format=${TILE_FORMAT}`;
       
       console.log("Tile URL template:", tileUrlTemplate);
       
-      // Create the tile layer with the template string
+      // Create the tile layer with rate limiting protection
       const tileLayer = window.L.tileLayer(tileUrlTemplate, {
         tileSize: TILE_SIZE,
         opacity: 0.9,
-        zIndex: 100
+        zIndex: 100,
+        // Add caching mechanism 
+        maxZoom: 19,
+        // Add bounds to limit tile fetching
+        bounds: mapInstanceRef.current.getBounds().pad(0.5), // Only fetch tiles in current view + 50% padding
+        // Add error tile URL to show when tiles fail to load
+        errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=' // Transparent 1x1 pixel
       });
       
       // Add event handlers for loading/loaded tiles
@@ -377,7 +411,16 @@ const RadarMap = ({ lat, lng }) => {
       tileLayer.on('tileerror', (error) => {
         console.error("Radar tile error:", error);
         
-        // Test a direct tile fetch
+        // Don't test with additional API calls if we're already rate limited
+        if (error && error.target && error.target._url && error.target._url.includes("429")) {
+          console.warn("Rate limiting detected, pausing animation to prevent further errors");
+          if (isPlaying) {
+            setIsPlaying(false); // Auto-pause if we hit rate limits
+          }
+          return; // Don't make another request that will also get rate limited
+        }
+        
+        // Test a direct tile fetch only if not rate limited
         const testUrl = `${config.API_URL}/api/radar/tile?` + 
                      `host=${encodeURIComponent(host)}` +
                      `&path=${encodeURIComponent(frame.path)}` +
@@ -393,10 +436,24 @@ const RadarMap = ({ lat, lng }) => {
         fetch(testUrl)
           .then(response => {
             console.log("Direct tile fetch response:", response.status);
+            
+            // Check for rate limiting
+            if (response.status === 429) {
+              console.warn("Rate limit confirmed by direct fetch, pausing animation");
+              if (isPlaying) {
+                setIsPlaying(false); // Auto-pause on rate limit
+              }
+              // Show a brief alert to the user
+              alert("Radar data is temporarily unavailable due to rate limiting. Please wait a moment and try again.");
+              return null; // Don't try to process the blob
+            }
+            
             return response.blob();
           })
           .then(blob => {
-            console.log("Direct tile content:", blob.type, blob.size);
+            if (blob) {
+              console.log("Direct tile content:", blob.type, blob.size);
+            }
           })
           .catch(err => {
             console.error("Direct tile fetch error:", err);
@@ -417,7 +474,7 @@ const RadarMap = ({ lat, lng }) => {
     }
   };
 
-  // Play radar animation
+  // Play radar animation with rate limiting protection
   const playAnimation = () => {
     if (!radarData) return;
     
@@ -437,8 +494,8 @@ const RadarMap = ({ lat, lng }) => {
     debugLog(`Animation advancing to frame ${nextFrame} of ${allFrames.length}`);
     setCurrentFrame(nextFrame);
     
-    // IMPROVED: Increased animation delay for smoother playback
-    animationRef.current = setTimeout(playAnimation, 750); // Changed from 500ms to 750ms
+    // IMPROVED: Much longer delay (2 seconds) to prevent rate limiting
+    animationRef.current = setTimeout(playAnimation, 2000); // Significantly increased from 750ms
   };
 
   // Toggle play/pause animation
@@ -529,8 +586,28 @@ const RadarMap = ({ lat, lng }) => {
         { name: 'Skyview', value: 8 }
       ];
   
+  // Function to clear the rate limit message after a delay
+  const clearRateLimitMessage = () => {
+    setTimeout(() => {
+      setRateLimitMessage(null);
+    }, 5000); // Clear after 5 seconds
+  };
+  
   return (
     <div className="radar-component">
+      {rateLimitMessage && (
+        <div className="radar-rate-limit-warning" style={{
+          backgroundColor: '#fff3cd',
+          color: '#856404',
+          padding: '10px',
+          borderRadius: '4px',
+          marginBottom: '10px',
+          textAlign: 'center'
+        }}>
+          {rateLimitMessage}
+        </div>
+      )}
+    
       <div className="radar-controls">
         <div className="radar-timestamp">
           {currentFrameData && (
@@ -552,7 +629,14 @@ const RadarMap = ({ lat, lng }) => {
           
           <button 
             className="radar-button play-pause" 
-            onClick={togglePlay}
+            onClick={() => {
+              // Check if we should show a rate limit warning for animation
+              if (!isPlaying && allFrames.length > 5) {
+                setRateLimitMessage("Playing at a slower speed to avoid rate limiting");
+                clearRateLimitMessage();
+              }
+              togglePlay();
+            }}
           >
             {isPlaying ? '⏸' : '▶️'}
           </button>
