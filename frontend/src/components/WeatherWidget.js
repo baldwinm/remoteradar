@@ -238,16 +238,16 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
         <h3 className="weather-title">Weather in {city_name}</h3>
         <div className="unit-toggle">
           <button 
-            className={units === 'metric' ? 'active' : ''} 
-            onClick={() => handleUnitToggle('metric')}
-          >
-            °C
-          </button>
-          <button 
             className={units === 'imperial' ? 'active' : ''} 
             onClick={() => handleUnitToggle('imperial')}
           >
             °F
+          </button>
+          <button 
+            className={units === 'metric' ? 'active' : ''} 
+            onClick={() => handleUnitToggle('metric')}
+          >
+            °C
           </button>
         </div>
       </div>
