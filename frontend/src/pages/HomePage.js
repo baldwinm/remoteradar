@@ -31,7 +31,7 @@ function HomePage() {
             <div className="feature-icon">☕</div>
             <h3 className="feature-title">Coffee & Coworking</h3>
             <p className="feature-description">
-              Discover the best coffee shops and coworking spaces to boost your productivity while working remotely.
+              Discover the best coffee shops and coworking spaces to boost your productivity.
             </p>
           </div>
 
