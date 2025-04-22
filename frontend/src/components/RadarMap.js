@@ -16,6 +16,7 @@ const RadarMap = ({ lat, lng }) => {
   const animationRef = useRef(null);
   const radarLayersRef = useRef({}); // Store all radar layers
   const debugMode = true; // Enable debug mode
+  const mapInitializedRef = useRef(false); // Track if map has been initialized
 
   // Constants for tile configuration
   const TILE_SIZE = 256;
@@ -97,6 +98,11 @@ const RadarMap = ({ lat, lng }) => {
         setError(`Failed to load radar data: ${err.message}`);
       } finally {
         setLoading(false);
+        
+        // After data is loaded, make sure map is initialized
+        if (!mapInitializedRef.current) {
+          initializeMap();
+        }
       }
     };
 
@@ -110,9 +116,11 @@ const RadarMap = ({ lat, lng }) => {
     };
   }, []);
 
-  // Initialize the map with Leaflet when component mounts
-  useEffect(() => {
-    // Add Leaflet CSS directly to head
+  // Initialize map function (called immediately when component mounts)
+  const initializeMap = () => {
+    console.log("Initializing map...");
+    
+    // Add Leaflet CSS directly to head if not already added
     const linkExists = document.querySelector('link[href*="leaflet"]');
     if (!linkExists) {
       const link = document.createElement('link');
@@ -122,93 +130,131 @@ const RadarMap = ({ lat, lng }) => {
       console.log("Leaflet CSS added to head");
     }
     
-    // Load Leaflet JS directly
-    const scriptExists = document.querySelector('script[src*="leaflet"]');
-    if (!scriptExists) {
+    // Load Leaflet JS directly if not already loaded
+    if (typeof window.L !== 'undefined') {
+      console.log("Leaflet already loaded, creating map");
+      createMap();
+    } else {
+      console.log("Leaflet not found, loading library...");
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
-      script.onload = initializeMap;
+      script.onload = () => {
+        console.log("Leaflet script loaded successfully");
+        createMap();
+      };
+      script.onerror = (err) => {
+        console.error("Error loading Leaflet:", err);
+        setError("Failed to load map library. Please try again later.");
+      };
       document.body.appendChild(script);
-      console.log("Leaflet script added to body");
-    } else {
-      console.log("Leaflet script already exists");
-      // Wait a bit and then try to init map
-      setTimeout(initializeMap, 500);
+    }
+  };
+  
+  // Create the actual map once Leaflet is available
+  const createMap = () => {
+    if (!mapRef.current) {
+      console.error("Map container not found");
+      return;
     }
     
-    function initializeMap() {
-      console.log("Initializing radar map");
+    // Remove existing map if it exists
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
+    
+    console.log("Creating map with container:", mapRef.current);
+    console.log("Container dimensions:", {
+      offsetWidth: mapRef.current.offsetWidth,
+      offsetHeight: mapRef.current.offsetHeight,
+      clientWidth: mapRef.current.clientWidth,
+      clientHeight: mapRef.current.clientHeight
+    });
+    
+    try {
+      // Ensure the container has a height
+      mapRef.current.style.height = '400px';
+      mapRef.current.style.width = '100%';
       
-      if (!window.L) {
-        console.error("Leaflet not loaded");
-        return;
-      }
+      // Create map with explicit container dimensions
+      const map = window.L.map(mapRef.current, {
+        center: [lat || 39.8283, lng || -98.5795],
+        zoom: 5,
+        zoomControl: true,
+        attributionControl: true
+      });
       
-      if (!mapRef.current) {
-        console.error("Map container not found");
-        return;
-      }
+      // Add OpenStreetMap tile layer
+      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors | Radar data &copy; <a href="https://rainviewer.com">RainViewer</a>',
+        maxZoom: 19
+      }).addTo(map);
       
-      // Remove existing map if it exists
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-      }
+      console.log("Base map created successfully");
+      mapInstanceRef.current = map;
+      mapInitializedRef.current = true;
       
-      try {
-        // Ensure the container has a height
-        mapRef.current.style.height = '400px';
-        mapRef.current.style.width = '100%';
-        
-        // Create map
-        const map = window.L.map(mapRef.current, {
-          center: [lat || 39.8283, lng || -98.5795],
-          zoom: 5,
-          zoomControl: true
-        });
-        
-        // Add OpenStreetMap tile layer
-        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors | Radar data &copy; <a href="https://rainviewer.com">RainViewer</a>',
-          maxZoom: 19
-        }).addTo(map);
-        
-        console.log("Base map created successfully");
-        mapInstanceRef.current = map;
-        
-        // Force a resize
-        setTimeout(() => {
-          if (mapInstanceRef.current) {
-            console.log("Forcing map resize");
-            mapInstanceRef.current.invalidateSize(true);
-            
-            // After resize, update radar layer if data is available
-            if (radarData) {
-              updateRadarLayer();
-            }
+      // Force a resize after a short delay
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          console.log("Forcing map resize");
+          mapInstanceRef.current.invalidateSize(true);
+          
+          // After resize, update radar layer if data is available
+          if (radarData) {
+            updateRadarLayer();
           }
-        }, 500);
-      } catch (error) {
-        console.error("Error creating map:", error);
-      }
+        }
+      }, 500);
+      
+      // Add a marker to confirm map is working
+      window.L.marker([lat || 39.8283, lng || -98.5795])
+        .addTo(map)
+        .bindPopup('Map initialized!')
+        .openPopup();
+        
+    } catch (error) {
+      console.error("Error creating map:", error);
+      setError(`Failed to initialize map: ${error.message}`);
+    }
+  };
+
+  // Initialize the map component immediately when it mounts
+  useEffect(() => {
+    console.log("RadarMap component mounted");
+    
+    // Initialize the map immediately
+    if (!mapInitializedRef.current) {
+      initializeMap();
     }
     
-    // Cleanup function
+    // Clean up on unmount
     return () => {
       if (mapInstanceRef.current) {
+        console.log("Cleaning up map on unmount");
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
+        mapInitializedRef.current = false;
       }
     };
+  }, []);
+
+  // Update when lat/lng props change
+  useEffect(() => {
+    if (mapInstanceRef.current && mapInitializedRef.current) {
+      console.log("Coordinates changed, updating map center");
+      mapInstanceRef.current.setView([lat || 39.8283, lng || -98.5795], 5);
+    }
   }, [lat, lng]);
 
   // Update radar layer when current frame or radar data changes
   useEffect(() => {
+    if (!radarData || !mapInstanceRef.current || !mapInitializedRef.current) {
+      debugLog("Skipping radar update - map or data not ready");
+      return;
+    }
+    
     debugLog(`Frame or radar data changed, updating layer for frame ${currentFrame}`);
-    debugLog("Radar data exists:", !!radarData);
-    debugLog("Map exists:", !!mapInstanceRef.current);
-    
-    if (!radarData || !mapInstanceRef.current) return;
-    
     updateRadarLayer();
   }, [currentFrame, colorScheme, radarData]);
 
@@ -234,7 +280,7 @@ const RadarMap = ({ lat, lng }) => {
     console.log("updateRadarLayer called");
     
     // Check if we have the map and data
-    if (!mapInstanceRef.current) {
+    if (!mapInstanceRef.current || !mapInitializedRef.current) {
       console.error("Cannot update radar layer: Map is not initialized");
       return;
     }
@@ -301,51 +347,40 @@ const RadarMap = ({ lat, lng }) => {
     console.log("Using host:", host);
     
     try {
-      // Create custom tile URL function that uses our backend API
-      const tileUrl = (tilePoint) => {
-        // Build tile URL through our backend proxy
+      // Create the tile URL function that Leaflet will call
+      console.log("Creating radar tile layer");
+      
+      // Define a proper function that returns the tile URL
+      const tileUrl = function(tilePoint) {
+        // Build the URL
         const url = `${config.API_URL}/api/radar/tile?` + 
-               `host=${encodeURIComponent(host)}` +
-               `&path=${encodeURIComponent(frame.path)}` +
-               `&x=${tilePoint.x}` +
-               `&y=${tilePoint.y}` +
-               `&z=${tilePoint.z}` +
-               `&color_scheme=${colorScheme}` +
-               `&smooth=${SMOOTH_DATA}` +
-               `&snow=${SNOW_COLORS}` +
-               `&size=${TILE_SIZE}` +
-               `&format=${TILE_FORMAT}`;
-               
-        // Test the first tile URL
+                 `host=${encodeURIComponent(host)}` +
+                 `&path=${encodeURIComponent(frame.path)}` +
+                 `&x=${tilePoint.x}` +
+                 `&y=${tilePoint.y}` +
+                 `&z=${tilePoint.z}` +
+                 `&color_scheme=${colorScheme}` +
+                 `&smooth=${SMOOTH_DATA}` +
+                 `&snow=${SNOW_COLORS}` +
+                 `&size=${TILE_SIZE}` +
+                 `&format=${TILE_FORMAT}`;
+        
+        // Log only the first tile URL for debugging
         if (tilePoint.x === 0 && tilePoint.y === 0 && tilePoint.z === 0) {
           console.log("Sample tile URL:", url);
-          
-          // Test direct fetch for debugging (don't await it)
-          fetch(url)
-            .then(response => {
-              console.log("Test tile response:", response.status);
-              return response.blob();
-            })
-            .then(blob => {
-              console.log("Test tile content type:", blob.type, "size:", blob.size);
-            })
-            .catch(err => {
-              console.error("Test tile fetch error:", err);
-            });
         }
         
         return url;
       };
       
       // Create the tile layer
-      console.log("Creating radar tile layer");
       const tileLayer = window.L.tileLayer(tileUrl, {
         tileSize: TILE_SIZE,
         opacity: 0.9,
         zIndex: 100
       });
       
-      // Add event handlers
+      // Add event handlers for loading/loaded tiles
       tileLayer.on('loading', () => console.log("Radar tiles loading started"));
       tileLayer.on('load', () => console.log("Radar tiles loaded"));
       
@@ -394,7 +429,7 @@ const RadarMap = ({ lat, lng }) => {
 
   // Play radar animation
   const playAnimation = () => {
-    if (!radarData || !radarData.radar) return;
+    if (!radarData) return;
     
     // Get frames based on data structure
     let allFrames = [];
@@ -582,7 +617,7 @@ const RadarMap = ({ lat, lng }) => {
       {debugMode && (
         <div className="radar-debug" style={{ marginTop: '10px', backgroundColor: '#f8f9fa', padding: '10px', borderRadius: '4px' }}>
           <h4 style={{ margin: '0 0 10px 0' }}>Debug Information</h4>
-          <p>Map initialized: {mapInstanceRef.current ? '✅' : '❌'}</p>
+          <p>Map initialized: {mapInitializedRef.current ? '✅' : '❌'}</p>
           <p>Radar data: {radarData ? '✅' : '❌'}</p>
           <p>Current frame: {currentFrame}</p>
           <p>Frames available: {allFrames.length}</p>
@@ -594,10 +629,25 @@ const RadarMap = ({ lat, lng }) => {
             Log Radar Data
           </button>
           <button 
-            onClick={() => mapInstanceRef.current && mapInstanceRef.current.invalidateSize()}
+            onClick={() => {
+              if (mapInstanceRef.current) {
+                console.log("Forcing map resize");
+                mapInstanceRef.current.invalidateSize(true);
+                
+                // Force reload of the radar layer
+                if (radarLayerRef.current) {
+                  mapInstanceRef.current.removeLayer(radarLayerRef.current);
+                  radarLayerRef.current = null;
+                }
+                updateRadarLayer();
+              } else {
+                console.log("Map not initialized, attempting to initialize");
+                initializeMap();
+              }
+            }}
             style={{ padding: '5px 10px' }}
           >
-            Refresh Map
+            Force Map Refresh
           </button>
         </div>
       )}
