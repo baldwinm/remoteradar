@@ -75,7 +75,7 @@ def get_weather_data(lat: float, lng: float, units: str = 'imperial') -> Dict[st
             'hourly': 'temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,cloud_cover,wind_speed_10m',
             'daily': 'weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,sunrise,sunset,precipitation_sum,precipitation_probability_max,wind_speed_10m_max',
             'timezone': 'auto',
-            'forecast_days': 7,
+            'forecast_days': 14,
             'temperature_unit': temperature_unit,
             'wind_speed_unit': wind_speed_unit,
             'precipitation_unit': precipitation_unit
