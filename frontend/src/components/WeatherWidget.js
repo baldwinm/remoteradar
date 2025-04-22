@@ -446,8 +446,8 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
               }
             }
             
-            // Get full 14 day forecast if available
-            const totalDays = Math.min(14, daily.time.length - currentDayIndex);
+            // Get full 13 day forecast if available (today plus next 12)
+            const totalDays = Math.min(13, daily.time.length - currentDayIndex);
             const daysToShow = daily.time.slice(currentDayIndex, currentDayIndex + totalDays);
             
             return (
