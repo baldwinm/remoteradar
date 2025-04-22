@@ -4,8 +4,6 @@ import json
 import time
 from datetime import datetime
 import os
-from PIL import Image, ImageDraw, ImageFont
-import io
 
 def test_rainviewer_api():
     """
@@ -99,76 +97,21 @@ def test_rainviewer_api():
                     with open(filename, "wb") as f:
                         f.write(tile_response.content)
                     
-                    # Check if the image contains any precipitation (non-transparent pixels)
-                    try:
-                        img = Image.open(io.BytesIO(tile_response.content))
-                        # Count non-transparent pixels
-                        if 'A' in img.getbands():  # If image has alpha channel
-                            # Convert to RGBA if it's not
-                            if img.mode != 'RGBA':
-                                img = img.convert('RGBA')
-                            
-                            # Count pixels where alpha > 0
-                            non_transparent_pixels = 0
-                            for pixel in img.getdata():
-                                if pixel[3] > 0:  # Alpha channel > 0
-                                    non_transparent_pixels += 1
-                            
-                            if non_transparent_pixels > 0:
-                                print(f"  ✓ PRECIPITATION FOUND! Non-transparent pixels: {non_transparent_pixels}")
-                                found_precipitation = True
-                            else:
-                                print(f"  ✗ No precipitation data (all pixels transparent)")
-                        else:
-                            # For non-alpha images, check if it's not an empty/black image
-                            total_sum = sum(sum(p) for p in img.getdata())
-                            if total_sum > 0:
-                                print(f"  ✓ PRECIPITATION FOUND! Pixel values sum: {total_sum}")
-                                found_precipitation = True
-                            else:
-                                print(f"  ✗ No precipitation data (blank image)")
-                    except Exception as e:
-                        print(f"  ! Error analyzing image: {e}")
+                    # Check if the tile might have precipitation (simplistic approach)
+                    # A non-empty tile (larger than 500 bytes) might have precipitation
+                    if content_length > 500:
+                        print(f"  ✓ POTENTIAL PRECIPITATION FOUND! Content size: {content_length} bytes")
+                        print(f"  Check the file at: {filename}")
+                        found_precipitation = True
+                    else:
+                        print(f"  ✗ Likely no precipitation data (small file size: {content_length} bytes)")
                 
                 else:
                     print(f"  ✗ Failed to fetch tile")
             
-            # Create a combined image showing all test locations
-            if test_locations:
-                try:
-                    print("\nCreating combined image of all test locations...")
-                    rows = (len(test_locations) + 3) // 4  # 4 columns
-                    combined_img = Image.new('RGBA', (256 * 4, 256 * rows + 30), (255, 255, 255, 255))
-                    draw = ImageDraw.Draw(combined_img)
-                    
-                    for i, location in enumerate(test_locations):
-                        col = i % 4
-                        row = i // 4
-                        
-                        filename = f"{results_folder}/radar_tile_{location['name'].replace(' ', '_')}.png"
-                        if os.path.exists(filename):
-                            try:
-                                loc_img = Image.open(filename)
-                                combined_img.paste(loc_img, (col * 256, row * 256 + 30))
-                            except Exception as e:
-                                print(f"Error adding {location['name']} to combined image: {e}")
-                        
-                        # Add location name
-                        draw.text((col * 256 + 5, row * 256 + 5 + 30), location['name'], fill=(0, 0, 0))
-                    
-                    # Add title
-                    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    draw.text((5, 5), f"RainViewer Precipitation Test - {current_time}", fill=(0, 0, 0))
-                    
-                    # Save combined image
-                    combined_img.save(f"{results_folder}/combined_precipitation_test.png")
-                    print(f"Saved combined image to {results_folder}/combined_precipitation_test.png")
-                except Exception as e:
-                    print(f"Error creating combined image: {e}")
-            
             if found_precipitation:
-                print("\n✓ PRECIPITATION DATA FOUND in at least one location!")
-                print("You can view the combined results image to see which areas have precipitation.")
+                print("\n✓ POTENTIAL PRECIPITATION DATA FOUND in at least one location!")
+                print("Check the saved PNG files in the results folder to confirm visually.")
             else:
                 print("\n✗ NO PRECIPITATION DATA FOUND in any tested location.")
                 print("This could mean there's currently no precipitation in any of the tested areas,")

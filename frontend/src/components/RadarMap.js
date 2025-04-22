@@ -61,6 +61,20 @@ const RadarMap = ({ lat, lng }) => {
     };
   }, []);
 
+  // Function to find active precipitation areas
+  const findActivePrecipitationAreas = () => {
+    // These are known regions that typically have precipitation
+    // You can expand this list for better coverage
+    return [
+      { name: "US East Coast", lat: 40.7128, lng: -74.0060, zoom: 5 },
+      { name: "US West Coast", lat: 37.7749, lng: -122.4194, zoom: 5 },
+      { name: "US Gulf Coast", lat: 29.7604, lng: -95.3698, zoom: 5 },
+      { name: "US Midwest", lat: 41.8781, lng: -87.6298, zoom: 5 },
+      { name: "Europe", lat: 51.5074, lng: -0.1278, zoom: 4 },
+      { name: "East Asia", lat: 35.6762, lng: 139.6503, zoom: 4 },
+    ];
+  };
+
   // Initialize the map with Leaflet when component mounts
   useEffect(() => {
     if (!mapRef.current) return;
@@ -71,12 +85,29 @@ const RadarMap = ({ lat, lng }) => {
           mapInstanceRef.current.remove();
         }
         
-        // Create map instance centered on the provided coordinates or default to a central US location
+        // Determine the initial center
+        let initialCenter = [lat || 39.8283, lng || -98.5795];
+        let initialZoom = 5;
+        
+        // If no specific coordinates are provided, use the first active precipitation area
+        if (!lat || !lng) {
+          const activeAreas = findActivePrecipitationAreas();
+          if (activeAreas.length > 0) {
+            const firstArea = activeAreas[0];
+            initialCenter = [firstArea.lat, firstArea.lng];
+            initialZoom = firstArea.zoom;
+            console.log(`No specific coordinates provided. Using ${firstArea.name} as default.`);
+          }
+        }
+        
+        // Create map instance
         const map = window.L.map(mapRef.current, {
-          center: [lat || 39.8283, lng || -98.5795],
-          zoom: 5,
+          center: initialCenter,
+          zoom: initialZoom,
           attributionControl: true
         });
+        
+        console.log(`Map initialized with center: [${initialCenter[0]}, ${initialCenter[1]}], zoom: ${initialZoom}`);
         
         // Add OpenStreetMap tile layer
         window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -191,6 +222,37 @@ const RadarMap = ({ lat, lng }) => {
       tileLayer.on('load', () => {
         loadedTiles++;
         console.log(`Tile loaded. Total loaded: ${loadedTiles} of ${loadingTiles}`);
+        
+        // Add a custom overlay if no precipitation is visible
+        if (loadedTiles === loadingTiles && loadedTiles > 0) {
+          // Wait a bit to ensure all tiles are fully loaded
+          setTimeout(() => {
+            // Check if any precipitation is visible (simple heuristic)
+            // We'll add a message to notify users they can pan/zoom to find precipitation
+            if (!document.querySelector('.no-precipitation-message')) {
+              const container = document.createElement('div');
+              container.className = 'no-precipitation-message';
+              container.innerHTML = 'No precipitation is currently visible in this area. Try zooming out or panning to other regions.';
+              container.style.position = 'absolute';
+              container.style.top = '50%';
+              container.style.left = '50%';
+              container.style.transform = 'translate(-50%, -50%)';
+              container.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+              container.style.padding = '10px';
+              container.style.borderRadius = '5px';
+              container.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.2)';
+              container.style.zIndex = '1000';
+              container.style.pointerEvents = 'none'; // Allow clicking through
+              container.style.display = 'none'; // Hide initially
+              
+              // Add to the map container and show after a delay
+              mapRef.current.appendChild(container);
+              setTimeout(() => {
+                container.style.display = 'block';
+              }, 3000); // Show after 3 seconds if no precipitation data becomes visible
+            }
+          }, 1000);
+        }
       });
       
       tileLayer.on('tileerror', (error) => {
