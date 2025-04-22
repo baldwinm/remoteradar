@@ -9,6 +9,8 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('current');
+  // Force imperial units by default if not specified
+  const [localUnits, setLocalUnits] = useState(units || 'imperial');
   
   console.group('WeatherWidget Initialization');
   console.log('Props received:', { cityId, units, lat, lng });
@@ -18,9 +20,14 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
   });
   console.groupEnd();
   
+  // Update localUnits when units prop changes
+  useEffect(() => {
+    setLocalUnits(units || 'imperial');
+  }, [units]);
+
   useEffect(() => {
     console.group('WeatherWidget Effect');
-    console.log('Effect triggered with:', { cityId, units, lat, lng });
+    console.log('Effect triggered with:', { cityId, localUnits, lat, lng });
 
     if (!cityId) {
       console.warn('No cityId provided');
@@ -40,10 +47,10 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
         let apiUrl;
         if (lat && lng) {
           // Send coordinates directly in the URL if available
-          apiUrl = `${config.API_URL}/api/weather/${cityId}?lat=${lat}&lng=${lng}&units=${units}`;
+          apiUrl = `${config.API_URL}/api/weather/${cityId}?lat=${lat}&lng=${lng}&units=${localUnits}`;
         } else {
           // Otherwise use the standard endpoint
-          apiUrl = `${config.API_URL}/api/weather/${cityId}?units=${units}`;
+          apiUrl = `${config.API_URL}/api/weather/${cityId}?units=${localUnits}`;
         }
         
         console.group('Fetch Configuration');
@@ -112,7 +119,7 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
     }, 100);
     
     return () => clearTimeout(timer);
-  }, [cityId, units, lat, lng]);
+  }, [cityId, localUnits, lat, lng]);
 
   // Handle loading state
   if (loading) {
@@ -218,9 +225,12 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
 
   // Handle unit toggle
   const handleUnitToggle = (newUnit) => {
-    if (newUnit !== units) {
+    if (newUnit !== localUnits) {
       // Log the unit change
-      console.log(`Changing units from ${units} to ${newUnit}`);
+      console.log(`Changing units from ${localUnits} to ${newUnit}`);
+      
+      // Update local state immediately
+      setLocalUnits(newUnit);
       
       // If onUnitsChange prop is provided, call it
       if (onUnitsChange) {
@@ -228,9 +238,6 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
       } else {
         // If no callback provided, log a message
         console.log('No onUnitsChange callback provided');
-        
-        // Reload the widget with the new units as a fallback
-        window.location.href = `${window.location.pathname}?units=${newUnit}`;
       }
     }
   };
@@ -265,13 +272,13 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
         <h3 className="weather-title">Weather in {city_name}</h3>
         <div className="unit-toggle">
           <button 
-            className={units === 'imperial' ? 'active' : ''} 
+            className={localUnits === 'imperial' ? 'active' : ''} 
             onClick={() => handleUnitToggle('imperial')}
           >
             °F
           </button>
           <button 
-            className={units === 'metric' ? 'active' : ''} 
+            className={localUnits === 'metric' ? 'active' : ''} 
             onClick={() => handleUnitToggle('metric')}
           >
             °C
@@ -330,12 +337,12 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
               {getWeatherIcon(current.weather_code)}
             </div>
             <div className="weather-info">
-              <div className="temp">{Math.round(current.temperature)}°{units === 'metric' ? 'C' : 'F'}</div>
+              <div className="temp">{Math.round(current.temperature)}°{localUnits === 'metric' ? 'C' : 'F'}</div>
               <div className="description">
                 {current.weather_description || 'Current conditions'}
               </div>
               <div className="feels-like">
-                Feels like {Math.round(current.apparent_temperature)}°{units === 'metric' ? 'C' : 'F'}
+                Feels like {Math.round(current.apparent_temperature)}°{localUnits === 'metric' ? 'C' : 'F'}
               </div>
             </div>
           </div>
@@ -369,7 +376,7 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
               <div className="detail-item">
                 <div className="detail-label">Wind</div>
                 <div className="detail-value">
-                  {Math.round(current.wind_speed_10m)} {units === 'metric' ? 'km/h' : 'mph'}
+                  {Math.round(current.wind_speed_10m)} {localUnits === 'metric' ? 'km/h' : 'mph'}
                 </div>
               </div>
             </div>
@@ -377,7 +384,7 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
               <div className="detail-item">
                 <div className="detail-label">Precipitation</div>
                 <div className="detail-value">
-                  {current.precipitation} {units === 'metric' ? 'mm' : 'in'}
+                  {current.precipitation} {localUnits === 'metric' ? 'mm' : 'in'}
                 </div>
               </div>
               <div className="detail-item">
@@ -393,20 +400,39 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
       
       {activeTab === 'daily' && daily && daily.time && (
         <div className="forecast-weather">
-          {/* Show current day plus next 13 days (total 14 days) */}
-          {daily.time.slice(0, 14).map((day, index) => (
-            <div className="forecast-day" key={index}>
-              <div className="day-name">{formatDate(day)}</div>
-              <div className="day-icon">{getWeatherIcon(daily.weather_code[index])}</div>
-              <div className="day-temps">
-                <span className="high">{Math.round(daily.temperature_2m_max[index])}°</span>
-                <span className="low">{Math.round(daily.temperature_2m_min[index])}°</span>
+          {/* Determine the current day's index */}
+          {(() => {
+            // Get today's date
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Reset time part for proper comparison
+            
+            // Find index of current day in the forecast data
+            let currentDayIndex = 0;
+            for (let i = 0; i < daily.time.length; i++) {
+              const forecastDate = new Date(daily.time[i]);
+              forecastDate.setHours(0, 0, 0, 0);
+              
+              if (forecastDate.getTime() === today.getTime()) {
+                currentDayIndex = i;
+                break;
+              }
+            }
+            
+            // Show the next 14 days starting from the current day
+            return daily.time.slice(currentDayIndex, currentDayIndex + 14).map((day, index) => (
+              <div className="forecast-day" key={index}>
+                <div className="day-name">{formatDate(day)}</div>
+                <div className="day-icon">{getWeatherIcon(daily.weather_code[currentDayIndex + index])}</div>
+                <div className="day-temps">
+                  <span className="high">{Math.round(daily.temperature_2m_max[currentDayIndex + index])}°</span>
+                  <span className="low">{Math.round(daily.temperature_2m_min[currentDayIndex + index])}°</span>
+                </div>
+                <div className="day-precip">
+                  💧 {daily.precipitation_probability_max[currentDayIndex + index]}%
+                </div>
               </div>
-              <div className="day-precip">
-                💧 {daily.precipitation_probability_max[index]}%
-              </div>
-            </div>
-          ))}
+            ));
+          })()}
         </div>
       )}
       
