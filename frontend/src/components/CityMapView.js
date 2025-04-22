@@ -5,7 +5,7 @@ import './CityMapView.css';
 
 // *** IMPORTANT: Replace this with your actual Mapbox token ***
 // You can get your token from your Mapbox account dashboard
-const MAPBOX_TOKEN = "eyJ1IjoibWpiYWxkd2luIiwiYSI6ImNtOXB6bWRkNDE4NXUydnBxMXdkZm1lYTAifQ.70dqUOegckCY145fG-uokA";
+const MAPBOX_TOKEN = "pk.eyJ1IjoibWpiYWxkd2luIiwiYSI6ImNtOXB6bWRkNDE4NXUydnBxMXdkZm1lYTAifQ.70dqUOegckCY145fG-uokA";
 
 const CityMapView = ({ 
   city, 
