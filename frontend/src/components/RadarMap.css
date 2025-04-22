@@ -1,0 +1,233 @@
+/* src/components/RadarMap.css */
+.radar-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #f8f9fa;
+  position: relative;
+}
+
+.radar-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  z-index: 10;
+}
+
+.radar-type-toggle {
+  display: flex;
+}
+
+.radar-type-toggle button {
+  background: none;
+  border: 1px solid #e0e0e0;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radar-type-toggle button:first-child {
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+.radar-type-toggle button:last-child {
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+  border-left: none;
+}
+
+.radar-type-toggle button.active {
+  background-color: #3498db;
+  color: white;
+  border-color: #3498db;
+}
+
+.radar-type-toggle button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.radar-animation-controls {
+  display: flex;
+  align-items: center;
+}
+
+.radar-animation-controls button {
+  background: none;
+  border: 1px solid #e0e0e0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radar-animation-controls button:hover {
+  background-color: #f0f0f0;
+}
+
+.radar-animation-controls button:first-child {
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+.radar-animation-controls button:last-child {
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+  border-left: none;
+}
+
+.radar-animation-controls button:nth-child(2) {
+  border-left: none;
+}
+
+.radar-time {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.radar-map {
+  width: 100%;
+  height: 400px;
+  z-index: 1;
+  background-color: #f8f9fa;
+}
+
+.radar-timeline {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 1rem;
+  background-color: #fff;
+  border-top: 1px solid #e0e0e0;
+  overflow-x: auto;
+}
+
+.radar-timeline-item {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  min-width: 14px;
+  margin: 0 2px;
+}
+
+.radar-timeline-marker {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #ccc;
+  transition: all 0.2s ease;
+}
+
+.radar-timeline-item:hover .radar-timeline-marker {
+  background-color: #3498db;
+  transform: scale(1.2);
+}
+
+.radar-timeline-item.active .radar-timeline-marker {
+  background-color: #3498db;
+  transform: scale(1.4);
+}
+
+.radar-attribution {
+  font-size: 0.8rem;
+  color: #888;
+  text-align: center;
+  padding: 0.5rem;
+  background-color: #fff;
+  border-top: 1px solid #e0e0e0;
+}
+
+.radar-attribution a {
+  color: #3498db;
+  text-decoration: none;
+}
+
+.radar-attribution a:hover {
+  text-decoration: underline;
+}
+
+.radar-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.8);
+  z-index: 100;
+}
+
+.radar-loading-spinner {
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: #3498db;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.radar-error {
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+}
+
+.radar-error button {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radar-error button:hover {
+  background-color: #2980b9;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .radar-controls {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+  
+  .radar-type-toggle,
+  .radar-animation-controls,
+  .radar-time {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .radar-time {
+    text-align: center;
+  }
+  
+  .radar-map {
+    height: 300px;
+  }
+}
