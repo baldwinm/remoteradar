@@ -203,12 +203,17 @@
   padding: 0.75rem;
   min-width: 100px;
   flex: 1;
+  flex-basis: 0;
+  flex-grow: 1;
+  text-align: center;
 }
 
 .pollen-type-label {
   font-size: 0.8rem;
   color: #666;
   margin-bottom: 0.5rem;
+  text-align: center;
+  font-weight: 500;
 }
 
 .pollen-level-indicator {
@@ -219,11 +224,28 @@
   font-size: 0.9rem;
 }
 
+/* Forecast container to hold both rows */
+.forecast-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 /* Forecast styling */
 .forecast-weather {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 1rem;
+}
+
+/* Second row of forecast */
+.forecast-weather.second-row {
+  margin-top: 0.5rem;
+}
+
+/* Empty space filler for balancing the grid on second row */
+.forecast-day.empty-day {
+  visibility: hidden;
 }
 
 .forecast-day {
@@ -389,7 +411,33 @@
   color: #888;
 }
 
-/* Pollen styling */
+/* Pollen level indicators */
+.level-none {
+  background-color: #e3f2fd;
+  color: #2196f3;
+}
+
+.level-low {
+  background-color: #e8f5e9;
+  color: #4caf50;
+}
+
+.level-moderate {
+  background-color: #fff8e1;
+  color: #ff9800;
+}
+
+.level-high {
+  background-color: #ffebee;
+  color: #f44336;
+}
+
+.level-very-high {
+  background-color: #f8bbd0;
+  color: #e91e63;
+}
+
+/* Pollen styling - original version */
 .pollen-container {
   padding: 1rem;
 }
@@ -444,31 +492,6 @@
   text-align: center;
   padding: 0.5rem;
   border-radius: 6px;
-}
-
-.level-none {
-  background-color: #e3f2fd;
-  color: #2196f3;
-}
-
-.level-low {
-  background-color: #e8f5e9;
-  color: #4caf50;
-}
-
-.level-moderate {
-  background-color: #fff8e1;
-  color: #ff9800;
-}
-
-.level-high {
-  background-color: #ffebee;
-  color: #f44336;
-}
-
-.level-very-high {
-  background-color: #f8bbd0;
-  color: #e91e63;
 }
 
 .pollen-day {
@@ -547,10 +570,25 @@
   margin-top: 0.5rem;
 }
 
+/* Radar container styles */
+.radar-container {
+  padding: 0.5rem;
+}
+
+.radar-container .radar-component {
+  box-shadow: none;
+  padding: 0;
+  margin-bottom: 0;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .forecast-weather {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .forecast-weather.second-row {
+    grid-template-columns: repeat(3, 1fr);
   }
   
   .hourly-weather {
@@ -583,21 +621,23 @@
   .pollen-current-levels {
     gap: 0.5rem;
   }
+  
+  .detail-row {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  
+  .detail-item {
+    width: 100%;
+  }
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
   .forecast-weather {
     grid-template-columns: repeat(4, 1fr);
   }
-}
-
-/* Radar container styles */
-.radar-container {
-  padding: 0.5rem;
-}
-
-.radar-container .radar-component {
-  box-shadow: none;
-  padding: 0;
-  margin-bottom: 0;
+  
+  .forecast-weather.second-row {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }

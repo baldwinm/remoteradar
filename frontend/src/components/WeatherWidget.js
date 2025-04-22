@@ -329,12 +329,12 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
               {getWeatherIcon(current.weather_code)}
             </div>
             <div className="weather-info">
-              <div className="temp">{Math.round(current.temperature)}°{localUnits === 'metric' ? 'C' : 'F'}</div>
+              <div className="temp">{!isNaN(current.temperature) ? Math.round(current.temperature) : '--'}°{localUnits === 'metric' ? 'C' : 'F'}</div>
               <div className="description">
                 {current.weather_description || 'Current conditions'}
               </div>
               <div className="feels-like">
-                Feels like {Math.round(current.apparent_temperature)}°{localUnits === 'metric' ? 'C' : 'F'}
+                Feels like {!isNaN(current.apparent_temperature) ? Math.round(current.apparent_temperature) : '--'}°{localUnits === 'metric' ? 'C' : 'F'}
               </div>
             </div>
           </div>
@@ -363,12 +363,12 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
             <div className="detail-row">
               <div className="detail-item">
                 <div className="detail-label">Humidity</div>
-                <div className="detail-value">{current.relative_humidity}%</div>
+                <div className="detail-value">{!isNaN(current.relative_humidity) ? current.relative_humidity : '--'}%</div>
               </div>
               <div className="detail-item">
                 <div className="detail-label">Wind</div>
                 <div className="detail-value">
-                  {Math.round(current.wind_speed_10m)} {localUnits === 'metric' ? 'km/h' : 'mph'}
+                  {!isNaN(current.wind_speed_10m) ? Math.round(current.wind_speed_10m) : '--'} {localUnits === 'metric' ? 'km/h' : 'mph'}
                 </div>
               </div>
             </div>
@@ -376,65 +376,39 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
               <div className="detail-item">
                 <div className="detail-label">Precipitation</div>
                 <div className="detail-value">
-                  {current.precipitation} {localUnits === 'metric' ? 'mm' : 'in'}
+                  {!isNaN(current.precipitation) ? current.precipitation : '--'} {localUnits === 'metric' ? 'mm' : 'in'}
                 </div>
               </div>
               <div className="detail-item">
                 <div className="detail-label">Pressure</div>
                 <div className="detail-value">
-                  {current.pressure_msl} hPa
+                  {!isNaN(current.pressure_msl) ? current.pressure_msl : '--'} hPa
                 </div>
               </div>
             </div>
             
-            {/* Air Quality Information */}
-            {air_quality && Object.keys(air_quality).length > 0 && (
-              <div className="air-quality-section">
-                <h4 className="section-title">Air Quality</h4>
-                <div className="detail-row">
-                  {air_quality.european_aqi && (
-                    <div className="detail-item">
-                      <div className="detail-label">AQI</div>
-                      <div className="detail-value">
-                        {air_quality.european_aqi} - {getAqiLevel(air_quality.european_aqi)}
-                      </div>
-                    </div>
-                  )}
-                  {air_quality.pm2_5 && (
-                    <div className="detail-item">
-                      <div className="detail-label">PM2.5</div>
-                      <div className="detail-value">
-                        {air_quality.pm2_5} μg/m³
-                      </div>
-                    </div>
-                  )}
-                </div>
-                {air_quality.pm10 && air_quality.ozone && (
-                  <div className="detail-row">
-                    <div className="detail-item">
-                      <div className="detail-label">PM10</div>
-                      <div className="detail-value">
-                        {air_quality.pm10} μg/m³
-                      </div>
-                    </div>
-                    <div className="detail-item">
-                      <div className="detail-label">Ozone</div>
-                      <div className="detail-value">
-                        {air_quality.ozone} μg/m³
-                      </div>
-                    </div>
+            {/* Add Air Quality Index to regular metrics */}
+            {air_quality && air_quality.european_aqi && (
+              <div className="detail-row">
+                <div className="detail-item">
+                  <div className="detail-label">Air Quality Index (AQI)</div>
+                  <div className="detail-value">
+                    {!isNaN(air_quality.european_aqi) ? air_quality.european_aqi : '--'} - {getAqiLevel(air_quality.european_aqi)}
                   </div>
-                )}
+                </div>
+                <div className="detail-item">
+                  {/* Intentionally left empty for layout balance */}
+                </div>
               </div>
             )}
             
-            {/* Pollen Information */}
+            {/* Pollen Information - simplified and prominent display */}
             {pollen && Object.keys(pollen).length > 0 && (
               <div className="pollen-section">
-                <h4 className="section-title">Today's Pollen Levels</h4>
+                <h4 className="section-title">Pollen Levels</h4>
                 <div className="pollen-current-levels">
                   {Object.entries(pollen).map(([type, values], index) => (
-                    values[0] != null && (
+                    values[0] != null && !isNaN(values[0]) && (
                       <div key={index} className="pollen-item">
                         <div className="pollen-type-label">
                           {type.replace('_pollen', '').charAt(0).toUpperCase() + type.replace('_pollen', '').slice(1)}
@@ -453,7 +427,7 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
       )}
       
       {activeTab === 'daily' && daily && daily.time && (
-        <div className="forecast-weather">
+        <div className="forecast-container">
           {/* Determine the current day's index */}
           {(() => {
             // Get today's date
@@ -472,20 +446,55 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
               }
             }
             
-            // Show the next 14 days starting from the current day
-            return daily.time.slice(currentDayIndex, currentDayIndex + 14).map((day, index) => (
-              <div className="forecast-day" key={index}>
-                <div className="day-name">{formatDate(day)}</div>
-                <div className="day-icon">{getWeatherIcon(daily.weather_code[currentDayIndex + index])}</div>
-                <div className="day-temps">
-                  <span className="high">{Math.round(daily.temperature_2m_max[currentDayIndex + index])}°</span>
-                  <span className="low">{Math.round(daily.temperature_2m_min[currentDayIndex + index])}°</span>
+            // Get full 14 day forecast if available
+            const totalDays = Math.min(14, daily.time.length - currentDayIndex);
+            const daysToShow = daily.time.slice(currentDayIndex, currentDayIndex + totalDays);
+            
+            return (
+              <>
+                {/* First row: days 1-7 */}
+                <div className="forecast-weather">
+                  {daysToShow.slice(0, 7).map((day, index) => (
+                    <div className="forecast-day" key={`first-row-${index}`}>
+                      <div className="day-name">{formatDate(day)}</div>
+                      <div className="day-icon">{getWeatherIcon(daily.weather_code[currentDayIndex + index])}</div>
+                      <div className="day-temps">
+                        <span className="high">{!isNaN(daily.temperature_2m_max[currentDayIndex + index]) ? 
+                          Math.round(daily.temperature_2m_max[currentDayIndex + index]) : '--'}°</span>
+                        <span className="low">{!isNaN(daily.temperature_2m_min[currentDayIndex + index]) ? 
+                          Math.round(daily.temperature_2m_min[currentDayIndex + index]) : '--'}°</span>
+                      </div>
+                      <div className="day-precip">
+                        💧 {!isNaN(daily.precipitation_probability_max[currentDayIndex + index]) ? 
+                          daily.precipitation_probability_max[currentDayIndex + index] : '--'}%
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="day-precip">
-                  💧 {daily.precipitation_probability_max[currentDayIndex + index]}%
-                </div>
-              </div>
-            ));
+                
+                {/* Second row: days 8-14 if available */}
+                {daysToShow.length > 7 && (
+                  <div className="forecast-weather second-row">
+                    {daysToShow.slice(7).map((day, index) => (
+                      <div className="forecast-day" key={`second-row-${index}`}>
+                        <div className="day-name">{formatDate(day)}</div>
+                        <div className="day-icon">{getWeatherIcon(daily.weather_code[currentDayIndex + 7 + index])}</div>
+                        <div className="day-temps">
+                          <span className="high">{!isNaN(daily.temperature_2m_max[currentDayIndex + 7 + index]) ? 
+                            Math.round(daily.temperature_2m_max[currentDayIndex + 7 + index]) : '--'}°</span>
+                          <span className="low">{!isNaN(daily.temperature_2m_min[currentDayIndex + 7 + index]) ? 
+                            Math.round(daily.temperature_2m_min[currentDayIndex + 7 + index]) : '--'}°</span>
+                        </div>
+                        <div className="day-precip">
+                          💧 {!isNaN(daily.precipitation_probability_max[currentDayIndex + 7 + index]) ? 
+                            daily.precipitation_probability_max[currentDayIndex + 7 + index] : '--'}%
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            );
           })()}
         </div>
       )}
@@ -497,9 +506,11 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
             <div className="hourly-item" key={index}>
               <div className="hour-time">{formatTime(time, index === 0)}</div>
               <div className="hour-icon">{getWeatherIcon(hourly.weather_code[currentHourIndex + index])}</div>
-              <div className="hour-temp">{Math.round(hourly.temperature_2m[currentHourIndex + index])}°</div>
+              <div className="hour-temp">{!isNaN(hourly.temperature_2m[currentHourIndex + index]) ? 
+                Math.round(hourly.temperature_2m[currentHourIndex + index]) : '--'}°</div>
               <div className="hour-precip">
-                💧 {hourly.precipitation_probability[currentHourIndex + index]}%
+                💧 {!isNaN(hourly.precipitation_probability[currentHourIndex + index]) ? 
+                  hourly.precipitation_probability[currentHourIndex + index] : '--'}%
               </div>
             </div>
           ))}
