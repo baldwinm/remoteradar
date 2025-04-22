@@ -60,22 +60,27 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
                 logger.debug(f"Using cached weather data for {cache_key}")
                 return cache_entry.get('data', {})
         
-        # Prepare simplified API request parameters
+        # Set temperature unit based on requested units
+        temperature_unit = 'fahrenheit' if units == 'imperial' else 'celsius'
+        wind_speed_unit = 'mph' if units == 'imperial' else 'kmh'
+        precipitation_unit = 'inch' if units == 'imperial' else 'mm'
+        
+        # Prepare API request parameters
         params = {
             'latitude': lat,
             'longitude': lng,
-            'current': 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code',
-            'daily': 'weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min',
+            'current': 'temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m',
+            'hourly': 'temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,cloud_cover,wind_speed_10m',
+            'daily': 'weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,sunrise,sunset,precipitation_sum,precipitation_probability_max,wind_speed_10m_max',
             'timezone': 'auto',
-            'forecast_days': 3
+            'forecast_days': 3,
+            'temperature_unit': temperature_unit,
+            'wind_speed_unit': wind_speed_unit,
+            'precipitation_unit': precipitation_unit
         }
         
-        # Add temperature unit parameter based on units
-        if units == 'imperial':
-            params['temperature_unit'] = 'fahrenheit'
-        
         # Log full request parameters for debugging
-        logger.info(f"Open-Meteo API Request Parameters: {params}")
+        logger.debug(f"Open-Meteo API Request Parameters: {params}")
         
         # Make API request with comprehensive error handling
         try:
@@ -86,8 +91,9 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
             )
             
             # Log full response details
-            logger.info(f"API Response Status: {response.status_code}")
-            logger.info(f"API Response Headers: {response.headers}")
+            logger.debug(f"API Response Status: {response.status_code}")
+            logger.debug(f"API Response Headers: {dict(response.headers)}")
+            logger.debug(f"API Response Text: {response.text[:500]}...") # Log just the start of the response
             
             # Handle non-200 response
             if response.status_code != 200:
@@ -95,34 +101,23 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
                 logger.error(f"Response Body: {response.text}")
                 return {
                     "error": f"Failed to fetch weather data: {response.status_code}",
-                    "response_body": response.text,
+                    "response_body": response.text[:200],  # Include just a portion
                     "request_params": params
                 }
             
             # Parse JSON response
             try:
                 data = response.json()
-                logger.info(f"Parsed JSON Response: {data}")
             except ValueError as json_err:
                 logger.error(f"Failed to parse JSON response: {json_err}")
-                logger.error(f"Response text: {response.text}")
+                logger.error(f"Response text: {response.text[:200]}")  # Log just a portion
                 return {
                     "error": "Failed to parse weather data",
-                    "response_body": response.text
+                    "response_body": response.text[:200]  # Include just a portion
                 }
             
-            # Validate response structure
-            required_keys = ['current', 'daily']
-            for key in required_keys:
-                if key not in data:
-                    logger.error(f"Missing required key in response: {key}")
-                    return {
-                        "error": f"Incomplete weather data: missing {key}",
-                        "response_body": data
-                    }
-            
             # Process the API response
-            processed_data = process_simplified_weather_data(data, units)
+            processed_data = process_weather_data(data, units)
             
             # Cache the result
             _cache[cache_key] = {
@@ -150,183 +145,111 @@ def get_weather_data(lat: float, lng: float, units: str = 'metric') -> Dict[str,
             }
         }
 
-def process_simplified_weather_data(data: Dict[str, Any], units: str) -> Dict[str, Any]:
+def process_weather_data(data: Dict[str, Any], units: str) -> Dict[str, Any]:
     """
-    Process raw API response into a more usable format with simplified data
+    Process and transform raw weather data from Open-Meteo API
     
     Args:
-        data: Raw API response
-        units: Units (metric, imperial)
+        data: Raw API response from Open-Meteo
+        units: Units system (metric or imperial)
         
     Returns:
-        Processed weather data
+        Processed weather data in a format expected by the frontend
     """
-    # Extensive logging for debugging
-    logger.info(f"Processing weather data: {data}")
-    
-    # Validate input data
-    if not data or 'current' not in data or 'daily' not in data:
-        logger.error("Invalid or incomplete weather data received")
+    try:
+        # Extract the current, daily, and hourly data
+        current_data = data.get('current', {})
+        daily_data = data.get('daily', {})
+        hourly_data = data.get('hourly', {})
+        
+        # Create standardized weather object
+        weather = {
+            "current": {
+                # Map Open-Meteo field names to our expected field names
+                "temperature": current_data.get('temperature_2m'),
+                "relative_humidity": current_data.get('relative_humidity_2m'),
+                "apparent_temperature": current_data.get('apparent_temperature'),
+                "is_day": current_data.get('is_day'),
+                "precipitation": current_data.get('precipitation'),
+                "rain": current_data.get('rain'),
+                "weather_code": current_data.get('weather_code'),
+                "cloud_cover": current_data.get('cloud_cover'),
+                "pressure_msl": current_data.get('pressure_msl'),
+                "surface_pressure": current_data.get('surface_pressure'),
+                "wind_speed_10m": current_data.get('wind_speed_10m'),
+                "wind_direction_10m": current_data.get('wind_direction_10m'),
+                "wind_gusts_10m": current_data.get('wind_gusts_10m'),
+                # Include the original fields too for backward compatibility
+                "temperature_2m": current_data.get('temperature_2m'),
+                "relative_humidity_2m": current_data.get('relative_humidity_2m'),
+                # Add weather description based on weather code
+                "weather_description": get_weather_description(current_data.get('weather_code'))
+            },
+            "daily": daily_data,  # Keep as is
+            "hourly": hourly_data  # Keep as is
+        }
+        
+        # Return processed data
+        return weather
+    except Exception as e:
+        logger.error(f"Error processing weather data: {str(e)}", exc_info=True)
         return {
-            'error': 'No weather data available',
-            'current': {},
-            'daily': [],
-            'units': units
+            "error": f"Failed to process weather data: {str(e)}"
         }
+
+def get_weather_description(weather_code: int) -> str:
+    """
+    Get human-readable weather description from WMO weather code
     
-    # Extract current weather
-    current = data.get('current', {})
-    
-    # Get weather code
-    try:
-        weather_code = current.get('weather_code')
-        logger.info(f"Weather Code: {weather_code}")
+    Args:
+        weather_code: WMO weather code from Open-Meteo
         
-        # Get condition description
-        condition = get_weather_condition(weather_code)
-        logger.info(f"Weather Condition: {condition}")
-        
-        current_weather = {
-            'temp': current.get('temperature_2m', 'N/A'),
-            'feels_like': current.get('apparent_temperature', 'N/A'),
-            'humidity': current.get('relative_humidity_2m', 'N/A'),
-            'weather': condition,
-            'description': condition,
-            'weather_code': weather_code,
-        }
-        
-        logger.info(f"Current Weather: {current_weather}")
-    except Exception as e:
-        logger.error(f"Error processing current weather: {e}")
-        current_weather = {
-            'temp': 'N/A',
-            'feels_like': 'N/A',
-            'humidity': 'N/A',
-            'weather': 'Unknown',
-            'description': 'Unknown',
-            'weather_code': None,
-        }
-    
-    # Process daily forecast
-    daily = data.get('daily', {})
-    dates = daily.get('time', [])
-    daily_data = []
-    
-    try:
-        for i in range(len(dates)):
-            try:
-                weather_code = daily.get('weather_code', [])[i] if i < len(daily.get('weather_code', [])) else None
-                condition = get_weather_condition(weather_code)
-                
-                day_data = {
-                    'date': dates[i],
-                    'day_name': datetime.strptime(dates[i], '%Y-%m-%d').strftime('%A'),
-                    'temp_max': daily.get('temperature_2m_max', [])[i] if i < len(daily.get('temperature_2m_max', [])) else 'N/A',
-                    'temp_min': daily.get('temperature_2m_min', [])[i] if i < len(daily.get('temperature_2m_min', [])) else 'N/A',
-                    'feels_like_max': daily.get('apparent_temperature_max', [])[i] if i < len(daily.get('apparent_temperature_max', [])) else 'N/A',
-                    'feels_like_min': daily.get('apparent_temperature_min', [])[i] if i < len(daily.get('apparent_temperature_min', [])) else 'N/A',
-                    'condition': condition,
-                    'weather_code': weather_code,
-                }
-                
-                daily_data.append(day_data)
-                logger.info(f"Daily Forecast Day {i}: {day_data}")
-            except Exception as day_err:
-                logger.error(f"Error processing daily forecast for index {i}: {day_err}")
-    except Exception as e:
-        logger.error(f"Error processing daily forecast: {e}")
-    
-    # Build result (only include current and next two days)
-    result = {
-        'current': current_weather,
-        'daily': daily_data[:3],  # Only include current and next two days
-        'units': units,
-        'latitude': data.get('latitude', 'N/A'),
-        'longitude': data.get('longitude', 'N/A'),
-        'timezone': data.get('timezone', 'N/A'),
+    Returns:
+        Human-readable weather description
+    """
+    # WMO Weather interpretation codes (WW)
+    # https://open-meteo.com/en/docs
+    weather_descriptions = {
+        0: "Clear sky",
+        1: "Mainly clear",
+        2: "Partly cloudy",
+        3: "Overcast",
+        45: "Fog",
+        48: "Depositing rime fog",
+        51: "Light drizzle",
+        53: "Moderate drizzle",
+        55: "Dense drizzle",
+        56: "Light freezing drizzle",
+        57: "Dense freezing drizzle",
+        61: "Slight rain",
+        63: "Moderate rain",
+        65: "Heavy rain",
+        66: "Light freezing rain",
+        67: "Heavy freezing rain",
+        71: "Slight snow fall",
+        73: "Moderate snow fall",
+        75: "Heavy snow fall",
+        77: "Snow grains",
+        80: "Slight rain showers",
+        81: "Moderate rain showers",
+        82: "Violent rain showers",
+        85: "Slight snow showers",
+        86: "Heavy snow showers",
+        95: "Thunderstorm",
+        96: "Thunderstorm with slight hail",
+        99: "Thunderstorm with heavy hail"
     }
     
-    # Log the final processed result for debugging
-    logger.info(f"Final Processed Weather Data: {result}")
-    
-    return result
-
-def get_weather_condition(code: int) -> str:
-    """
-    Map WMO weather codes to condition descriptions
-    
-    Args:
-        code: WMO weather code
-        
-    Returns:
-        Weather condition description
-    """
-    if code is None:
+    if weather_code is None:
         return "Unknown"
     
-    # Map from WMO codes to conditions
-    # See: https://www.nodc.noaa.gov/archive/arc0021/0002199/1.1/data/0-data/HTML/WMO-CODE/WMO4677.HTM
-    
-    # Clear
-    if code == 0:
-        return "Clear"
-    
-    # Mainly clear, partly cloudy
-    if code in [1, 2, 3]:
-        return "Partly cloudy"
-    
-    # Fog, depositing rime fog
-    if code in [45, 48]:
-        return "Fog"
-    
-    # Drizzle: light, moderate, and dense intensity
-    if code in [51, 53, 55]:
-        return "Drizzle"
-    
-    # Freezing Drizzle: light and dense intensity
-    if code in [56, 57]:
-        return "Freezing drizzle"
-    
-    # Rain: slight, moderate and heavy intensity
-    if code in [61, 63, 65]:
-        return "Rain"
-    
-    # Freezing Rain: light and heavy intensity
-    if code in [66, 67]:
-        return "Freezing rain"
-    
-    # Snow fall: slight, moderate, and heavy intensity
-    if code in [71, 73, 75]:
-        return "Snow"
-    
-    # Snow grains
-    if code == 77:
-        return "Snow grains"
-    
-    # Rain showers: slight, moderate, and violent
-    if code in [80, 81, 82]:
-        return "Rain showers"
-    
-    # Snow showers slight and heavy
-    if code in [85, 86]:
-        return "Snow showers"
-    
-    # Thunderstorm: slight or moderate
-    if code == 95:
-        return "Thunderstorm"
-    
-    # Thunderstorm with slight and heavy hail
-    if code in [96, 99]:
-        return "Thunderstorm with hail"
-    
-    # Default for unmatched codes
-    return "Unknown"
+    return weather_descriptions.get(weather_code, "Unknown")
 
 def clear_cache() -> None:
     """Clear the weather cache"""
     global _cache
     _cache = {}
-    logger.info("Weather service cache cleared")
+    logger.info("Weather cache cleared")
 
 def clean_expired_cache() -> int:
     """
@@ -338,9 +261,9 @@ def clean_expired_cache() -> int:
     now = time.time()
     to_remove = []
     
-    # Clean weather cache (expires after 1 hour)
+    # Weather cache (expires after 1 hour)
     for key, item in _cache.items():
-        if now - item.get('timestamp', 0) > 3600:
+        if now - item.get('timestamp', 0) > 3600:  # 1 hour
             to_remove.append(key)
     
     for key in to_remove:
