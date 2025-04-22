@@ -446,15 +446,15 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
               }
             }
             
-            // Get full 13 day forecast if available (today plus next 12)
-            const totalDays = Math.min(13, daily.time.length - currentDayIndex);
+            // Get full 12 day forecast if available (today plus next 11)
+            const totalDays = Math.min(12, daily.time.length - currentDayIndex);
             const daysToShow = daily.time.slice(currentDayIndex, currentDayIndex + totalDays);
             
             return (
               <>
-                {/* First row: days 1-7 */}
+                {/* First row: days 1-6 */}
                 <div className="forecast-weather">
-                  {daysToShow.slice(0, 7).map((day, index) => (
+                  {daysToShow.slice(0, 6).map((day, index) => (
                     <div className="forecast-day" key={`first-row-${index}`}>
                       <div className="day-name">{formatDate(day)}</div>
                       <div className="day-icon">{getWeatherIcon(daily.weather_code[currentDayIndex + index])}</div>
@@ -472,7 +472,7 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
                   ))}
                 </div>
                 
-                {/* Second row: days 8-14 if available */}
+                {/* Second row: days 7-12 if available */}
                 {daysToShow.length > 7 && (
                   <div className="forecast-weather second-row">
                     {daysToShow.slice(7).map((day, index) => (
