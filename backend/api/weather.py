@@ -9,7 +9,8 @@ import json
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import services
-from services.weather import get_weather_data
+from services.weather import get_weather_data, get_radar_data, get_radar_tile_url
+
 from services.opencage import search_city
 
 # Import utilities
@@ -262,6 +263,129 @@ def register_weather_routes(app, limiter):
                 "error": str(e),
                 "success": False,
                 "city_id": city_id,
+                "error_details": {
+                    "exception_type": type(e).__name__,
+                    "full_trace": str(e)
+                }
+            }), 500
+            
+    @app.route('/api/radar', methods=['GET'])
+    @limiter.limit("10 per minute")
+    def get_radar():
+        """Get radar data for weather maps"""
+        current_app.logger.info("RADAR ENDPOINT CALLED")
+        
+        try:
+            # Get radar data
+            radar_data = get_radar_data()
+            
+            # Check for error in radar data
+            if 'error' in radar_data:
+                current_app.logger.error(f"Error from radar service: {radar_data['error']}")
+                return jsonify({
+                    "error": radar_data['error'],
+                    "success": False
+                }), 400
+            
+            # Return successful response
+            response_data = {
+                "success": True,
+                "radar": radar_data
+            }
+            
+            response = make_response(jsonify(response_data))
+            return add_cache_headers(response, max_age=600)  # Cache for 10 minutes
+            
+        except Exception as e:
+            current_app.logger.error(f"Radar error: {str(e)}", exc_info=True)
+            
+            return jsonify({
+                "error": str(e),
+                "success": False,
+                "error_details": {
+                    "exception_type": type(e).__name__,
+                    "full_trace": str(e)
+                }
+            }), 500
+            
+    @app.route('/api/radar/tile', methods=['GET'])
+    @limiter.limit("60 per minute")
+    def get_radar_tile():
+        """Get radar tile URL for a specific location and frame"""
+        current_app.logger.info("RADAR TILE ENDPOINT CALLED")
+        
+        try:
+            # Parse parameters
+            host = request.args.get('host')
+            path = request.args.get('path')
+            x = request.args.get('x')
+            y = request.args.get('y')
+            z = request.args.get('z')
+            
+            # Optional parameters with defaults
+            color_scheme = int(request.args.get('color_scheme', 2))
+            smooth = int(request.args.get('smooth', 1))
+            snow = int(request.args.get('snow', 1))
+            size = int(request.args.get('size', 256))
+            tile_format = request.args.get('format', 'webp')
+            
+            # Validate required parameters
+            if not all([host, path, x, y, z]):
+                current_app.logger.error(f"Missing required radar tile parameters")
+                return jsonify({
+                    "error": "Missing required parameters: host, path, x, y, z",
+                    "success": False
+                }), 400
+                
+            # Convert coordinate parameters to integers
+            try:
+                x = int(x)
+                y = int(y)
+                z = int(z)
+            except (ValueError, TypeError) as e:
+                current_app.logger.error(f"Invalid tile coordinates: {e}")
+                return jsonify({
+                    "error": f"Invalid tile coordinates: {e}",
+                    "success": False
+                }), 400
+                
+            # Validate color scheme
+            if color_scheme < 0 or color_scheme > 8:
+                current_app.logger.error(f"Invalid color scheme: {color_scheme}")
+                return jsonify({
+                    "error": "Invalid color scheme: must be 0-8",
+                    "success": False
+                }), 400
+                
+            # Get tile URL
+            tile_url = get_radar_tile_url(
+                host=host,
+                path=path,
+                x=x,
+                y=y,
+                z=z,
+                color_scheme=color_scheme,
+                smooth=smooth,
+                snow=snow,
+                size=size,
+                format=tile_format
+            )
+            
+            # Return successful response
+            response_data = {
+                "success": True,
+                "url": tile_url
+            }
+            
+            response = make_response(jsonify(response_data))
+            return add_cache_headers(response, max_age=600)  # Cache for 10 minutes
+            
+        except Exception as e:
+            current_app.logger.error(f"Radar tile error: {str(e)}", exc_info=True)
+            
+            return jsonify({
+                "error": str(e),
+                "success": False,
                 "error_details": {
                     "exception_type": type(e).__name__,
                     "full_trace": str(e)

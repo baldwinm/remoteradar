@@ -1,22 +1,42 @@
 // src/services/radar.js
 /**
- * Service for handling RainViewer API requests
+ * Service for handling RainViewer radar data via our backend API
  */
+import config from '../config';
 
-// RainViewer API base URL
-const RAINVIEWER_API_URL = 'https://api.rainviewer.com/public/weather-maps.json';
+// API base URLs
+const RADAR_API_URL = `${config.API_URL}/api/radar`;
+const RADAR_TILE_API_URL = `${config.API_URL}/api/radar/tile`;
 
 /**
- * Fetch available radar frames from RainViewer API
- * @returns {Promise<Object>} Available frames data
+ * Fetch radar data from the backend
+ * @returns {Promise<Object>} Radar data including frames
  */
-export const fetchRadarFrames = async () => {
+export const fetchRadarData = async () => {
   try {
-    const response = await fetch(RAINVIEWER_API_URL);
+    const response = await fetch(RADAR_API_URL, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Origin': window.location.origin
+      },
+      mode: 'cors',
+      credentials: 'include'
+    });
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch radar data: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch radar data: ${response.status}, ${errorText}`);
     }
-    return await response.json();
+
+    const data = await response.json();
+    
+    if (!data.success || !data.radar) {
+      throw new Error('Invalid radar data format');
+    }
+    
+    return data.radar;
   } catch (error) {
     console.error('Error fetching radar data:', error);
     throw error;
@@ -24,37 +44,7 @@ export const fetchRadarFrames = async () => {
 };
 
 /**
- * Format the radar API data into a more usable format for our application
- * @param {Object} apiData - The raw API data from RainViewer
- * @returns {Object} Formatted radar data
- */
-export const formatRadarData = (apiData) => {
-  if (!apiData) return null;
-
-  // Extract past frames
-  const pastFrames = apiData.radar?.past || [];
-  
-  // Extract nowcast (forecast) frames
-  const forecastFrames = apiData.radar?.nowcast || [];
-  
-  // Combine into a single object
-  return {
-    host: apiData.host || '',
-    radar: {
-      past: pastFrames.map(frame => ({
-        time: frame.time,
-        path: frame.path
-      })),
-      nowcast: forecastFrames.map(frame => ({
-        time: frame.time,
-        path: frame.path
-      }))
-    }
-  };
-};
-
-/**
- * Generate radar tile URL
+ * Generate radar tile URL via the backend
  * @param {String} host - The host from API data
  * @param {String} path - The path for the specific frame
  * @param {Number} x - Tile X coordinate
@@ -63,7 +53,7 @@ export const formatRadarData = (apiData) => {
  * @param {Object} options - Additional options
  * @returns {String} URL for the radar tile
  */
-export const generateRadarTileUrl = (host, path, x, y, z, options = {}) => {
+export const generateTileUrl = async (host, path, x, y, z, options = {}) => {
   const {
     colorScheme = 2, // Default color scheme (2 is a good general-purpose scheme)
     smoothData = 1,  // Smooth the data (0 - not smooth, 1 - smooth)
@@ -72,7 +62,55 @@ export const generateRadarTileUrl = (host, path, x, y, z, options = {}) => {
     format = 'webp'  // Image format (webp or png)
   } = options;
   
-  return `${host}${path}/${tileSize}/${z}/${x}/${y}/${colorScheme}/${smoothData}_${snowColors}.${format}`;
+  try {
+    // For increased performance, we'll generate the tile URL directly on the frontend
+    // This avoids an extra API call for each tile
+    return `${host}${path}/${tileSize}/${z}/${x}/${y}/${colorScheme}/${smoothData}_${snowColors}.${format}`;
+    
+    // Note: The backend endpoint is available if needed for more complex scenarios:
+    /*
+    const params = new URLSearchParams({
+      host,
+      path,
+      x,
+      y,
+      z,
+      color_scheme: colorScheme,
+      smooth: smoothData,
+      snow: snowColors,
+      size: tileSize,
+      format
+    });
+    
+    const response = await fetch(`${RADAR_TILE_API_URL}?${params}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Origin': window.location.origin
+      },
+      mode: 'cors',
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to generate tile URL: ${response.status}, ${errorText}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.success || !data.url) {
+      throw new Error('Invalid tile URL response');
+    }
+    
+    return data.url;
+    */
+  } catch (error) {
+    console.error('Error generating tile URL:', error);
+    // Return a fallback URL in case of error
+    return `${host}${path}/${tileSize}/${z}/${x}/${y}/${colorScheme}/${smoothData}_${snowColors}.${format}`;
+  }
 };
 
 /**
@@ -107,9 +145,8 @@ export const isTimestampInPast = (timestamp) => {
 
 // Export default object with all methods
 export default {
-  fetchRadarFrames,
-  formatRadarData,
-  generateRadarTileUrl,
+  fetchRadarData,
+  generateTileUrl,
   formatTimestamp,
   formatTimestampDate,
   isTimestampInPast

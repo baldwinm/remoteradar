@@ -89,21 +89,17 @@ const RadarMap = ({ lat, lng, zoom = 8 }) => {
     };
   }, [isPlaying, animationPosition, mapFrames.length]);
   
-  // Fetch radar data from the API
+  // Fetch radar data from the backend
   const fetchRadarData = async () => {
     try {
       setLoadingStatus('loading');
       
-      // Fetch data from RainViewer API
-      const data = await radarService.fetchRadarFrames();
-      
-      // Format the data
-      const formattedData = radarService.formatRadarData(data);
-      
-      setApiData(formattedData);
+      // Fetch data from our backend API
+      const data = await radarService.fetchRadarData();
+      setApiData(data);
       
       // Initialize with past frames by default
-      initializeRadar(formattedData, 'past');
+      initializeRadar(data, 'past');
       
       setLoadingStatus('loaded');
     } catch (error) {
@@ -123,7 +119,7 @@ const RadarMap = ({ lat, lng, zoom = 8 }) => {
     setMapType(type);
     
     // Get frames based on type
-    const frames = type === 'past' ? data.radar.past : data.radar.nowcast;
+    const frames = type === 'past' ? data.radar.past : data.radar.forecast;
     
     // Set frames for animation
     setMapFrames(frames);
@@ -151,16 +147,40 @@ const RadarMap = ({ lat, lng, zoom = 8 }) => {
   const createRadarLayers = (host, frames) => {
     if (!mapInstanceRef.current) return;
     
-    const layers = frames.map(frame => {
-      // Create a tile layer for the frame
-      return L.tileLayer(radarService.generateRadarTileUrl(host, frame.path, '{x}', '{y}', '{z}', options), {
-        tileSize: options.tileSize,
-        opacity: 0,
-        zIndex: 1
-      });
-    });
+    const createLayer = async (frame, index) => {
+      try {
+        // Generate tile URL template
+        const tileUrl = await radarService.generateTileUrl(
+          host, 
+          frame.path, 
+          '{x}', 
+          '{y}', 
+          '{z}', 
+          options
+        );
+        
+        // Create a tile layer for the frame
+        return L.tileLayer(tileUrl, {
+          tileSize: options.tileSize,
+          opacity: 0,
+          zIndex: 1
+        });
+      } catch (error) {
+        console.error(`Error creating layer for frame ${index}:`, error);
+        return null;
+      }
+    };
     
-    setRadarLayers(layers);
+    // Create all layers
+    Promise.all(frames.map(createLayer))
+      .then(layers => {
+        // Filter out null layers
+        const validLayers = layers.filter(layer => layer !== null);
+        setRadarLayers(validLayers);
+      })
+      .catch(error => {
+        console.error('Error creating radar layers:', error);
+      });
   };
   
   // Show the frame at the specified position
@@ -240,9 +260,7 @@ const RadarMap = ({ lat, lng, zoom = 8 }) => {
     }
     
     const frame = mapFrames[animationPosition];
-    const timestamp = frame.time;
-    
-    return `${radarService.formatTimestampDate(timestamp)} ${radarService.formatTimestamp(timestamp)}`;
+    return frame.timestamp || radarService.formatTimestamp(frame.time);
   };
   
   return (
@@ -258,7 +276,7 @@ const RadarMap = ({ lat, lng, zoom = 8 }) => {
           <button
             className={mapType === 'forecast' ? 'active' : ''}
             onClick={() => initializeRadar(apiData, 'forecast')}
-            disabled={!apiData?.radar?.nowcast?.length}
+            disabled={!apiData?.radar?.forecast?.length}
           >
             Forecast
           </button>
@@ -312,7 +330,7 @@ const RadarMap = ({ lat, lng, zoom = 8 }) => {
               key={frame.time}
               className={`radar-timeline-item ${index === animationPosition ? 'active' : ''}`}
               onClick={() => showFrame(index)}
-              title={radarService.formatTimestamp(frame.time)}
+              title={frame.timestamp || radarService.formatTimestamp(frame.time)}
             >
               <div className="radar-timeline-marker"></div>
             </div>
