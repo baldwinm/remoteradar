@@ -194,7 +194,10 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
   };
 
   // Helper function to format time
-  const formatTime = (timeStr) => {
+  const formatTime = (timeStr, isCurrentHour = false) => {
+    if (isCurrentHour) {
+      return 'Now';
+    }
     const date = new Date(timeStr);
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
@@ -390,7 +393,8 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
       
       {activeTab === 'daily' && daily && daily.time && (
         <div className="forecast-weather">
-          {daily.time.slice(0, 7).map((day, index) => (
+          {/* Show current day plus next 13 days (total 14 days) */}
+          {daily.time.slice(0, 14).map((day, index) => (
             <div className="forecast-day" key={index}>
               <div className="day-name">{formatDate(day)}</div>
               <div className="day-icon">{getWeatherIcon(daily.weather_code[index])}</div>
@@ -408,9 +412,10 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
       
       {activeTab === 'hourly' && hourly && hourly.time && (
         <div className="hourly-weather">
-          {hourly.time.slice(currentHourIndex, currentHourIndex + 12).map((time, index) => (
+          {/* Show current hour (Now) plus next 23 hours (total 24 hours) */}
+          {hourly.time.slice(currentHourIndex, currentHourIndex + 24).map((time, index) => (
             <div className="hourly-item" key={index}>
-              <div className="hour-time">{formatTime(time)}</div>
+              <div className="hour-time">{formatTime(time, index === 0)}</div>
               <div className="hour-icon">{getWeatherIcon(hourly.weather_code[currentHourIndex + index])}</div>
               <div className="hour-temp">{Math.round(hourly.temperature_2m[currentHourIndex + index])}°</div>
               <div className="hour-precip">
