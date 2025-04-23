@@ -7,7 +7,8 @@ import WeatherWidget from '../components/WeatherWidget';
 import CityMapView from '../components/CityMapView';
 import './CityDetailPage.css';
 import config from '../config';
-
+<script data-goatcounter="https://remoteradar.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
 // Simple Error Boundary component
 class ErrorBoundary extends React.Component {
   constructor(props) {

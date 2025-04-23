@@ -2,7 +2,8 @@
 import React from 'react';
 import SearchBar from '../components/SearchBar';
 import './HomePage.css';
-
+<script data-goatcounter="https://remoteradar.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
 function HomePage() {
   return (
     <div className="home-page">
