@@ -13,6 +13,13 @@ root.render(
   </React.StrictMode>
 );
 
+// Load GoatCounter analytics
+const script = document.createElement('script');
+script.async = true;
+script.setAttribute('data-goatcounter', 'https://remoteradar.goatcounter.com/count');
+script.src = 'https://gc.zgo.at/count.js';
+document.body.appendChild(script);
+
 // Register service worker for caching and offline support
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

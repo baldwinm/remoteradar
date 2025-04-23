@@ -1,11 +1,12 @@
 // src/App.js
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { 
   BrowserRouter as Router, 
   Routes, 
   Route, 
   Link, 
-  Navigate 
+  Navigate,
+  useLocation
 } from 'react-router-dom';
 import './App.css';
 
@@ -22,6 +23,24 @@ const Loading = () => (
   </div>
 );
 
+// Page view tracker for SPA
+const PageViewTracker = () => {
+  const location = useLocation();
+  
+  useEffect(() => {
+    // Track page view on route change for SPA
+    if (typeof window !== 'undefined' && window.goatcounter && window.goatcounter.count) {
+      window.goatcounter.count({
+        path: location.pathname + location.search + location.hash,
+        title: document.title,
+        event: false
+      });
+    }
+  }, [location]);
+  
+  return null;
+};
+
 function App() {
   return (
     <Router>
@@ -34,6 +53,8 @@ function App() {
         
         <main className="app-content">
           <Suspense fallback={<Loading />}>
+            {/* Add the tracker component to handle SPA navigation */}
+            <PageViewTracker />
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/city/:cityId" element={<CityDetailPage />} />
