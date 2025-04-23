@@ -1,8 +1,7 @@
 // src/components/WeatherWidget.js
 import React, { useState, useEffect } from 'react';
 import './WeatherWidget.css';
-import RadarMap from './RadarMap'; // Import the RadarMap component
-import LeafletTest from './LeafletTest'; // Import the new test component
+// Remove RadarMap and LeafletTest imports
 import config from '../config'; // Import config
 
 const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) => {
@@ -306,20 +305,7 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
         >
           Hourly
         </button>
-        {/* Add Radar tab */}
-        <button 
-          className={activeTab === 'radar' ? 'active' : ''} 
-          onClick={() => setActiveTab('radar')}
-        >
-          Radar
-        </button>
-        {/* Add this new test tab button */}
-        <button 
-        className={activeTab === 'test' ? 'active' : ''} 
-        onClick={() => setActiveTab('test')}
-        >
-        Map Test
-        </button>		
+        {/* Removed Radar and Test tabs */}
         {alerts && alerts.length > 0 && (
           <button 
             className={activeTab === 'alerts' ? 'active' : ''} 
@@ -525,18 +511,8 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
         </div>
       )}
       
-      {/* Add the Radar tab content section */}
-      {activeTab === 'radar' && coordinates && (
-        <div className="radar-container">
-          <RadarMap lat={coordinates.lat} lng={coordinates.lng} />
-        </div>
-      )}
-      {/* New test tab */}
-      {activeTab === 'test' && (
-        <div className="test-container">
-          <LeafletTest />
-        </div>
-      )}
+      {/* Removed radar and test tab content sections */}
+      
       {activeTab === 'alerts' && alerts && (
         <div className="alerts-container">
           {alerts.length > 0 ? (
