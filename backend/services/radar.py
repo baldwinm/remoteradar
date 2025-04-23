@@ -4,6 +4,7 @@ import logging
 import time
 import json
 from typing import Dict, Any, Optional
+import os
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -22,15 +23,15 @@ if not logger.handlers:
 # In-memory cache
 _cache = {}
 
-# RainViewer API URL
-RAINVIEWER_API_URL = "https://api.rainviewer.com/public/weather-maps.json"
+# Get API key from environment (or set it directly for testing)
+OWM_API_KEY = os.environ.get('OWM_API_KEY', 'YOUR_OPENWEATHERMAP_API_KEY')
 
 def get_radar_data() -> Dict[str, Any]:
     """
-    Get radar data from RainViewer API
+    Get radar data from OpenWeatherMap API
     
     Returns:
-        Dictionary with radar data including past and forecast frames
+        Dictionary with radar data including available layers
     """
     logger.debug("get_radar_data CALLED")
     
@@ -45,85 +46,66 @@ def get_radar_data() -> Dict[str, Any]:
                 logger.debug("Using cached radar data")
                 return cache_entry.get('data', {})
         
-        # Make API request
-        logger.info("Fetching radar data from RainViewer API")
-        response = requests.get(
-            RAINVIEWER_API_URL,
-            timeout=10
-        )
-        
-        # Log detailed response info
-        logger.debug(f"RainViewer API Response Status: {response.status_code}")
-        logger.debug(f"RainViewer API Response Headers: {response.headers}")
-        
-        # Handle non-200 response
-        if response.status_code != 200:
-            logger.error(f"RainViewer API error: {response.status_code}")
-            return {"error": f"Failed to fetch radar data: {response.status_code}"}
-        
-        # Parse JSON response
-        try:
-            data = response.json()
-            logger.debug(f"Received radar data: {len(str(data))} bytes")
-            
-            # Log a sample of the data structure
-            logger.debug(f"Data structure sample: {json.dumps(data, indent=2)[:500]}...")
-            
-            # Validate the expected structure
-            if not data.get('host'):
-                logger.warning("Missing 'host' field in radar data")
-                
-            if not data.get('radar') or not data.get('radar', {}).get('past'):
-                logger.warning("Missing 'radar.past' field in data structure")
-            else:
-                logger.debug(f"Found {len(data['radar']['past'])} past frames")
-                
-            if not data.get('radar') or not data.get('radar', {}).get('nowcast'):
-                logger.warning("Missing 'radar.nowcast' field in data structure")
-            else:
-                logger.debug(f"Found {len(data['radar']['nowcast'])} forecast frames")
-            
-            # Cache the result
-            _cache[cache_key] = {
-                'data': data,
-                'timestamp': time.time()
+        # Create formatted data structure similar to RainViewer for compatibility
+        # This will be used by the frontend
+        data = {
+            "host": "https://tile.openweathermap.org",
+            "radar": {
+                "past": [
+                    {
+                        "time": int(time.time()),
+                        "path": "/map/precipitation_new"
+                    }
+                ]
+            },
+            "options": {
+                "color_schemes": [
+                    {"name": "Default", "value": 0},
+                    {"name": "Universal Blue", "value": 1},
+                    {"name": "TITAN", "value": 2}
+                ]
             }
-            
-            return data
-        except ValueError as json_err:
-            logger.error(f"Failed to parse radar JSON response: {json_err}")
-            logger.error(f"Raw response content: {response.text[:500]}...")
-            return {"error": "Failed to parse radar data"}
+        }
+        
+        logger.debug(f"Generated OpenWeatherMap radar data structure")
+        
+        # Cache the result
+        _cache[cache_key] = {
+            'data': data,
+            'timestamp': time.time()
+        }
+        
+        return data
             
     except Exception as e:
         logger.error(f"Error getting radar data: {str(e)}", exc_info=True)
         return {"error": str(e)}
 
-def get_radar_tile(host: str, path: str, x: int, y: int, z: int, color_scheme: int = 2, 
+def get_radar_tile(host: str, path: str, x: int, y: int, z: int, color_scheme: int = 0, 
                   smooth: int = 1, snow: int = 1, size: int = 256, format: str = 'png') -> Optional[bytes]:
     """
-    Get radar tile from RainViewer API
+    Get radar tile from OpenWeatherMap API
     
     Args:
-        host: API host from RainViewer response
-        path: Path for the specific frame
+        host: API host (should be 'https://tile.openweathermap.org')
+        path: Path for the layer ('/map/precipitation_new', '/map/clouds_new', etc.)
         x: Tile X coordinate
         y: Tile Y coordinate
         z: Zoom level
-        color_scheme: Color scheme ID (0-8)
-        smooth: Smooth data (0 or 1)
-        snow: Show snow colors (0 or 1)
-        size: Tile size (256 or 512)
-        format: Image format (webp or png)
+        color_scheme: Ignored for OpenWeatherMap (kept for compatibility)
+        smooth: Ignored for OpenWeatherMap (kept for compatibility)
+        snow: Ignored for OpenWeatherMap (kept for compatibility)
+        size: Ignored for OpenWeatherMap (kept for compatibility)
+        format: Ignored for OpenWeatherMap (kept for compatibility)
         
     Returns:
         Radar tile image data as bytes or None if error
     """
-    logger.debug(f"get_radar_tile CALLED with: host={host}, path={path}, x={x}, y={y}, z={z}, color_scheme={color_scheme}")
+    logger.debug(f"get_radar_tile CALLED with: host={host}, path={path}, x={x}, y={y}, z={z}")
     
     try:
-        # Construct tile URL
-        tile_url = f"{host}{path}/{size}/{z}/{x}/{y}/{color_scheme}/{smooth}_{snow}.{format}"
+        # Construct tile URL for OpenWeatherMap
+        tile_url = f"{host}{path}/{z}/{x}/{y}.png?appid={OWM_API_KEY}"
         logger.debug(f"Tile URL: {tile_url}")
         
         # Create cache key

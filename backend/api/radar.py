@@ -44,7 +44,7 @@ def register_radar_routes(app, limiter):
             current_app.logger.debug(f"Request headers: {dict(request.headers)}")
             current_app.logger.debug(f"Request origin: {request.origin if hasattr(request, 'origin') else 'Not available'}")
             
-            # Get radar data
+            # Get radar data from the OpenWeatherMap service
             current_app.logger.debug("Calling get_radar_data service function")
             radar_data = get_radar_data()
             
@@ -58,13 +58,6 @@ def register_radar_routes(app, limiter):
                     "error": radar_data['error'],
                     "success": False
                 }), 400
-            
-            # Verify we have the expected data structure
-            if 'host' not in radar_data:
-                current_app.logger.warning("Missing 'host' in radar data")
-                
-            if 'radar' not in radar_data or not radar_data.get('radar', {}).get('past'):
-                current_app.logger.warning("Missing 'radar.past' in data structure")
             
             # Return successful response
             current_app.logger.debug("Preparing successful response")
@@ -118,8 +111,8 @@ def register_radar_routes(app, limiter):
             # Log the essential parameters
             current_app.logger.debug(f"Essential parameters: host={host}, path={path}, x={x}, y={y}, z={z}")
             
-            # Optional parameters with defaults
-            color_scheme = int(request.args.get('color_scheme', 2))
+            # Optional parameters with defaults (for compatibility with previous code)
+            color_scheme = int(request.args.get('color_scheme', 0))
             smooth = int(request.args.get('smooth', 1))
             snow = int(request.args.get('snow', 1))
             size = int(request.args.get('size', 256))
@@ -151,20 +144,8 @@ def register_radar_routes(app, limiter):
                     "error": f"Invalid tile coordinates: {e}",
                     "success": False
                 }), 400
-                
-            # Validate color scheme
-            if color_scheme < 0 or color_scheme > 8:
-                current_app.logger.error(f"Invalid color scheme: {color_scheme}")
-                return jsonify({
-                    "error": "Invalid color scheme: must be 0-8",
-                    "success": False
-                }), 400
-                
-            # Construct and log the full tile URL for debugging
-            full_url = f"{host}{path}/{size}/{z}/{x}/{y}/{color_scheme}/{smooth}_{snow}.{tile_format}"
-            current_app.logger.debug(f"Full tile URL: {full_url}")
             
-            # Get tile image data
+            # Get tile image data from OpenWeatherMap
             current_app.logger.debug("Calling get_radar_tile service function")
             tile_data = get_radar_tile(
                 host=host,
