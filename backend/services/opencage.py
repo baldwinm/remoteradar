@@ -4,6 +4,7 @@ import time
 import requests
 import logging
 import json
+import math
 from typing import Dict, List, Any, Optional
 
 # Initialize logger
@@ -16,9 +17,131 @@ _cache = {}
 # OpenCage base URL
 OPENCAGE_BASE_URL = "https://api.opencagedata.com/geocode/v1/json"
 
+# Prioritized countries (with US at top)
+PRIORITY_COUNTRIES = {
+    'us': 200,    # United States
+    'ca': 180,    # Canada
+    'gb': 170,    # United Kingdom
+    'au': 160,    # Australia
+    'nz': 150,    # New Zealand
+    'de': 140,    # Germany
+    'fr': 130,    # France
+    'jp': 125,    # Japan
+    'es': 120,    # Spain
+    'it': 115,    # Italy
+}
+
+# Well-known US states (for further prioritization)
+MAJOR_US_STATES = {
+    'ca': 50,  # California
+    'ny': 50,  # New York
+    'fl': 45,  # Florida
+    'tx': 45,  # Texas
+    'il': 40,  # Illinois
+    'pa': 40,  # Pennsylvania
+    'ma': 35,  # Massachusetts
+    'wa': 35,  # Washington
+    'co': 30,  # Colorado
+    'or': 30,  # Oregon
+    'az': 30,  # Arizona
+    'nv': 30,  # Nevada
+    'nm': 30,  # New Mexico (specifically boosting for Santa Fe case)
+}
+
+# Major cities around the world that should be prioritized
+MAJOR_CITIES = {
+    'new york': 100,
+    'los angeles': 100,
+    'chicago': 95,
+    'san francisco': 95,
+    'boston': 90,
+    'seattle': 90,
+    'london': 100,
+    'paris': 100,
+    'tokyo': 100,
+    'sydney': 95,
+    'rome': 95,
+    'berlin': 95,
+    'madrid': 90,
+    'toronto': 90,
+    'vancouver': 90,
+    'mexico city': 90,
+    'santa fe': 90,  # Specifically boosting Santa Fe
+}
+
+def calculate_city_priority(city: Dict[str, Any], query: str) -> int:
+    """
+    Calculate a priority score for a city based on various factors.
+    Higher scores indicate higher priority.
+    
+    Args:
+        city: City dictionary with name, country, etc.
+        query: Original search query
+        
+    Returns:
+        Priority score (higher is better)
+    """
+    score = 0
+    
+    # Extract key information
+    city_name = city.get('name', '').lower()
+    country = city.get('country', '').lower()
+    country_code = city.get('components', {}).get('country_code', '').lower()
+    if not country_code and '_' in city.get('id', ''):
+        country_code = city.get('id', '').split('_')[-1].lower()
+    
+    state = city.get('state', '').lower()
+    state_code = city.get('components', {}).get('state_code', '').lower()
+    
+    # 1. Exact name match with query provides a significant boost
+    if query.lower() == city_name:
+        score += 300
+    # Partial match at start of name
+    elif city_name.startswith(query.lower()):
+        score += 150
+    # Query is contained in the city name
+    elif query.lower() in city_name:
+        score += 100
+    
+    # 2. Country priority
+    if country_code in PRIORITY_COUNTRIES:
+        score += PRIORITY_COUNTRIES[country_code]
+    
+    # 3. US state priority
+    if country_code == 'us' and state_code in MAJOR_US_STATES:
+        score += MAJOR_US_STATES[state_code]
+    
+    # 4. Major city priority
+    if city_name in MAJOR_CITIES:
+        score += MAJOR_CITIES[city_name]
+    
+    # 5. Favor cities without numbers in their names (likely more prominent)
+    if not any(c.isdigit() for c in city_name):
+        score += 20
+    
+    # 6. Presence of state/province info is usually good
+    if state or state_code:
+        score += 10
+    
+    # 7. Favor shorter, simpler city names (usually more prominent)
+    name_length_penalty = min(len(city_name) // 3, 15)  # Penalty grows with length but caps at 15
+    score -= name_length_penalty
+    
+    # 8. Prioritize cities that have "city" in the type (usually more prominent)
+    components = city.get('components', {})
+    if 'city' in components or components.get('_type') == 'city':
+        score += 50
+    
+    # 9. If the city is the subject of the formatted address (usually important)
+    formatted = city.get('formatted', '').lower()
+    if formatted.startswith(city_name):
+        score += 30
+    
+    return score
+
 def search_city(query: str) -> List[Dict[str, Any]]:
     """
-    Search for a city using OpenCage API with comprehensive logging
+    Search for a city using OpenCage API with comprehensive logging and improved sorting
     
     Args:
         query: Search term for city lookup
@@ -58,7 +181,7 @@ def search_city(query: str) -> List[Dict[str, Any]]:
         request_params = {
             'q': query,
             'key': api_key,
-            'limit': 5
+            'limit': 10  # Increased from 5 to get more candidates for ranking
         }
         logger.debug(f"API Request Parameters: {json.dumps(request_params, indent=2)}")
         
@@ -109,26 +232,19 @@ def search_city(query: str) -> List[Dict[str, Any]]:
                 continue
             
             country_code = components.get('country_code', '').lower()
-            state_code = components.get('state_code', '').lower()
+            city_id = f"{city_name.lower().replace(' ', '_')}_{country_code}"
             
-            # Updated ID format to include state_code when available
-            if country_code == 'us' and state_code:
-                city_id = f"{city_name.lower().replace(' ', '_')}_{state_code}_{country_code}"
-            else:
-                city_id = f"{city_name.lower().replace(' ', '_')}_{country_code}"
-            
-            # Create city object with enhanced state and country_code info
+            # Create city object
             city = {
                 'id': city_id,
                 'name': city_name,
                 'country': components.get('country', ''),
-                'country_code': country_code,
                 'state': components.get('state', ''),
-                'state_code': state_code,
-                'county': components.get('county', ''),
+                'state_code': components.get('state_code', ''),
                 'lat': result.get('geometry', {}).get('lat'),
                 'lng': result.get('geometry', {}).get('lng'),
-                'formatted': result.get('formatted', '')
+                'formatted': result.get('formatted', ''),
+                'components': components  # Include components for better sorting
             }
             
             # Validate coordinates
@@ -138,17 +254,19 @@ def search_city(query: str) -> List[Dict[str, Any]]:
             
             cities.append(city)
         
-        # Log found cities
+        # Apply custom sorting to prioritize well-known cities
+        cities.sort(key=lambda city: calculate_city_priority(city, query), reverse=True)
+        
+        # Log found cities with their priority scores
         logger.info(f"Found {len(cities)} valid cities for query: '{query}'")
+        for i, city in enumerate(cities):
+            score = calculate_city_priority(city, query)
+            logger.info(f"  {i+1}. {city['name']} (ID: {city['id']}, Country: {city['country']}, Score: {score})")
+        
+        # Clean up city objects before caching (remove temporary fields)
         for city in cities:
-            # Enhanced logging with state info for US cities
-            location_str = f"{city['name']}"
-            if city['country_code'] == 'us' and city['state']:
-                location_str += f", {city['state']}, USA"
-            else:
-                location_str += f", {city['country']}"
-                
-            logger.info(f"  - {location_str} (ID: {city['id']}, Coords: {city['lat']}, {city['lng']})")
+            if 'components' in city:
+                del city['components']
         
         # Cache the result
         _cache[cache_key] = {
@@ -162,28 +280,29 @@ def search_city(query: str) -> List[Dict[str, Any]]:
         logger.critical(f"FATAL error searching for city: {str(e)}", exc_info=True)
         return []
 
-# Functions for cache management
-def clear_cache():
-    """Clear the entire search cache"""
+def clear_cache() -> None:
+    """Clear the city search cache"""
     global _cache
     _cache = {}
-    return {"success": True, "message": "Cache cleared successfully"}
+    logger.info("OpenCage city search cache cleared")
 
-def clean_expired_cache():
-    """Remove expired entries from the cache"""
-    global _cache
+def clean_expired_cache() -> int:
+    """
+    Remove expired items from the cache
+    
+    Returns:
+        Number of items removed from cache
+    """
     now = time.time()
-    expired_keys = []
+    to_remove = []
     
-    for key, value in _cache.items():
-        if now - value['timestamp'] >= 604800:  # 7 days
-            expired_keys.append(key)
+    # Clean city search cache (expires after 7 days)
+    for key, item in _cache.items():
+        if now - item.get('timestamp', 0) > 604800:  # 7 days
+            to_remove.append(key)
     
-    for key in expired_keys:
+    for key in to_remove:
         del _cache[key]
     
-    return {
-        "success": True,
-        "message": f"Cleaned {len(expired_keys)} expired cache entries",
-        "removed_keys": expired_keys
-    }
+    logger.info(f"Cleaned {len(to_remove)} expired items from OpenCage city search cache")
+    return len(to_remove)
