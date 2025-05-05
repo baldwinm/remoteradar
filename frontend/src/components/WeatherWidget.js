@@ -4,14 +4,17 @@ import './WeatherWidget.css';
 
 const BACKEND_BASE_URL = 'https://remote-radar-backend.onrender.com';
 
-const WeatherWidget = ({ cityId, units = 'imperial' }) => {
+const WeatherWidget = ({ cityId, units: initialUnits }) => {
+  // Default to imperial but respect URL parameter if present
+  const [units, setUnits] = useState(initialUnits || 'imperial');
   const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('current');
   
   console.group('WeatherWidget Initialization');
-  console.log('Props received:', { cityId, units });
+  console.log('Props received:', { cityId, initialUnits });
+  console.log('Using units:', units);
   console.log('Backend Base URL:', BACKEND_BASE_URL);
   console.groupEnd();
   
@@ -93,6 +96,19 @@ const WeatherWidget = ({ cityId, units = 'imperial' }) => {
     
     fetchWeatherData();
   }, [cityId, units]);
+
+  // Handle unit change
+  const handleUnitChange = (newUnits) => {
+    if (newUnits === units) return; // Don't do anything if units haven't changed
+    
+    // Update URL query parameter
+    const url = new URL(window.location.href);
+    url.searchParams.set('units', newUnits);
+    window.history.replaceState({}, '', url.toString());
+    
+    // Update state to trigger refetch
+    setUnits(newUnits);
+  };
 
   // Render loading state
   if (loading) {
@@ -298,29 +314,13 @@ const WeatherWidget = ({ cityId, units = 'imperial' }) => {
         <div className="unit-toggle">
           <button 
             className={units === 'imperial' ? 'active' : ''}
-            onClick={() => {
-              // Update URL query parameter without page reload
-              const url = new URL(window.location.href);
-              url.searchParams.set('units', 'imperial');
-              window.history.replaceState({}, '', url.toString());
-              
-              // Reload the component with imperial units
-              window.location.reload();
-            }}
+            onClick={() => handleUnitChange('imperial')}
           >
             °F
           </button>
           <button 
             className={units === 'metric' ? 'active' : ''}
-            onClick={() => {
-              // Update URL query parameter without page reload
-              const url = new URL(window.location.href);
-              url.searchParams.set('units', 'metric');
-              window.history.replaceState({}, '', url.toString());
-              
-              // Reload the component with metric units
-              window.location.reload();
-            }}
+            onClick={() => handleUnitChange('metric')}
           >
             °C
           </button>
