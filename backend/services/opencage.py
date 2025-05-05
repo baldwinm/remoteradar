@@ -4,7 +4,6 @@ import time
 import requests
 import logging
 import json
-import math
 from typing import Dict, List, Any, Optional
 
 # Initialize logger
@@ -69,79 +68,9 @@ MAJOR_CITIES = {
     'santa fe': 90,  # Specifically boosting Santa Fe
 }
 
-def calculate_city_priority(city: Dict[str, Any], query: str) -> int:
-    """
-    Calculate a priority score for a city based on various factors.
-    Higher scores indicate higher priority.
-    
-    Args:
-        city: City dictionary with name, country, etc.
-        query: Original search query
-        
-    Returns:
-        Priority score (higher is better)
-    """
-    score = 0
-    
-    # Extract key information
-    city_name = city.get('name', '').lower()
-    country = city.get('country', '').lower()
-    country_code = city.get('components', {}).get('country_code', '').lower()
-    if not country_code and '_' in city.get('id', ''):
-        country_code = city.get('id', '').split('_')[-1].lower()
-    
-    state = city.get('state', '').lower()
-    state_code = city.get('components', {}).get('state_code', '').lower()
-    
-    # 1. Exact name match with query provides a significant boost
-    if query.lower() == city_name:
-        score += 300
-    # Partial match at start of name
-    elif city_name.startswith(query.lower()):
-        score += 150
-    # Query is contained in the city name
-    elif query.lower() in city_name:
-        score += 100
-    
-    # 2. Country priority
-    if country_code in PRIORITY_COUNTRIES:
-        score += PRIORITY_COUNTRIES[country_code]
-    
-    # 3. US state priority
-    if country_code == 'us' and state_code in MAJOR_US_STATES:
-        score += MAJOR_US_STATES[state_code]
-    
-    # 4. Major city priority
-    if city_name in MAJOR_CITIES:
-        score += MAJOR_CITIES[city_name]
-    
-    # 5. Favor cities without numbers in their names (likely more prominent)
-    if not any(c.isdigit() for c in city_name):
-        score += 20
-    
-    # 6. Presence of state/province info is usually good
-    if state or state_code:
-        score += 10
-    
-    # 7. Favor shorter, simpler city names (usually more prominent)
-    name_length_penalty = min(len(city_name) // 3, 15)  # Penalty grows with length but caps at 15
-    score -= name_length_penalty
-    
-    # 8. Prioritize cities that have "city" in the type (usually more prominent)
-    components = city.get('components', {})
-    if 'city' in components or components.get('_type') == 'city':
-        score += 50
-    
-    # 9. If the city is the subject of the formatted address (usually important)
-    formatted = city.get('formatted', '').lower()
-    if formatted.startswith(city_name):
-        score += 30
-    
-    return score
-
 def search_city(query: str) -> List[Dict[str, Any]]:
     """
-    Search for a city using OpenCage API with comprehensive logging and improved sorting
+    Search for a city using OpenCage API with comprehensive logging
     
     Args:
         query: Search term for city lookup
@@ -209,9 +138,9 @@ def search_city(query: str) -> List[Dict[str, Any]]:
             logger.error(f"Response text: {response.text}")
             return []
         
-        # Log raw API response
-        logger.debug("Raw API Response:")
-        logger.debug(json.dumps(data, indent=2))
+        # Log raw API response (sample for debugging)
+        logger.debug("Raw API Response (sample):")
+        logger.debug(json.dumps(data.get('results', [])[:1], indent=2))
         
         # Validate response structure
         if not data or not data.get('results'):
@@ -225,26 +154,36 @@ def search_city(query: str) -> List[Dict[str, Any]]:
             
             # Get city name or equivalent
             city_name = (components.get('city') or components.get('town') or 
-                        components.get('village') or components.get('state'))
+                      components.get('village') or components.get('state') or
+                      components.get('county'))
             
             if not city_name:
                 logger.debug(f"Skipping result - no valid city name: {components}")
                 continue
             
+            country = components.get('country', '')
             country_code = components.get('country_code', '').lower()
+            
+            if not country_code:
+                logger.debug(f"No country code found for {city_name}, using fallback")
+                # Try to extract from annotations if available
+                if 'annotations' in result and 'country_code' in result['annotations']:
+                    country_code = result['annotations']['country_code'].lower()
+                else:
+                    # Use first 2 chars of country as fallback
+                    country_code = country[:2].lower() if country else 'xx'
+            
             city_id = f"{city_name.lower().replace(' ', '_')}_{country_code}"
             
             # Create city object
             city = {
                 'id': city_id,
                 'name': city_name,
-                'country': components.get('country', ''),
+                'country': country,
                 'state': components.get('state', ''),
-                'state_code': components.get('state_code', ''),
                 'lat': result.get('geometry', {}).get('lat'),
                 'lng': result.get('geometry', {}).get('lng'),
-                'formatted': result.get('formatted', ''),
-                'components': components  # Include components for better sorting
+                'formatted': result.get('formatted', '')
             }
             
             # Validate coordinates
@@ -254,19 +193,69 @@ def search_city(query: str) -> List[Dict[str, Any]]:
             
             cities.append(city)
         
-        # Apply custom sorting to prioritize well-known cities
-        cities.sort(key=lambda city: calculate_city_priority(city, query), reverse=True)
+        # Apply prioritization based on various factors to sort results
+        def get_city_priority_score(city):
+            score = 0
+            city_name = city.get('name', '').lower()
+            country = city.get('country', '').lower()
+            country_code = city_id.split('_')[-1] if '_' in city.get('id', '') else ''
+            state = city.get('state', '').lower()
+            
+            # 1. Exact name match with query provides a significant boost
+            if query.lower() == city_name:
+                score += 300
+            # Partial match at start of name
+            elif city_name.startswith(query.lower()):
+                score += 150
+            # Query is contained in the city name
+            elif query.lower() in city_name:
+                score += 100
+            
+            # 2. Country priority
+            if country_code in PRIORITY_COUNTRIES:
+                score += PRIORITY_COUNTRIES[country_code]
+            
+            # 3. US state priority (simplified check)
+            if country_code == 'us' and state:
+                state_code = state[:2].lower()
+                if state_code in MAJOR_US_STATES:
+                    score += MAJOR_US_STATES[state_code]
+                
+                # Special case for Santa Fe, New Mexico
+                if city_name.lower() == 'santa fe' and ('new mexico' in state.lower() or 'nm' in state.lower()):
+                    score += 200
+            
+            # 4. Major city priority
+            if city_name in MAJOR_CITIES:
+                score += MAJOR_CITIES[city_name]
+            
+            # 5. Favor cities without numbers in their names (likely more prominent)
+            if not any(c.isdigit() for c in city_name):
+                score += 20
+            
+            # 6. Presence of state/province info is usually good
+            if state:
+                score += 10
+            
+            # 7. Favor shorter, simpler city names (usually more prominent)
+            name_length_penalty = min(len(city_name) // 3, 15)  # Penalty grows with length but caps at 15
+            score -= name_length_penalty
+            
+            # 8. If the city is the subject of the formatted address (usually important)
+            formatted = city.get('formatted', '').lower()
+            if formatted.startswith(city_name):
+                score += 30
+            
+            return score
+        
+        # Sort cities based on priority score
+        cities.sort(key=get_city_priority_score, reverse=True)
         
         # Log found cities with their priority scores
         logger.info(f"Found {len(cities)} valid cities for query: '{query}'")
-        for i, city in enumerate(cities):
-            score = calculate_city_priority(city, query)
+        for i, city in enumerate(cities[:5]):  # Log just top 5 for brevity
+            score = get_city_priority_score(city)
             logger.info(f"  {i+1}. {city['name']} (ID: {city['id']}, Country: {city['country']}, Score: {score})")
-        
-        # Clean up city objects before caching (remove temporary fields)
-        for city in cities:
-            if 'components' in city:
-                del city['components']
         
         # Cache the result
         _cache[cache_key] = {

@@ -1112,3 +1112,7 @@ Traceback (most recent call last):
     raise NotFound()
 werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
 [2025-04-20 13:50:56,096] [INFO] [6764] [19324] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remote_radar\backend\app.py:115] - Response: GET /static/css/main.chunk.css 500 in 0.0056s
+[2025-05-05 16:43:52,041] [INFO] [12900] [16336] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remoteradar\backend\utils\logging_config.py:99] - Starting application in development environment
+[2025-05-05 16:43:52,042] [INFO] [12900] [16336] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remoteradar\backend\utils\logging_config.py:100] - Logging setup complete
+[2025-05-05 16:43:52,525] [INFO] [6172] [10724] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remoteradar\backend\utils\logging_config.py:99] - Starting application in development environment
+[2025-05-05 16:43:52,525] [INFO] [6172] [10724] [C:\Users\Mbldwn-Framework-lpt\OneDrive\Documents\GitHub\remoteradar\backend\utils\logging_config.py:100] - Logging setup complete
