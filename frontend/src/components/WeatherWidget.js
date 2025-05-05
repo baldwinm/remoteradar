@@ -1,39 +1,27 @@
 // src/components/WeatherWidget.js
 import React, { useState, useEffect } from 'react';
 import './WeatherWidget.css';
-// Remove RadarMap and LeafletTest imports
-import config from '../config'; // Import config
 
-const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) => {
+const BACKEND_BASE_URL = 'https://remote-radar-backend.onrender.com';
+
+const WeatherWidget = ({ cityId, units = 'imperial' }) => {
   const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('current');
-  // Force imperial units by default if not specified
-  const [localUnits, setLocalUnits] = useState(units || 'imperial');
   
   console.group('WeatherWidget Initialization');
-  console.log('Props received:', { cityId, units, lat, lng });
-  console.log('Config:', { 
-    API_URL: config.API_URL, 
-    env: config.ENVIRONMENT
-  });
+  console.log('Props received:', { cityId, units });
+  console.log('Backend Base URL:', BACKEND_BASE_URL);
   console.groupEnd();
   
-  // Update localUnits when units prop changes
-  useEffect(() => {
-    setLocalUnits(units || 'imperial');
-  }, [units]);
-
   useEffect(() => {
     console.group('WeatherWidget Effect');
-    console.log('Effect triggered with:', { cityId, localUnits, lat, lng });
+    console.log('Effect triggered with:', { cityId, units });
 
     if (!cityId) {
       console.warn('No cityId provided');
       setLoading(false);
-      setError('No city ID provided');
-      console.groupEnd();
       return;
     }
     
@@ -43,15 +31,7 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
       setError(null);
       
       try {
-        // Construct URL with coordinates if available
-        let apiUrl;
-        if (lat && lng) {
-          // Send coordinates directly in the URL if available
-          apiUrl = `${config.API_URL}/api/weather/${cityId}?lat=${lat}&lng=${lng}&units=${localUnits}`;
-        } else {
-          // Otherwise use the standard endpoint
-          apiUrl = `${config.API_URL}/api/weather/${cityId}?units=${localUnits}`;
-        }
+        const apiUrl = `${BACKEND_BASE_URL}/api/weather/${cityId}?units=${units}`;
         
         console.group('Fetch Configuration');
         console.log('Full API URL:', apiUrl);
@@ -61,7 +41,6 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
           method: 'GET',
           headers: {
             'Accept': 'application/json',
-            'Content-Type': 'application/json',
             'Origin': window.location.origin
           },
           mode: 'cors',
@@ -86,8 +65,7 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
         const data = await response.json();
         
         console.group('Parsed Weather Data');
-        console.log('Data received:', !!data);
-        console.log('Weather data present:', !!(data && data.weather));
+        console.log('Received Data:', JSON.stringify(data, null, 2));
         console.groupEnd();
 
         if (!data || !data.weather) {
@@ -113,15 +91,10 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
       }
     };
     
-    // Add a small delay to ensure any other component updates finish first
-    const timer = setTimeout(() => {
-      fetchWeatherData();
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, [cityId, localUnits, lat, lng]);
+    fetchWeatherData();
+  }, [cityId, units]);
 
-  // Handle loading state
+  // Render loading state
   if (loading) {
     return (
       <div className="weather-widget loading">
@@ -131,155 +104,223 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
     );
   }
 
-  // Handle error state
+  // Render error state
   if (error) {
     return (
       <div className="weather-widget error">
         <div className="error-icon">⚠️</div>
         <p>Unable to load weather data</p>
-        <div className="error-details">{error}</div>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="retry-button"
-          style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: '#3498db', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-        >
-          Retry
-        </button>
+        <p className="error-details">{error}</p>
       </div>
     );
   }
 
-  // Handle no data state
+  // If no data yet, show a placeholder
   if (!weatherData || !weatherData.weather) {
     return (
-      <div className="weather-widget error">
-        <div className="error-icon">⚠️</div>
-        <p>No weather data available</p>
+      <div className="weather-widget">
+        <p>No weather data available for this location</p>
       </div>
     );
   }
 
-  const { weather, city_name, coordinates } = weatherData;
-  const { current, daily, hourly, air_quality, pollen, alerts } = weather;
-
-  // Helper function to get weather icon
-  const getWeatherIcon = (weatherCode) => {
-    // Map weather code to icon - simplified example
-    const icons = {
-      0: '☀️', // Clear sky
-      1: '🌤️', // Mainly clear
-      2: '⛅', // Partly cloudy
-      3: '☁️', // Overcast
-      45: '🌫️', // Fog
-      48: '🌫️', // Depositing rime fog
-      51: '🌦️', // Light drizzle
-      53: '🌦️', // Moderate drizzle
-      55: '🌦️', // Dense drizzle
-      61: '🌧️', // Slight rain
-      63: '🌧️', // Moderate rain
-      65: '🌧️', // Heavy rain
-      71: '🌨️', // Slight snow fall
-      73: '🌨️', // Moderate snow fall
-      75: '🌨️', // Heavy snow fall
-      80: '🌦️', // Slight rain showers
-      81: '🌦️', // Moderate rain showers
-      82: '🌦️', // Violent rain showers
-      85: '🌨️', // Slight snow showers
-      86: '🌨️', // Heavy snow showers
-      95: '⛈️', // Thunderstorm
-      96: '⛈️', // Thunderstorm with slight hail
-      99: '⛈️', // Thunderstorm with heavy hail
-    };
+  // Extract weather data
+  const { weather, city_name } = weatherData;
+  const current = weather.current || {};
+  const daily = weather.daily || {};
+  const hourly = weather.hourly || {};
+  
+  // Helper to format time (24h to 12h conversion)
+  const formatTime = (hour) => {
+    const h = parseInt(hour);
+    if (isNaN(h)) return hour;
     
-    return icons[weatherCode] || '❓';
+    if (h === 0) return '12 AM';
+    if (h === 12) return '12 PM';
+    return h < 12 ? `${h} AM` : `${h - 12} PM`;
   };
   
-   // Helper function to format date
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-  };
-
-  // Helper function to format time
-  const formatTime = (timeStr, isCurrentHour = false) => {
-    if (isCurrentHour) {
-      return 'Now';
-    }
-    const date = new Date(timeStr);
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  };
-
-  // Get the current hour's index in the hourly data
-  const getCurrentHourIndex = () => {
-    if (!hourly || !hourly.time || hourly.time.length === 0) return 0;
+  // Helper to get weather icon based on weather code and is_day
+  const getWeatherIcon = (code, isDay = true) => {
+    // WMO Weather interpretation codes
+    // https://www.nodc.noaa.gov/archive/arc0021/0002199/1.1/data/0-data/HTML/WMO-CODE/WMO4677.HTM
+    const iconMap = {
+      0: isDay ? '☀️' : '🌙', // Clear sky
+      1: isDay ? '🌤️' : '🌙', // Mainly clear
+      2: isDay ? '⛅' : '☁️', // Partly cloudy
+      3: '☁️',                // Overcast
+      45: '🌫️',               // Fog
+      48: '🌫️',               // Depositing rime fog
+      51: '🌦️',               // Light drizzle
+      53: '🌦️',               // Moderate drizzle
+      55: '🌧️',               // Dense drizzle
+      56: '🌨️',               // Light freezing drizzle
+      57: '🌨️',               // Dense freezing drizzle
+      61: '🌦️',               // Slight rain
+      63: '🌧️',               // Moderate rain
+      65: '🌧️',               // Heavy rain
+      66: '🌨️',               // Light freezing rain
+      67: '🌨️',               // Heavy freezing rain
+      71: '🌨️',               // Slight snow fall
+      73: '🌨️',               // Moderate snow fall
+      75: '❄️',               // Heavy snow fall
+      77: '❄️',               // Snow grains
+      80: '🌦️',               // Slight rain showers
+      81: '🌧️',               // Moderate rain showers
+      82: '🌧️',               // Violent rain showers
+      85: '🌨️',               // Slight snow showers
+      86: '❄️',               // Heavy snow showers
+      95: '⛈️',               // Thunderstorm
+      96: '⛈️',               // Thunderstorm with slight hail
+      99: '⛈️'                // Thunderstorm with heavy hail
+    };
     
-    const now = new Date();
-    for (let i = 0; i < hourly.time.length; i++) {
-      const hourTime = new Date(hourly.time[i]);
-      if (hourTime >= now) {
-        return i;
-      }
-    }
-    return 0;
+    return iconMap[code] || '🌥️';
   };
-
-  // Handle unit toggle
-  const handleUnitToggle = (newUnit) => {
-    if (newUnit !== localUnits) {
-      // Log the unit change
-      console.log(`Changing units from ${localUnits} to ${newUnit}`);
+  
+  // Helper to get day name from date
+  const getDayName = (dateStr) => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const date = new Date(dateStr);
+    return days[date.getDay()];
+  };
+  
+  // Helper to get temperature unit
+  const tempUnit = units === 'imperial' ? '°F' : '°C';
+  const speedUnit = units === 'imperial' ? 'mph' : 'km/h';
+  
+  // Render current weather
+  const renderCurrentWeather = () => (
+    <div className="current-weather">
+      <div className="weather-now">
+        <div className="weather-icon">
+          <span role="img" aria-label={`Weather: ${current.weather_description || 'Unknown'}`}>
+            {getWeatherIcon(current.weather_code, current.is_day)}
+          </span>
+        </div>
+        <div className="weather-info">
+          <div className="temp">{Math.round(current.temperature)}{tempUnit}</div>
+          <div className="description">{current.weather_description || 'Unknown conditions'}</div>
+          <div className="feels-like">Feels like {Math.round(current.apparent_temperature)}{tempUnit}</div>
+        </div>
+      </div>
       
-      // Update local state immediately
-      setLocalUnits(newUnit);
+      <div className="weather-details">
+        <div className="detail-row">
+          <div className="detail-item">
+            <div className="detail-label">Humidity</div>
+            <div className="detail-value">{current.relative_humidity || 'N/A'}%</div>
+          </div>
+          <div className="detail-item">
+            <div className="detail-label">Wind</div>
+            <div className="detail-value">{Math.round(current.wind_speed_10m || 0)} {speedUnit}</div>
+          </div>
+        </div>
+        <div className="detail-row">
+          <div className="detail-item">
+            <div className="detail-label">Precipitation</div>
+            <div className="detail-value">{current.precipitation || 0} {units === 'imperial' ? 'in' : 'mm'}</div>
+          </div>
+          <div className="detail-item">
+            <div className="detail-label">Cloud Cover</div>
+            <div className="detail-value">{current.cloud_cover || 0}%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+  
+  // Render forecast
+  const renderForecast = () => (
+    <div className="forecast-weather">
+      {daily.time && daily.time.map((date, index) => {
+        if (index > 2) return null; // Show only next 3 days
+        
+        return (
+          <div className="forecast-day" key={date}>
+            <div className="day-name">{getDayName(date)}</div>
+            <div className="day-icon">
+              <span role="img" aria-label={`Weather: ${daily.weather_description?.[index] || 'Unknown'}`}>
+                {getWeatherIcon(daily.weather_code?.[index], true)}
+              </span>
+            </div>
+            <div className="day-temps">
+              <span className="high">{Math.round(daily.temperature_2m_max?.[index] || 0)}{tempUnit}</span>
+              <span className="low">{Math.round(daily.temperature_2m_min?.[index] || 0)}{tempUnit}</span>
+            </div>
+            <div className="day-precip">
+              <span role="img" aria-label="Precipitation">💧</span>
+              <span>{daily.precipitation_probability_max?.[index] || 0}%</span>
+            </div>
+          </div>
+        );
+      })}
       
-      // If onUnitsChange prop is provided, call it
-      if (onUnitsChange) {
-        onUnitsChange(newUnit);
-      } else {
-        // If no callback provided, log a message
-        console.log('No onUnitsChange callback provided');
-      }
-    }
-  };
-
-  // Get current hour index
-  const currentHourIndex = getCurrentHourIndex();
-
-  // Function to get AQI level description
-  const getAqiLevel = (aqi) => {
-    if (!aqi) return 'Unknown';
-    if (aqi < 20) return 'Good';
-    if (aqi < 40) return 'Fair';
-    if (aqi < 60) return 'Moderate';
-    if (aqi < 80) return 'Poor';
-    if (aqi < 100) return 'Very Poor';
-    return 'Hazardous';
-  };
-
-  // Function to get pollen level description
-  const getPollenLevel = (value) => {
-    if (!value) return 'Unknown';
-    if (value < 1) return 'None';
-    if (value < 2) return 'Low';
-    if (value < 3) return 'Moderate';
-    if (value < 4) return 'High';
-    return 'Very High';
-  };
-
+      <div className="extended-forecast-link">
+        <a href={`https://www.weather.com/weather/tenday/l/${weatherData.coordinates?.lat},${weatherData.coordinates?.lng}`} target="_blank" rel="noopener noreferrer">
+          View Extended Forecast
+        </a>
+      </div>
+    </div>
+  );
+  
+  // Render hourly
+  const renderHourly = () => (
+    <div className="hourly-weather">
+      {hourly.time && hourly.time.slice(0, 24).map((time, index) => {
+        // Only show future hours and limit to 24 hours
+        const hour = new Date(time).getHours();
+        
+        return (
+          <div className="hourly-item" key={time}>
+            <div className="hour-time">{formatTime(hour)}</div>
+            <div className="hour-icon">
+              <span role="img" aria-label={`Weather: Unknown`}>
+                {getWeatherIcon(hourly.weather_code?.[index], hour >= 6 && hour < 20)}
+              </span>
+            </div>
+            <div className="hour-temp">{Math.round(hourly.temperature_2m?.[index] || 0)}{tempUnit}</div>
+            <div className="hour-precip">
+              <span role="img" aria-label="Precipitation">💧</span>
+              <span>{hourly.precipitation_probability?.[index] || 0}%</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+  
+  // Main render
   return (
     <div className="weather-widget">
       <div className="weather-header">
         <h3 className="weather-title">Weather in {city_name}</h3>
         <div className="unit-toggle">
           <button 
-            className={localUnits === 'imperial' ? 'active' : ''} 
-            onClick={() => handleUnitToggle('imperial')}
+            className={units === 'imperial' ? 'active' : ''}
+            onClick={() => {
+              // Update URL query parameter without page reload
+              const url = new URL(window.location.href);
+              url.searchParams.set('units', 'imperial');
+              window.history.replaceState({}, '', url.toString());
+              
+              // Reload the component with imperial units
+              window.location.reload();
+            }}
           >
             °F
           </button>
           <button 
-            className={localUnits === 'metric' ? 'active' : ''} 
-            onClick={() => handleUnitToggle('metric')}
+            className={units === 'metric' ? 'active' : ''}
+            onClick={() => {
+              // Update URL query parameter without page reload
+              const url = new URL(window.location.href);
+              url.searchParams.set('units', 'metric');
+              window.history.replaceState({}, '', url.toString());
+              
+              // Reload the component with metric units
+              window.location.reload();
+            }}
           >
             °C
           </button>
@@ -288,290 +329,32 @@ const WeatherWidget = ({ cityId, units = 'imperial', onUnitsChange, lat, lng }) 
       
       <div className="weather-tabs">
         <button 
-          className={activeTab === 'current' ? 'active' : ''} 
+          className={activeTab === 'current' ? 'active' : ''}
           onClick={() => setActiveTab('current')}
         >
           Current
         </button>
         <button 
-          className={activeTab === 'daily' ? 'active' : ''} 
-          onClick={() => setActiveTab('daily')}
+          className={activeTab === 'forecast' ? 'active' : ''}
+          onClick={() => setActiveTab('forecast')}
         >
           Forecast
         </button>
         <button 
-          className={activeTab === 'hourly' ? 'active' : ''} 
+          className={activeTab === 'hourly' ? 'active' : ''}
           onClick={() => setActiveTab('hourly')}
         >
           Hourly
         </button>
-        {/* Removed Radar and Test tabs */}
-        {alerts && alerts.length > 0 && (
-          <button 
-            className={activeTab === 'alerts' ? 'active' : ''} 
-            onClick={() => setActiveTab('alerts')}
-          >
-            Alerts
-          </button>
-        )}
       </div>
       
-      {activeTab === 'current' && current && (
-        <div className="current-weather">
-          <div className="weather-now">
-            <div className="weather-icon">
-              {getWeatherIcon(current.weather_code)}
-            </div>
-            <div className="weather-info">
-              <div className="temp">{!isNaN(current.temperature) ? Math.round(current.temperature) : '--'}°{localUnits === 'metric' ? 'C' : 'F'}</div>
-              <div className="description">
-                {current.weather_description || 'Current conditions'}
-              </div>
-              <div className="feels-like">
-                Feels like {!isNaN(current.apparent_temperature) ? Math.round(current.apparent_temperature) : '--'}°{localUnits === 'metric' ? 'C' : 'F'}
-              </div>
-            </div>
-          </div>
-          
-          {/* Display sunrise/sunset times */}
-          {daily && daily.sunrise && daily.sunset && daily.sunrise.length > 0 && daily.sunset.length > 0 && (
-            <div className="sun-times">
-              <div className="sun-time">
-                <div className="sun-icon">🌅</div>
-                <div className="sun-info">
-                  <div className="sun-label">Sunrise</div>
-                  <div className="sun-value">{formatTime(daily.sunrise[0])}</div>
-                </div>
-              </div>
-              <div className="sun-time">
-                <div className="sun-icon">🌇</div>
-                <div className="sun-info">
-                  <div className="sun-label">Sunset</div>
-                  <div className="sun-value">{formatTime(daily.sunset[0])}</div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <div className="weather-details">
-            <div className="detail-row">
-              <div className="detail-item">
-                <div className="detail-label">Humidity</div>
-                <div className="detail-value">{!isNaN(current.relative_humidity) ? current.relative_humidity : '--'}%</div>
-              </div>
-              <div className="detail-item">
-                <div className="detail-label">Wind</div>
-                <div className="detail-value">
-                  {!isNaN(current.wind_speed_10m) ? Math.round(current.wind_speed_10m) : '--'} {localUnits === 'metric' ? 'km/h' : 'mph'}
-                </div>
-              </div>
-            </div>
-            <div className="detail-row">
-              <div className="detail-item">
-                <div className="detail-label">Precipitation</div>
-                <div className="detail-value">
-                  {!isNaN(current.precipitation) ? current.precipitation : '--'} {localUnits === 'metric' ? 'mm' : 'in'}
-                </div>
-              </div>
-              <div className="detail-item">
-                <div className="detail-label">Pressure</div>
-                <div className="detail-value">
-                  {!isNaN(current.pressure_msl) ? current.pressure_msl : '--'} hPa
-                </div>
-              </div>
-            </div>
-            
-            {/* Add Air Quality Index to regular metrics */}
-            {air_quality && air_quality.european_aqi && (
-              <div className="detail-row">
-                <div className="detail-item">
-                  <div className="detail-label">Air Quality Index (AQI)</div>
-                  <div className="detail-value">
-                    {!isNaN(air_quality.european_aqi) ? air_quality.european_aqi : '--'} - {getAqiLevel(air_quality.european_aqi)}
-                  </div>
-                </div>
-                <div className="detail-item">
-                  {/* Intentionally left empty for layout balance */}
-                </div>
-              </div>
-            )}
-            
-            {/* Pollen Information - simplified and prominent display */}
-            {pollen && Object.keys(pollen).length > 0 && (
-              <div className="pollen-section">
-                <h4 className="section-title">Pollen Levels</h4>
-                <div className="pollen-current-levels">
-                  {Object.entries(pollen).map(([type, values], index) => (
-                    values[0] != null && !isNaN(values[0]) && (
-                      <div key={index} className="pollen-item">
-                        <div className="pollen-type-label">
-                          {type.replace('_pollen', '').charAt(0).toUpperCase() + type.replace('_pollen', '').slice(1)}
-                        </div>
-                        <div className={`pollen-level-indicator level-${getPollenLevel(values[0]).toLowerCase().replace(' ', '-')}`}>
-                          {getPollenLevel(values[0])}
-                        </div>
-                      </div>
-                    )
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      
-      {activeTab === 'daily' && daily && daily.time && (
-        <div className="forecast-container">
-          {/* Determine the current day's index */}
-          {(() => {
-            // Get today's date
-            const today = new Date();
-            today.setHours(0, 0, 0, 0); // Reset time part for proper comparison
-            
-            // Find index of current day in the forecast data
-            let currentDayIndex = 0;
-            for (let i = 0; i < daily.time.length; i++) {
-              const forecastDate = new Date(daily.time[i]);
-              forecastDate.setHours(0, 0, 0, 0);
-              
-              if (forecastDate.getTime() === today.getTime()) {
-                currentDayIndex = i;
-                break;
-              }
-            }
-            
-            // Get full 12 day forecast if available (today plus next 11)
-            const totalDays = Math.min(12, daily.time.length - currentDayIndex);
-            const daysToShow = daily.time.slice(currentDayIndex, currentDayIndex + totalDays);
-            
-            return (
-              <>
-                {/* First row: days 1-6 */}
-                <div className="forecast-weather">
-                  {daysToShow.slice(0, 6).map((day, index) => (
-                    <div className="forecast-day" key={`first-row-${index}`}>
-                      <div className="day-name">{formatDate(day)}</div>
-                      <div className="day-icon">{getWeatherIcon(daily.weather_code[currentDayIndex + index])}</div>
-                      <div className="day-temps">
-                        <span className="high">{!isNaN(daily.temperature_2m_max[currentDayIndex + index]) ? 
-                          Math.round(daily.temperature_2m_max[currentDayIndex + index]) : '--'}°</span>
-                        <span className="low">{!isNaN(daily.temperature_2m_min[currentDayIndex + index]) ? 
-                          Math.round(daily.temperature_2m_min[currentDayIndex + index]) : '--'}°</span>
-                      </div>
-                      <div className="day-precip">
-                        💧 {!isNaN(daily.precipitation_probability_max[currentDayIndex + index]) ? 
-                          daily.precipitation_probability_max[currentDayIndex + index] : '--'}%
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Second row: days 7-12 if available */}
-                {daysToShow.length > 7 && (
-                  <div className="forecast-weather second-row">
-                    {daysToShow.slice(7).map((day, index) => (
-                      <div className="forecast-day" key={`second-row-${index}`}>
-                        <div className="day-name">{formatDate(day)}</div>
-                        <div className="day-icon">{getWeatherIcon(daily.weather_code[currentDayIndex + 7 + index])}</div>
-                        <div className="day-temps">
-                          <span className="high">{!isNaN(daily.temperature_2m_max[currentDayIndex + 7 + index]) ? 
-                            Math.round(daily.temperature_2m_max[currentDayIndex + 7 + index]) : '--'}°</span>
-                          <span className="low">{!isNaN(daily.temperature_2m_min[currentDayIndex + 7 + index]) ? 
-                            Math.round(daily.temperature_2m_min[currentDayIndex + 7 + index]) : '--'}°</span>
-                        </div>
-                        <div className="day-precip">
-                          💧 {!isNaN(daily.precipitation_probability_max[currentDayIndex + 7 + index]) ? 
-                            daily.precipitation_probability_max[currentDayIndex + 7 + index] : '--'}%
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            );
-          })()}
-        </div>
-      )}
-      
-      {activeTab === 'hourly' && hourly && hourly.time && (
-        <div className="hourly-weather">
-          {/* Show current hour (Now) plus next 23 hours (total 24 hours) */}
-          {hourly.time.slice(currentHourIndex, currentHourIndex + 24).map((time, index) => (
-            <div className="hourly-item" key={index}>
-              <div className="hour-time">{formatTime(time, index === 0)}</div>
-              <div className="hour-icon">{getWeatherIcon(hourly.weather_code[currentHourIndex + index])}</div>
-              <div className="hour-temp">{!isNaN(hourly.temperature_2m[currentHourIndex + index]) ? 
-                Math.round(hourly.temperature_2m[currentHourIndex + index]) : '--'}°</div>
-              <div className="hour-precip">
-                💧 {!isNaN(hourly.precipitation_probability[currentHourIndex + index]) ? 
-                  hourly.precipitation_probability[currentHourIndex + index] : '--'}%
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      
-      {/* Removed radar and test tab content sections */}
-      
-      {activeTab === 'alerts' && alerts && (
-        <div className="alerts-container">
-          {alerts.length > 0 ? (
-            alerts.map((alert, index) => (
-              <div key={index} className={`alert-item alert-${alert.severity}`}>
-                <div className="alert-icon">
-                  {alert.severity === 'severe' ? '⚠️' : '⚠'}
-                </div>
-                <div className="alert-content">
-                  <div className="alert-title">{alert.title}</div>
-                  <div className="alert-description">{alert.description}</div>
-                  <div className="alert-date">{formatDate(alert.date)}</div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="no-alerts">
-              <p>No weather alerts at this time.</p>
-            </div>
-          )}
-        </div>
-      )}
-      
-      {activeTab === 'pollen' && pollen && (
-        <div className="pollen-container">
-          {/* Keeping this for backward compatibility but users will no longer see this tab */}
-          {Object.keys(pollen).length > 0 ? (
-            <div className="pollen-forecast">
-              <div className="pollen-header">
-                <div className="pollen-title">Pollen Forecast</div>
-                <div className="pollen-subtitle">Next 5 days</div>
-              </div>
-              <div className="pollen-types">
-                {Object.entries(pollen).map(([type, values]) => (
-                  <div key={type} className="pollen-type">
-                    <div className="pollen-type-name">{type.replace('_pollen', '').charAt(0).toUpperCase() + type.replace('_pollen', '').slice(1)}</div>
-                    <div className="pollen-levels">
-                      {values.slice(0, 5).map((value, index) => (
-                        <div key={index} className={`pollen-level level-${getPollenLevel(value).toLowerCase().replace(' ', '-')}`}>
-                          <div className="pollen-day">{formatDate(daily.time[index])}</div>
-                          <div className="pollen-value">{getPollenLevel(value)}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="no-pollen-data">
-              <p>Pollen data is not available for this location.</p>
-            </div>
-          )}
-        </div>
-      )}
+      {activeTab === 'current' && renderCurrentWeather()}
+      {activeTab === 'forecast' && renderForecast()}
+      {activeTab === 'hourly' && renderHourly()}
       
       <div className="weather-footer">
         <div className="attribution">
-          Data provided by <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>
+          Powered by <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo.com</a>
         </div>
       </div>
     </div>
