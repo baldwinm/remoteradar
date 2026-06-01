@@ -12,7 +12,7 @@ AIRBNB_API_KEY = os.getenv('AIRBNB_API_KEY', 'YOUR_AIRBNB_API_KEY_HERE')
 UNSPLASH_API_KEY = os.getenv('UNSPLASH_API_KEY', 'YOUR_UNSPLASH_API_KEY_HERE')
 
 # API URLs
-AIRBNB_API_URL = "https://airbnb19.p.rapidapi.com/api/v1/searchPropertyByLocationV2"
+AIRBNB_API_URL = "https://airbnb19.p.rapidapi.com/api/v2/searchPropertyByLocation"
 OPENCAGE_BASE_URL = "https://api.opencagedata.com/geocode/v1/json"
 UNSPLASH_API_URL = "https://api.unsplash.com/search/photos"
 

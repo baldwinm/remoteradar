@@ -102,7 +102,7 @@ def register_accommodation_routes(app, limiter):
             
             # Get accommodation data
             api_key = os.getenv('AIRBNB_API_KEY', '')
-            api_url = "https://airbnb19.p.rapidapi.com/api/v1/searchPropertyByLocationV2"
+            api_url = "https://airbnb19.p.rapidapi.com/api/v2/searchPropertyByLocation"
             
             accommodation_data = fetch_accommodations(
                 city_data=city,
