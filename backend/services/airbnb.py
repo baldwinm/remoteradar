@@ -54,7 +54,6 @@ def fetch_accommodations(
         cache_key = f"{city_data['id']}_{occupants}"
         if cache_key in _cache:
             cached_data = _cache[cache_key]
-            # Check if cache is still valid
             if time.time() - cached_data.get('timestamp', 0) < cache_ttl:
                 logger.info(f"Using cached accommodation data for {cache_key}")
                 return cached_data
@@ -68,7 +67,7 @@ def fetch_accommodations(
         try:
             occupants_int = int(occupants)
         except (ValueError, TypeError):
-            occupants_int = 1  # Default to 1 if conversion fails
+            occupants_int = 1
 
         # Format location based on country
         city_name = city_data['name']
@@ -109,6 +108,9 @@ def fetch_accommodations(
             raise Exception(f"Airbnb API error: Status {response.status_code}")
 
         data = response.json()
+
+        # Log raw response for debugging
+        logger.info(f"Raw Airbnb API response: {data}")
 
         # Check if we got valid data in the expected format
         if not data or "status" not in data or not data["status"] or "data" not in data or "list" not in data["data"]:
