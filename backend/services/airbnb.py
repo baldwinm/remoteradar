@@ -110,7 +110,7 @@ def fetch_accommodations(
         data = response.json()
 
         # Log raw response for debugging
-        logger.info(f"Raw Airbnb API response: {data}")
+        logger.error(f"Raw Airbnb API response: {data}")
 
         # Check if we got valid data in the expected format
         if not data or "status" not in data or not data["status"] or "data" not in data or "list" not in data["data"]:
