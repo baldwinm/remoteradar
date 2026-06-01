@@ -92,9 +92,9 @@ checkin_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
 checkout_date = (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d")
 
 params = {
-    "query": location_query,      # was "location"
-    "checkin": checkin_date,       # required - was missing
-    "checkout": checkout_date,     # required - was missing
+    "query": location_query,
+    "checkin": checkin_date,
+    "checkout": checkout_date,
     "currency": "USD",
     "adults": occupants_int
 }
