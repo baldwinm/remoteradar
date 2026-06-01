@@ -86,15 +86,18 @@ def fetch_accommodations(
             "x-rapidapi-host": "airbnb19.p.rapidapi.com"
         }
         
-        # Set up parameters for the API request
-        params = {
-            "location": location_query,
-            "totalRecords": 10,  # Number of properties to return
-            "currency": "USD",
-            "adults": occupants_int
-        }
-        
-        logger.info(f"Making Airbnb API request for {location_query}")
+# Set up parameters for the API request
+from datetime import datetime, timedelta
+checkin_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
+checkout_date = (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d")
+
+params = {
+    "query": location_query,      # was "location"
+    "checkin": checkin_date,       # required - was missing
+    "checkout": checkout_date,     # required - was missing
+    "currency": "USD",
+    "adults": occupants_int
+}
         
         # Make the API request
         response = requests.get(api_url, headers=headers, params=params, timeout=20)
