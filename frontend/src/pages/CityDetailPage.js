@@ -56,7 +56,10 @@ function CityDetailPage() {
 
   // Get the units parameter from URL query string (default to metric)
   const urlParams = new URLSearchParams(window.location.search);
-  const [units, setUnits] = useState(urlParams.get('units') || 'imperial');
+  const imperialCountries = ['us', 'lr', 'mm'];
+  const cityCountryCode = cityId?.split('_').pop() || '';
+  const defaultUnits = imperialCountries.includes(cityCountryCode) ? 'imperial' : 'metric';
+  const [units, setUnits] = useState(urlParams.get('units') || defaultUnits);
   
   // Function to handle units change
   const handleUnitsChange = (newUnits) => {
