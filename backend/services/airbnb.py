@@ -1,4 +1,4 @@
-# services/accommodation.py
+# services/airbnb.py
 import re
 import time
 import requests
@@ -24,7 +24,6 @@ def _get_headers(api_key: str) -> Dict:
 
 def _get_dest_id(city_name: str, country: str, state: str, api_key: str) -> Optional[str]:
     """Look up Booking.com dest_id for a city using autocomplete."""
-    # Build search term
     if state and country in ["United States of America", "United States"]:
         search_term = f"{city_name}, {state}"
     elif country:
@@ -48,14 +47,12 @@ def _get_dest_id(city_name: str, country: str, state: str, api_key: str) -> Opti
             logger.warning(f"No autocomplete results for: {search_term}")
             return None
 
-        # Prefer city type result
         for result in results:
             if result.get("dest_type") == "city":
                 dest_id = result.get("dest_id")
                 logger.info(f"Found dest_id {dest_id} for {search_term}")
                 return str(dest_id)
 
-        # Fall back to first result
         dest_id = results[0].get("dest_id")
         logger.info(f"Using first result dest_id {dest_id} for {search_term}")
         return str(dest_id)
@@ -68,7 +65,7 @@ def _get_dest_id(city_name: str, country: str, state: str, api_key: str) -> Opti
 def fetch_accommodations(
     city_data: Dict[str, Any],
     api_key: str,
-    api_url: str,  # kept for interface compatibility, not used
+    api_url: str,
     occupants: int = 1,
     cache_ttl: int = 7200
 ) -> Dict[str, Any]:
@@ -83,7 +80,6 @@ def fetch_accommodations(
     logger.info(f"Fetching accommodation data for {city_name}, occupants: {occupants}")
 
     try:
-        # Check cache
         cache_key = f"{city_id}_{occupants}"
         if cache_key in _cache:
             cached = _cache[cache_key]
@@ -99,14 +95,12 @@ def fetch_accommodations(
         except (ValueError, TypeError):
             occupants_int = 1
 
-        # Step 1: get dest_id
         dest_id = _get_dest_id(city_name, country, state, api_key)
         if not dest_id:
             raise Exception(f"Could not find destination ID for {city_name}")
 
-        # Step 2: fetch properties
         checkin = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
-        checkout = (datetime.now() + timedelta(days=8)).strftime("%Y-%m-%d")  # 1 night for per-night price
+        checkout = (datetime.now() + timedelta(days=8)).strftime("%Y-%m-%d")
 
         params = {
             "dest_ids": dest_id,
@@ -135,7 +129,6 @@ def fetch_accommodations(
         data = response.json()
         raw_results = data.get("result", [])
 
-        # Filter to property cards only (skip banners etc)
         property_cards = [r for r in raw_results if r.get("type") == "property_card"]
         logger.info(f"Found {len(property_cards)} properties for {city_name}")
 
@@ -144,6 +137,9 @@ def fetch_accommodations(
             price_breakdown = prop.get("composite_price_breakdown", {})
             per_night = price_breakdown.get("gross_amount_per_night", {})
             price_per_night = per_night.get("value", 0)
+
+            raw_url = prop.get("main_photo_url", "")
+            image_url = raw_url.replace("square60", "max1280x900")
 
             accommodations.append({
                 "id": str(prop.get("hotel_id", "")),
@@ -156,8 +152,8 @@ def fetch_accommodations(
                 "price_per_night": round(price_per_night, 2),
                 "price_total": prop.get("min_total_price", 0),
                 "currency": prop.get("currency_code", "USD"),
-                "image_url": prop.get("main_photo_url", "").replace("square60", "max1280x900"),
-                "images": [prop.get("main_photo_url", "").replace("square60", "max1280x900")] if prop.get("main_photo_url") else [],
+                "image_url": image_url,
+                "images": [image_url] if image_url else [],
                 "lat": prop.get("latitude"),
                 "lng": prop.get("longitude"),
                 "distance_to_center": prop.get("distance_to_cc_formatted", ""),

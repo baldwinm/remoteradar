@@ -5,21 +5,17 @@ import './AccommodationWidget.css';
 function AccommodationWidget({ accommodationData }) {
   const [currentImageIndex, setCurrentImageIndex] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortOrder, setSortOrder] = useState('price_asc'); // Default sort: price ascending
+  const [sortOrder, setSortOrder] = useState('price_asc');
   const PROPERTIES_PER_PAGE = 3;
-  
-  // Sort accommodations when data or sort order changes
+
   const sortedAccommodations = React.useMemo(() => {
     if (!accommodationData || !accommodationData.accommodations) {
       return [];
     }
-    
+
     const { accommodations } = accommodationData;
-    
-    // Create a new array to avoid mutating the original data
     const sorted = [...accommodations];
-    
-    // Sort based on current sort order
+
     switch (sortOrder) {
       case 'price_asc':
         return sorted.sort((a, b) => a.price_per_night - b.price_per_night);
@@ -27,7 +23,6 @@ function AccommodationWidget({ accommodationData }) {
         return sorted.sort((a, b) => b.price_per_night - a.price_per_night);
       case 'rating_desc':
         return sorted.sort((a, b) => {
-          // Convert ratings to numbers for comparison
           const ratingA = typeof a.rating === 'string' ? parseFloat(a.rating) || 0 : a.rating || 0;
           const ratingB = typeof b.rating === 'string' ? parseFloat(b.rating) || 0 : b.rating || 0;
           return ratingB - ratingA;
@@ -36,12 +31,11 @@ function AccommodationWidget({ accommodationData }) {
         return sorted;
     }
   }, [accommodationData, sortOrder]);
-  
-  // Reset to page 1 when sorting changes
+
   useEffect(() => {
     setCurrentPage(1);
   }, [sortOrder]);
-  
+
   if (!accommodationData || !accommodationData.accommodations) {
     return (
       <div className="accommodation-container">
@@ -52,10 +46,9 @@ function AccommodationWidget({ accommodationData }) {
       </div>
     );
   }
-  
+
   const { average_price } = accommodationData;
-  
-  // Function to handle image navigation
+
   const handleNextImage = (propertyId) => {
     setCurrentImageIndex(prev => {
       const property = sortedAccommodations.find(p => p.id === propertyId);
@@ -64,7 +57,7 @@ function AccommodationWidget({ accommodationData }) {
       return { ...prev, [propertyId]: nextIndex };
     });
   };
-  
+
   const handlePrevImage = (propertyId) => {
     setCurrentImageIndex(prev => {
       const property = sortedAccommodations.find(p => p.id === propertyId);
@@ -74,31 +67,21 @@ function AccommodationWidget({ accommodationData }) {
       return { ...prev, [propertyId]: newIndex };
     });
   };
-  
-  // Pagination logic
+
   const totalPages = Math.ceil(sortedAccommodations.length / PROPERTIES_PER_PAGE);
   const paginatedProperties = sortedAccommodations.slice(
     (currentPage - 1) * PROPERTIES_PER_PAGE,
     currentPage * PROPERTIES_PER_PAGE
   );
-  
-  const goToNextPage = () => {
-    setCurrentPage(prev => Math.min(prev + 1, totalPages));
-  };
-  
-  const goToPrevPage = () => {
-    setCurrentPage(prev => Math.max(prev - 1, 1));
-  };
-  
-  // Handle sort order change
-  const handleSortChange = (e) => {
-    setSortOrder(e.target.value);
-  };
-  
+
+  const goToNextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  const goToPrevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
+  const handleSortChange = (e) => setSortOrder(e.target.value);
+
   return (
     <div className="accommodation-container">
       <h3 className="accommodation-title">Accommodation</h3>
-      
+
       <div className="price-display">
         <div className="price-label">Average Price</div>
         <div className="price-value">
@@ -106,13 +89,12 @@ function AccommodationWidget({ accommodationData }) {
           <span className="price-unit">/ night</span>
         </div>
       </div>
-      
-      {/* Sort controls */}
+
       <div className="sort-controls">
         <label htmlFor="sort-order">Sort by:</label>
-        <select 
-          id="sort-order" 
-          value={sortOrder} 
+        <select
+          id="sort-order"
+          value={sortOrder}
           onChange={handleSortChange}
           className="sort-select"
         >
@@ -121,30 +103,29 @@ function AccommodationWidget({ accommodationData }) {
           <option value="rating_desc">Highest Rated</option>
         </select>
       </div>
-      
+
       <div className="accommodation-list">
         <h4 className="list-header">Available Properties</h4>
-        
+
         <ul className="property-list">
           {paginatedProperties.map(property => (
             <li key={property.id} className="property-item">
-              {/* Property Image */}
               {property.images && property.images.length > 0 && (
                 <div className="property-image-container">
-                  <button 
-                    className="image-nav prev" 
+                  <button
+                    className="image-nav prev"
                     onClick={() => handlePrevImage(property.id)}
                     aria-label="Previous image"
                   >
                     ‹
                   </button>
-                  <img 
+                  <img
                     src={property.images[currentImageIndex[property.id] || 0]}
                     alt={property.title}
                     className="property-image"
                   />
-                  <button 
-                    className="image-nav next" 
+                  <button
+                    className="image-nav next"
                     onClick={() => handleNextImage(property.id)}
                     aria-label="Next image"
                   >
@@ -155,14 +136,13 @@ function AccommodationWidget({ accommodationData }) {
                   </div>
                 </div>
               )}
-              
-              {/* Property Details */}
+
               <div className="property-details">
                 <h5 className="property-title">{property.title}</h5>
                 {property.property_type && (
                   <div className="property-type">{property.property_type}</div>
                 )}
-                
+
                 {property.rating && (
                   <div className="property-rating">
                     <span className="rating-stars">
@@ -173,20 +153,37 @@ function AccommodationWidget({ accommodationData }) {
                     <span className="rating-text">{property.rating}</span>
                   </div>
                 )}
-                
+
+                {property.rating_word && (
+                  <div className="property-rating-word">{property.rating_word}</div>
+                )}
+
+                {property.distance_to_center && (
+                  <div className="property-distance">{property.distance_to_center}</div>
+                )}
+
                 <div className="property-price">
                   ${property.price_per_night.toFixed(2)}/night
                 </div>
-                
+
+                <div className="property-badges">
+                  {property.is_free_cancellable && (
+                    <span className="badge free-cancel">Free cancellation</span>
+                  )}
+                  {property.has_pool && (
+                    <span className="badge pool">Pool</span>
+                  )}
+                </div>
+
                 {property.web_url && (
                   <div className="property-link-container">
-                    <a 
-                      href={property.web_url} 
-                      target="_blank" 
+                    <a
+                      href={property.web_url}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="property-link"
                     >
-                      View on Airbnb
+                      View on Booking.com
                     </a>
                   </div>
                 )}
@@ -194,13 +191,12 @@ function AccommodationWidget({ accommodationData }) {
             </li>
           ))}
         </ul>
-        
-        {/* Pagination controls */}
+
         {totalPages > 1 && (
           <div className="pagination-controls">
-            <button 
-              className="pagination-button prev" 
-              onClick={goToPrevPage} 
+            <button
+              className="pagination-button prev"
+              onClick={goToPrevPage}
               disabled={currentPage === 1}
               aria-label="Previous page"
             >
@@ -209,9 +205,9 @@ function AccommodationWidget({ accommodationData }) {
             <span className="pagination-info">
               Page {currentPage} of {totalPages}
             </span>
-            <button 
-              className="pagination-button next" 
-              onClick={goToNextPage} 
+            <button
+              className="pagination-button next"
+              onClick={goToNextPage}
               disabled={currentPage === totalPages}
               aria-label="Next page"
             >
