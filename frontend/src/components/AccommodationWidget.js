@@ -146,7 +146,7 @@ function AccommodationWidget({ accommodationData }) {
                 {property.rating && (
                   <div className="property-rating">
                     <span className="rating-stars">
-                      {Array.from({ length: Math.floor(parseFloat(property.rating)) }, (_, i) => (
+                      {Array.from({ length: Math.floor(parseFloat(property.rating) / 2) }, (_, i) => (
                         <span key={i} className="star">★</span>
                       ))}
                     </span>
