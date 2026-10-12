@@ -1,9 +1,7 @@
-/* src/components/PlacesList.css */
 .places-container {
   background-color: white;
   border-radius: 10px;
   padding: 1.5rem;
-  margin-bottom: 2rem;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
@@ -35,9 +33,9 @@
 }
 
 .filter-tab.active {
-  background-color: #3498db;
+  background-color: var(--primary-color);
   color: white;
-  border-color: #3498db;
+  border-color: var(--primary-color);
 }
 
 .filter-tab:hover:not(.active) {
@@ -120,7 +118,7 @@
 .place-icon {
   font-size: 1.8rem;
   margin-right: 1rem;
-  color: #3498db;
+  color: var(--primary-color);
 }
 
 .place-details {
@@ -142,14 +140,14 @@
 
 /* Place link styles */
 .place-link {
-  color: #3498db;
+  color: var(--primary-color);
   text-decoration: none;
   transition: all 0.2s;
 }
 
 .place-link:hover {
   text-decoration: underline;
-  color: #2980b9;
+  color: var(--primary-color-dark);
 }
 
 .place-links {
@@ -187,11 +185,11 @@
 }
 
 .website-link {
-  background-color: #3498db;
+  background-color: var(--primary-color);
 }
 
 .website-link:hover {
-  background-color: #2980b9;
+  background-color: var(--primary-color-dark);
 }
 
 .maps-link {
@@ -243,78 +241,17 @@
   color: #7f8c8d;
 }
 
-.section-loading, .section-error {
-  padding: 2rem;
-  text-align: center;
-}
-
-.section-error {
-  color: #e74c3c;
-}
-
-/* Pagination */
-.pagination-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid #eee;
-}
-
-.pagination-button {
-  background-color: #f8f9fa;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.pagination-button:hover:not(:disabled) {
-  background-color: #e9ecef;
-}
-
-.pagination-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.pagination-numbers {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.pagination-number {
-  width: 35px;
-  height: 35px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #f8f9fa;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.pagination-number.active {
-  background-color: #3498db;
-  color: white;
-  border-color: #3498db;
-}
-
 /* Responsive adjustments */
 @media (min-width: 768px) {
   .price-filter-container {
     flex-direction: row;
     align-items: center;
   }
-  
+
   .price-filter-label {
     margin-right: 1rem;
   }
-  
+
   .external-links {
     flex-direction: row;
   }
@@ -324,31 +261,35 @@
   .filter-tabs {
     flex-wrap: wrap;
   }
-  
+
   .filter-tab {
     flex: 1;
     min-width: 80px;
     text-align: center;
   }
-  
+
   .place-icon {
     font-size: 1.5rem;
   }
-  
+
   .external-links {
     flex-direction: column;
     gap: 0.5rem;
   }
-  
-  .pagination-controls {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  
-  .pagination-numbers {
-    order: 3;
-    width: 100%;
-    justify-content: center;
-    margin-top: 0.5rem;
-  }
+
+}
+.places-note {
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 4px;
+  background-color: #fff8e1;
+  color: #8a6d00;
+  font-size: 0.9rem;
+}
+
+.places-attribution {
+  margin-top: 1rem;
+  text-align: right;
+  font-size: 0.75rem;
+  color: #95a5a6;
 }

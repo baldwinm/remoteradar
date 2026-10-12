@@ -1,0 +1,30 @@
+# Render Blueprint: the site and API as one web service, plus a small Key Value (Redis)
+# instance so caches and rate limits are shared across workers and survive restarts.
+# Add API keys in the Render dashboard after the first sync (they are marked sync: false).
+services:
+  - type: web
+    name: remote-radar
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: OPENCAGE_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: RAPIDAPI_KEY
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: remote-radar-cache
+          property: connectionString
+
+  - type: keyvalue
+    name: remote-radar-cache
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    # Empty list: reachable only from other services in this Render account.
+    ipAllowList: []

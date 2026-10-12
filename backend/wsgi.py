@@ -1,5 +1,9 @@
-# wsgi.py
-from app import app
+"""Entry point kept for the existing `gunicorn wsgi:app` start command.
 
-# Explicitly expose the app attribute for Gunicorn
-app = app
+Despite the file name the app is ASGI; gunicorn.conf.py (loaded automatically from this
+directory) switches gunicorn to Uvicorn workers so the old command keeps working.
+"""
+
+from app.main import app
+
+__all__ = ["app"]
