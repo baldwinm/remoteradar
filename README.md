@@ -19,8 +19,8 @@ browser ──► FastAPI (backend/) ──► OpenCage, Google Places (New), Op
 - **Redis** (optional) shares the cache and rate-limit counters across workers and restarts. Without
   `REDIS_URL` the app falls back to an in-memory cache per worker.
 
-The frontend and backend are separate codebases with their own tooling, but they build into a single
-Docker image and deploy as one service.
+The frontend and backend are separate codebases with their own tooling, but they deploy together as
+one service.
 
 ## API
 
@@ -91,13 +91,24 @@ CI runs all of these plus a Docker build and smoke test on every push and pull r
 
 ## Deploying
 
-The site runs as one Docker web service. The `Dockerfile` builds the frontend, installs the API, and
-starts gunicorn, which serves both from the same origin. Any host that runs a Dockerfile works.
+The site runs as one web service: the API serves the built frontend from the same origin.
 
-On Render, `render.yaml` is a Blueprint for this setup: a Docker web service (`remote-radar`) plus a free
-Key Value (Redis) instance for the shared cache. Create it with **New > Blueprint**, enter the three API
-keys when prompted, then attach the custom domains (`remoteradar.net`, `www.remoteradar.net`) to the
-web service. Pushes to `main` redeploy it automatically.
+**Render (the live setup).** A native Python web service with **Root Directory** left blank:
+
+- Build command: `cd frontend && npm ci --include=dev && npm run build && cd ../backend && pip install -r requirements.txt`
+- Start command: `cd backend && gunicorn wsgi:app` (the worker class and port come from
+  `backend/gunicorn.conf.py`)
+- Health check path: `/api/health`
+- Environment: the three API keys above. Render picks up the Python and Node versions from
+  `.python-version` and `.node-version`.
+
+The custom domains `remoteradar.net` and `www.remoteradar.net` point at this service, and pushes to
+`main` redeploy it. `render.yaml` is a Blueprint with the same settings, for recreating the service. To
+share the cache and rate limits across workers and restarts, add a Render Key Value instance and set
+`REDIS_URL` to its internal connection URL.
+
+**Docker.** The `Dockerfile` builds the same single service for any host that runs containers. CI builds
+and smoke-tests it on every push.
 
 On Render's free plan the service sleeps after 15 minutes without traffic, so the first visit after a
 quiet spell waits for it to start. A paid instance type stays awake.
