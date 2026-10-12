@@ -1,8 +1,9 @@
-"""Coffee shops, coworking spaces and restaurants from Google Places API (New).
+"""Coffee shops, coworking spaces, restaurants, gyms, parks and laundromats from Google Places API (New).
 
-The three categories are requested at the same time, and each request already asks
-for website, phone and Maps link through the field mask, so no follow-up Place
-Details calls are needed (the old backend made up to 15 of those per city).
+The three core categories are requested together when a city page opens. Gyms, parks and
+laundromats are only requested when someone asks for them, so they cost nothing for most
+visits. Each request already asks for website, phone, Maps link and opening hours through
+the field mask, so no follow-up Place Details calls are needed.
 """
 
 import asyncio
@@ -12,7 +13,7 @@ from typing import Any
 from ..context import AppContext
 from ..errors import ServiceNotConfiguredError, UpstreamError
 from ..http import request_json
-from ..models import City, Place, PlaceCounts, PlacesResponse, PlaceType
+from ..models import City, OpeningPeriod, Place, PlaceCounts, PlacesResponse, PlaceType
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,8 @@ FIELD_MASK = ",".join(
         "nationalPhoneNumber",
         "googleMapsUri",
         "businessStatus",
+        # Same billing tier as rating, website and phone above, so it adds no cost.
+        "regularOpeningHours.periods",
     )
 )
 
@@ -46,7 +49,13 @@ PRICE_LEVELS = {
     "PRICE_LEVEL_VERY_EXPENSIVE": 4,
 }
 
-CATEGORY_ORDER: tuple[PlaceType, ...] = ("coffee", "coworking", "restaurant")
+CORE_CATEGORIES: tuple[PlaceType, ...] = ("coffee", "coworking", "restaurant")
+# Fetched on demand, one category per request.
+EXTRA_CATEGORIES: dict[PlaceType, tuple[list[str], float]] = {
+    "gym": (["gym", "fitness_center"], 4000),
+    "park": (["park"], 5000),
+    "laundry": (["laundry"], 4000),
+}
 
 
 def _circle(city: City, radius_m: float) -> dict[str, Any]:
@@ -68,15 +77,17 @@ def _category_request(category: PlaceType, city: City) -> tuple[str, dict[str, A
             "pageSize": 20,
             "locationBias": _circle(city, 5000),
         }
+    included_types, radius = EXTRA_CATEGORIES.get(category, (["restaurant"], 3000))
     return SEARCH_NEARBY_URL, {
-        "includedTypes": ["restaurant"],
+        "includedTypes": included_types,
         "maxResultCount": 20,
         "rankPreference": "POPULARITY",
-        "locationRestriction": _circle(city, 3000),
+        "locationRestriction": _circle(city, radius),
     }
 
 
-async def get_places(ctx: AppContext, city: City) -> PlacesResponse:
+async def get_places(ctx: AppContext, city: City, category: PlaceType | None = None) -> PlacesResponse:
+    """The core categories together, or a single on-demand category such as gyms."""
     api_key = ctx.settings.google_api_key
     if not api_key:
         logger.error("GOOGLE_API_KEY is not set; places are unavailable")
@@ -84,7 +95,7 @@ async def get_places(ctx: AppContext, city: City) -> PlacesResponse:
 
     async def load() -> dict[str, Any]:
         results = await asyncio.gather(
-            *(_search_category(ctx, api_key, category, city) for category in CATEGORY_ORDER),
+            *(_search_category(ctx, api_key, c, city) for c in categories),
             return_exceptions=True,
         )
         failures = [r for r in results if isinstance(r, BaseException)]
@@ -106,15 +117,18 @@ async def get_places(ctx: AppContext, city: City) -> PlacesResponse:
                     places.append(place)
 
         places.sort(key=lambda p: (p.rating or 0, p.user_ratings_total), reverse=True)
-        counts = PlaceCounts(
-            coffee=sum(p.type == "coffee" for p in places),
-            coworking=sum(p.type == "coworking" for p in places),
-            restaurant=sum(p.type == "restaurant" for p in places),
-            total=len(places),
-        )
+        counts = PlaceCounts(total=len(places))
+        for place in places:
+            setattr(counts, place.type, getattr(counts, place.type) + 1)
         return PlacesResponse(places=places, counts=counts, partial=bool(failures)).model_dump()
 
-    data = await ctx.loader.get_or_load(f"places:{city.id}", PLACES_TTL, load)
+    if category in EXTRA_CATEGORIES:
+        categories: tuple[PlaceType, ...] = (category,)
+        key = f"places:{city.id}:{category}"
+    else:
+        categories = CORE_CATEGORIES
+        key = f"places:{city.id}"
+    data = await ctx.loader.get_or_load(key, PLACES_TTL, load)
     return PlacesResponse.model_validate(data)
 
 
@@ -154,7 +168,30 @@ def _parse_place(raw: dict[str, Any], category: PlaceType) -> Place | None:
         phone=raw.get("nationalPhoneNumber") or None,
         maps_url=safe_http_url(raw.get("googleMapsUri"))
         or f"https://www.google.com/maps/place/?q=place_id:{place_id}",
+        opening_hours=_parse_periods((raw.get("regularOpeningHours") or {}).get("periods")),
     )
+
+
+def _parse_periods(periods: Any) -> list[OpeningPeriod] | None:
+    if not isinstance(periods, list) or not periods:
+        return None
+    parsed = []
+    for period in periods:
+        opens = period.get("open") if isinstance(period, dict) else None
+        if not isinstance(opens, dict) or "day" not in opens:
+            continue
+        closes = period.get("close") if isinstance(period.get("close"), dict) else None
+        parsed.append(
+            OpeningPeriod(
+                open_day=int(opens["day"]),
+                open_minute=int(opens.get("hour", 0)) * 60 + int(opens.get("minute", 0)),
+                close_day=int(closes["day"]) if closes and "day" in closes else None,
+                close_minute=int(closes.get("hour", 0)) * 60 + int(closes.get("minute", 0))
+                if closes
+                else None,
+            )
+        )
+    return parsed or None
 
 
 def safe_http_url(value: Any) -> str | None:

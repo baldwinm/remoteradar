@@ -40,6 +40,8 @@ def opencage_result(
     lat=35.687,
     lng=-105.9378,
     kind="city",
+    timezone="America/Denver",
+    currency=None,
 ):
     return {
         "components": {
@@ -51,6 +53,10 @@ def opencage_result(
             "country_code": country_code,
         },
         "geometry": {"lat": lat, "lng": lng},
+        "annotations": {
+            "timezone": {"name": timezone},
+            "currency": currency or {"iso_code": "USD", "symbol": "$", "name": "United States Dollar"},
+        },
         "formatted": f"{name}, {state}, {country}",
     }
 

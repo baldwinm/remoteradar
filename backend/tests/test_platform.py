@@ -7,7 +7,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app.cache import CachedLoader, MemoryCache, RedisCache
+from app.cache import KEY_PREFIX, CachedLoader, MemoryCache, RedisCache
 from app.main import create_app
 from app.services.geocoding import OPENCAGE_URL
 from app.web import CONTENT_SECURITY_POLICY
@@ -126,7 +126,7 @@ def test_redis_cache_round_trip_and_counter_expiry():
         assert await cache.get("k") == {"cities": [1, 2]}
         assert await cache.incr("hits", 60) == 1
         assert await cache.incr("hits", 60) == 2
-        assert 0 < await cache._redis.ttl("rr:v2:hits") <= 60
+        assert 0 < await cache._redis.ttl(f"{KEY_PREFIX}hits") <= 60
 
     asyncio.run(scenario())
 
@@ -184,3 +184,38 @@ def test_loader_does_not_cache_failures():
         assert await loader.get_or_load("k", 60, flaky) == "ok"
 
     asyncio.run(scenario())
+
+
+def test_city_pages_get_their_own_meta_tags(tmp_path, mock_upstream):
+    (tmp_path / "index.html").write_text(
+        '<html><head><title>Remote Radar</title><meta name="description" content="generic" /></head>'
+        '<body><div id="root"></div></body></html>'
+    )
+    mock_upstream.get(OPENCAGE_URL).mock(
+        return_value=httpx.Response(200, json=opencage_response(opencage_result(name="Santa <Fe>")))
+    )
+    with TestClient(create_app(make_settings(frontend_dist=tmp_path))) as client:
+        page = client.get("/city/santa-fe--nm--us")
+        home = client.get("/")
+        sitemap = client.get("/sitemap.xml")
+
+    assert "<title>Santa &lt;Fe&gt;, New Mexico, United States of America: remote work guide" in page.text
+    assert 'content="generic"' not in page.text
+    assert '<link rel="canonical" href="https://remoteradar.net/city/santa-fe--nm--us" />' in page.text
+    assert 'property="og:title"' in page.text
+    assert "<h1>Santa &lt;Fe&gt;, New Mexico" in page.text
+    assert page.headers["content-security-policy"] == CONTENT_SECURITY_POLICY
+    assert "<title>Remote Radar</title>" in home.text
+    assert sitemap.headers["content-type"].startswith("application/xml")
+    assert "<loc>https://remoteradar.net/city/lisbon--pt</loc>" in sitemap.text
+
+
+def test_city_page_falls_back_to_generic_html_when_city_is_unknown(tmp_path, mock_upstream):
+    (tmp_path / "index.html").write_text(
+        '<html><head><title>Remote Radar</title></head><div id="root"></div>'
+    )
+    mock_upstream.get(OPENCAGE_URL).mock(return_value=httpx.Response(200, json=opencage_response()))
+    with TestClient(create_app(make_settings(frontend_dist=tmp_path))) as client:
+        page = client.get("/city/nowhere--xx")
+    assert page.status_code == 200
+    assert "<title>Remote Radar</title>" in page.text

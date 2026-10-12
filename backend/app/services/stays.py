@@ -1,11 +1,11 @@
 """Hotel prices from Booking.com, through the apidojo "Booking" API on RapidAPI."""
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from ..context import AppContext
-from ..errors import NotFoundError, ServiceNotConfiguredError
+from ..errors import AppError, NotFoundError, ServiceNotConfiguredError
 from ..http import request_json
 from ..models import City, Stay, StaysResponse
 from .places import safe_http_url
@@ -17,18 +17,40 @@ AUTOCOMPLETE_URL = f"https://{RAPIDAPI_HOST}/locations/auto-complete"
 PROPERTIES_URL = f"https://{RAPIDAPI_HOST}/properties/v2/list"
 DEST_ID_TTL = 30 * 24 * 3600
 STAYS_TTL = 2 * 3600
-# Prices are quoted for a one-night stay starting this many days from today.
+# Without a chosen date, prices are quoted for a stay starting this many days from today.
 CHECKIN_DAYS_AHEAD = 7
+# Booking.com takes reservations up to about a year out.
+MAX_DAYS_AHEAD = 360
+MAX_NIGHTS = 30
 
 
-async def get_stays(ctx: AppContext, city: City, occupants: int) -> StaysResponse:
+class InvalidDatesError(AppError):
+    status_code = 400
+    code = "invalid_request"
+    public_message = "Pick a check-in date between today and a year from now."
+
+
+def default_checkin() -> date:
+    return datetime.now(UTC).date() + timedelta(days=CHECKIN_DAYS_AHEAD)
+
+
+async def get_stays(
+    ctx: AppContext, city: City, occupants: int, checkin: date | None = None, nights: int = 1
+) -> StaysResponse:
     api_key = ctx.settings.rapidapi_key
     if not api_key:
         logger.error("RAPIDAPI_KEY (or AIRBNB_API_KEY) is not set; stays are unavailable")
         raise ServiceNotConfiguredError()
 
-    checkin = datetime.now(UTC).date() + timedelta(days=CHECKIN_DAYS_AHEAD)
-    checkout = checkin + timedelta(days=1)
+    # "Today" in UTC can be yesterday somewhere, so allow one day of slack.
+    today = datetime.now(UTC).date()
+    checkin = checkin or default_checkin()
+    if not today - timedelta(days=1) <= checkin <= today + timedelta(days=MAX_DAYS_AHEAD):
+        raise InvalidDatesError()
+    if checkin < today:
+        checkin = today
+    nights = max(1, min(nights, MAX_NIGHTS))
+    checkout = checkin + timedelta(days=nights)
 
     async def load() -> dict[str, Any]:
         dest_id = await _destination_id(ctx, api_key, city)
@@ -53,13 +75,14 @@ async def get_stays(ctx: AppContext, city: City, occupants: int) -> StaysRespons
         return StaysResponse(
             checkin=checkin.isoformat(),
             checkout=checkout.isoformat(),
+            nights=nights,
             occupants=occupants,
             average_price=round(sum(priced) / len(priced), 2) if priced else None,
             currency="USD",
             stays=stays,
         ).model_dump()
 
-    key = f"stays:{city.id}:{occupants}:{checkin.isoformat()}"
+    key = f"stays:{city.id}:{occupants}:{checkin.isoformat()}:{nights}"
     data = await ctx.loader.get_or_load(key, STAYS_TTL, load)
     return StaysResponse.model_validate(data)
 

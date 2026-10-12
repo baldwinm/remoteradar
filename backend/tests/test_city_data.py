@@ -84,7 +84,15 @@ def test_places_fetches_categories_and_maps_fields(client, mock_upstream):
     assert response.status_code == 200
     data = response.json()
     assert [p["id"] for p in data["places"]] == ["w1", "c1", "r1"]
-    assert data["counts"] == {"coffee": 1, "coworking": 1, "restaurant": 1, "total": 3}
+    assert data["counts"] == {
+        "coffee": 1,
+        "coworking": 1,
+        "restaurant": 1,
+        "gym": 0,
+        "park": 0,
+        "laundry": 0,
+        "total": 3,
+    }
     assert data["partial"] is False
     coffee = data["places"][1]
     assert coffee["website"] == "https://bean.example"
