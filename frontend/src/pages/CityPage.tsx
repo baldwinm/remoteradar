@@ -5,7 +5,6 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import { ApiError } from '../api/client';
 import { cityKeys, useCity, usePlaces, useStays, useWeather } from '../api/queries';
 import type { City, Units } from '../api/types';
-import { SUPPORT_URL } from '../config';
 import CityMap from '../components/CityMap';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Icon from '../components/Icon';
@@ -134,13 +133,6 @@ function CityView({ cityId }: { cityId: string }) {
           </ErrorBoundary>
         </div>
       </div>
-
-      <aside className="support-band">
-        <span>Remote Radar is free and ad-free. If it helped you pick a city, you can chip in.</span>
-        <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="button button-quiet">
-          Buy me a coffee
-        </a>
-      </aside>
     </div>
   );
 }
