@@ -5,3 +5,5 @@ const DEFAULT_MAPBOX_TOKEN =
   'pk.eyJ1IjoibWpiYWxkd2luIiwiYSI6ImNtOXB6bWRkNDE4NXUydnBxMXdkZm1lYTAifQ.70dqUOegckCY145fG-uokA';
 
 export const MAPBOX_TOKEN: string = import.meta.env.VITE_MAPBOX_TOKEN || DEFAULT_MAPBOX_TOKEN;
+
+export const SUPPORT_URL = 'https://www.buymeacoffee.com/remoteradar';

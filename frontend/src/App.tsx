@@ -1,9 +1,12 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Suspense, lazy, useState } from 'react';
-import { BrowserRouter, Link, Route, Routes } from 'react-router';
+import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router';
 
 import { createQueryClient } from './api/queries';
+import { SUPPORT_URL } from './config';
 import ErrorBoundary from './components/ErrorBoundary';
+import { Logo } from './components/Icon';
+import SearchBar from './components/SearchBar';
 import Spinner from './components/Spinner';
 import { usePageViews } from './lib/analytics';
 
@@ -24,6 +27,31 @@ function AppRoutes() {
   );
 }
 
+function Header() {
+  // The home page has its own large search box, so the header one only shows elsewhere.
+  const onHome = useLocation().pathname === '/';
+  return (
+    <header className="app-header">
+      <div className="header-content">
+        <Link to="/" className="logo">
+          <Logo />
+          Remote Radar
+        </Link>
+        {!onHome && (
+          <div className="header-search">
+            <SearchBar variant="compact" />
+          </div>
+        )}
+        <nav className="header-links" aria-label="Site">
+          <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">
+            Support the project
+          </a>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
 export default function App() {
   const [queryClient] = useState(createQueryClient);
 
@@ -31,13 +59,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <div className="app">
-          <header className="app-header">
-            <div className="header-content">
-              <Link to="/" className="logo">
-                Remote Radar
-              </Link>
-            </div>
-          </header>
+          <Header />
 
           <main className="app-content">
             <ErrorBoundary>
@@ -47,7 +69,8 @@ export default function App() {
 
           <footer className="app-footer">
             <div className="footer-content">
-              <p>Remote Radar - Find your perfect remote work destination</p>
+              <span>© {new Date().getFullYear()} Remote Radar</span>
+              <span>Data from Open-Meteo, Google Places, Booking.com and OpenCage</span>
             </div>
           </footer>
         </div>

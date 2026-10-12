@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 
 import { useStays } from '../api/queries';
 import type { Stay } from '../api/types';
-import { formatMoney } from '../lib/format';
+import { formatMoney, formatWholeMoney } from '../lib/format';
+import Icon from './Icon';
 import Pagination from './Pagination';
 import './StaysWidget.css';
 
@@ -33,25 +34,15 @@ export default function StaysWidget({ cityId, occupants, onOccupantsChange }: Pr
   const visible = sorted.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
 
   return (
-    <section className={`stays-container${isPlaceholderData ? ' is-updating' : ''}`} aria-busy={isPlaceholderData}>
-      <div className="stays-header">
-        <h3 className="stays-title">Accommodation</h3>
-        <label className="occupants-control">
-          Guests
-          <select
-            value={occupants}
-            onChange={(event) => {
-              onOccupantsChange(Number(event.target.value));
-              setPage(1);
-            }}
-          >
-            {[1, 2, 3, 4].map((count) => (
-              <option key={count} value={count}>
-                {count === 1 ? '1 person' : `${count} people`}
-              </option>
-            ))}
-          </select>
-        </label>
+    <section
+      className={`card stays${isPlaceholderData ? ' is-updating' : ''}`}
+      id="stays"
+      aria-labelledby="stays-title"
+      aria-busy={isPlaceholderData}
+    >
+      <div className="card-head">
+        <h2 id="stays-title">Where to stay</h2>
+        {data && <span className="card-meta">From {data.checkin}, via Booking.com</span>}
       </div>
 
       {isPending ? (
@@ -61,74 +52,112 @@ export default function StaysWidget({ cityId, occupants, onOccupantsChange }: Pr
         </div>
       ) : isError ? (
         <div className="widget-error">Hotel prices are unavailable right now. {error.message}</div>
-      ) : sorted.length === 0 ? (
-        <p className="stays-empty">No hotels found for this city.</p>
       ) : (
         <>
-          <div className="price-display">
-            <div className="price-label">Average price per night</div>
-            <div className="price-value">{formatMoney(data.average_price, data.currency)}</div>
-            <div className="price-note">One night from {data.checkin}, via Booking.com</div>
+          <div className="stays-price">
+            <span className="stays-price-value">{formatWholeMoney(data.average_price, data.currency)}</span>
+            <span className="stays-price-label">average per night</span>
           </div>
 
-          <div className="sort-controls">
-            <label htmlFor="stays-sort">Sort by:</label>
-            <select
-              id="stays-sort"
-              value={sortOrder}
-              onChange={(event) => {
-                setSortOrder(event.target.value as SortOrder);
-                setPage(1);
-              }}
-              className="sort-select"
-            >
-              <option value="price_asc">Price: Low to High</option>
-              <option value="price_desc">Price: High to Low</option>
-              <option value="rating_desc">Highest Rated</option>
-            </select>
+          <div className="stays-controls">
+            <label className="stays-control">
+              Guests
+              <select
+                className="select"
+                value={occupants}
+                onChange={(event) => {
+                  onOccupantsChange(Number(event.target.value));
+                  setPage(1);
+                }}
+              >
+                {[1, 2, 3, 4].map((count) => (
+                  <option key={count} value={count}>
+                    {count}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="stays-control">
+              Sort
+              <select
+                id="stays-sort"
+                className="select"
+                value={sortOrder}
+                onChange={(event) => {
+                  setSortOrder(event.target.value as SortOrder);
+                  setPage(1);
+                }}
+              >
+                <option value="price_asc">Lowest price</option>
+                <option value="price_desc">Highest price</option>
+                <option value="rating_desc">Highest rated</option>
+              </select>
+            </label>
           </div>
 
-          <ul className="property-list">
-            {visible.map((stay) => (
-              <li key={stay.id} className="property-item">
-                {stay.image_url && (
-                  <div className="property-image-container">
-                    <img src={stay.image_url} alt={stay.title} className="property-image" loading="lazy" />
-                  </div>
-                )}
-                <div className="property-details">
-                  <h4 className="property-title">{stay.title}</h4>
-                  <div className="property-type">
-                    {stay.property_type}
-                    {stay.stars ? ` · ${'★'.repeat(Math.round(stay.stars))}` : ''}
-                  </div>
-                  {stay.rating !== null && (
-                    <div className="property-rating">
-                      <span className="rating-score">{stay.rating.toFixed(1)}</span>
-                      {stay.rating_word && <span className="rating-word">{stay.rating_word}</span>}
-                      {stay.review_count > 0 && (
-                        <span className="rating-count">({stay.review_count.toLocaleString()} reviews)</span>
+          {sorted.length === 0 ? (
+            <p className="widget-empty">No hotels found for this city.</p>
+          ) : (
+            <>
+              <ul className="stays-list">
+                {visible.map((stay) => (
+                  <li key={stay.id} className="stay">
+                    <div className="stay-thumb">
+                      {stay.image_url ? (
+                        <img src={stay.image_url} alt="" loading="lazy" />
+                      ) : (
+                        <Icon name="bed" size={24} />
                       )}
                     </div>
-                  )}
-                  {stay.distance_to_center && <div className="property-distance">{stay.distance_to_center}</div>}
-                  <div className="property-price">
-                    {stay.price_per_night !== null
-                      ? `${formatMoney(stay.price_per_night, stay.currency)} / night`
-                      : 'Price unavailable'}
-                  </div>
-                  <div className="property-badges">
-                    {stay.is_free_cancellable && <span className="badge">Free cancellation</span>}
-                    {stay.has_pool && <span className="badge">Pool</span>}
-                  </div>
-                  <a href={stay.url} target="_blank" rel="noopener noreferrer" className="property-link">
-                    View on Booking.com
-                  </a>
-                </div>
-              </li>
-            ))}
-          </ul>
-          <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
+                    <div className="stay-details">
+                      <h3 className="stay-title">
+                        <a href={stay.url} target="_blank" rel="noopener noreferrer">
+                          {stay.title}
+                        </a>
+                      </h3>
+                      <p className="stay-meta">
+                        {[
+                          stay.property_type,
+                          stay.stars ? '★'.repeat(Math.round(stay.stars)) : '',
+                          stay.distance_to_center,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                      {(stay.is_free_cancellable || stay.has_pool) && (
+                        <div className="stay-badges">
+                          {stay.is_free_cancellable && <span className="pill pill-signal">Free cancellation</span>}
+                          {stay.has_pool && <span className="pill">Pool</span>}
+                        </div>
+                      )}
+                      <div className="stay-bottom">
+                        {stay.rating !== null ? (
+                          <span className="stay-score">
+                            <b>{stay.rating.toFixed(1)}</b>
+                            {[stay.rating_word, stay.review_count > 0 && `${stay.review_count.toLocaleString()} reviews`]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </span>
+                        ) : (
+                          <span />
+                        )}
+                        <span className="stay-price">
+                          {stay.price_per_night !== null ? (
+                            <>
+                              {formatMoney(stay.price_per_night, stay.currency)} <small>/ night</small>
+                            </>
+                          ) : (
+                            'Price unavailable'
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
+            </>
+          )}
         </>
       )}
     </section>

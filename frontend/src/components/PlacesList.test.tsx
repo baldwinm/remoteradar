@@ -35,11 +35,11 @@ describe('PlacesList', () => {
     const user = userEvent.setup();
     render(<PlacesList places={places} />);
 
-    expect(screen.getByText('Found 9 places')).toBeInTheDocument();
+    expect(screen.getByText('9 places')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Restaurants' }));
-    expect(screen.getByText('Found 2 places')).toBeInTheDocument();
+    expect(screen.getByText('2 places')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '$$$' }));
-    expect(screen.getByText('Found 1 places')).toBeInTheDocument();
+    expect(screen.getByText('1 place')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'restaurant 3' })).toBeInTheDocument();
   });
 
