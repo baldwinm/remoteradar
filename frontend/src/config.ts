@@ -8,4 +8,4 @@ export const MAPBOX_TOKEN: string = import.meta.env.VITE_MAPBOX_TOKEN || DEFAULT
 
 // Where visitors can reach the site owner about privacy questions. Shown in the footer and
 // on the privacy page. Must be set before the privacy page goes live.
-export const CONTACT_EMAIL = '';
+export const CONTACT_EMAIL = 'remoteradar4@gmail.com';
