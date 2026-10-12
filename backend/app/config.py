@@ -29,9 +29,10 @@ class Settings(BaseSettings):
     # Without it each worker process keeps its own in-memory copy.
     redis_url: str | None = None
 
-    # Comma-separated list of extra origins allowed to call the API from a browser.
+    # Comma-separated list of other origins allowed to call the API from a browser.
+    # The default covers the live site, whose static frontend calls this API cross-origin.
     # Not needed when the frontend is served from the same origin as the API.
-    cors_origins: str = ""
+    cors_origins: str = "https://remoteradar.net,https://www.remoteradar.net"
 
     # Where the built frontend lives. If the folder exists, the API also serves the site.
     frontend_dist: Path = BACKEND_DIR.parent / "frontend" / "build"

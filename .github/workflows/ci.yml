@@ -53,4 +53,8 @@ jobs:
           docker run -d --name app -p 8000:8000 remote-radar
           for i in $(seq 1 30); do curl -fs http://localhost:8000/api/health && break; sleep 1; done
           curl -fs http://localhost:8000/ | grep -q '<div id="root">'
+          # The image serves the API itself, so the bundle must not call another origin.
+          if docker exec app grep -rq onrender.com /app/frontend/build/assets; then
+            echo "The bundle calls a cross-origin API"; exit 1
+          fi
           docker logs app
