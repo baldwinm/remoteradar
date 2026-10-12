@@ -188,7 +188,8 @@ def test_loader_does_not_cache_failures():
 
 def test_city_pages_get_their_own_meta_tags(tmp_path, mock_upstream):
     (tmp_path / "index.html").write_text(
-        '<html><head><title>Remote Radar</title><meta name="description" content="generic" /></head>'
+        '<html><head><title>Remote Radar</title><meta name="description" content="generic" />'
+        '<meta property="og:title" content="generic" /></head>'
         '<body><div id="root"></div></body></html>'
     )
     mock_upstream.get(OPENCAGE_URL).mock(
@@ -202,7 +203,7 @@ def test_city_pages_get_their_own_meta_tags(tmp_path, mock_upstream):
     assert "<title>Santa &lt;Fe&gt;, New Mexico, United States of America: remote work guide" in page.text
     assert 'content="generic"' not in page.text
     assert '<link rel="canonical" href="https://remoteradar.net/city/santa-fe--nm--us" />' in page.text
-    assert 'property="og:title"' in page.text
+    assert page.text.count('property="og:title"') == 1
     assert "<h1>Santa &lt;Fe&gt;, New Mexico" in page.text
     assert page.headers["content-security-policy"] == CONTENT_SECURITY_POLICY
     assert "<title>Remote Radar</title>" in home.text

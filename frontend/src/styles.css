@@ -15,9 +15,16 @@
   --signal-soft: #e5edfd;
   --danger: #c0352b;
   --danger-soft: #fdf0ef;
+  --good: #1f7a4a;
+  --good-soft: #e3f3ea;
+  --warn: #9a6200;
+  --warn-soft: #fbf0d9;
   --pin-coffee: #8a5a2b;
   --pin-coworking: #2563eb;
   --pin-restaurant: #c2453a;
+  --pin-gym: #7c3aed;
+  --pin-park: #1f7a4a;
+  --pin-laundry: #0e7490;
 
   --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
@@ -45,9 +52,16 @@
     --signal-soft: #172338;
     --danger: #f07a70;
     --danger-soft: #2a1715;
+    --good: #5fcf91;
+    --good-soft: #14281d;
+    --warn: #f0b952;
+    --warn-soft: #2b2312;
     --pin-coffee: #c48a52;
     --pin-coworking: #60a5fa;
     --pin-restaurant: #f07a70;
+    --pin-gym: #a78bfa;
+    --pin-park: #5fcf91;
+    --pin-laundry: #22d3ee;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.25);
 
     color-scheme: dark;

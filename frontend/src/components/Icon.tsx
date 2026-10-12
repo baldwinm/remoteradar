@@ -17,6 +17,17 @@ const PATHS = {
   search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm9 16-4-4',
   droplet: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z',
   arrow: 'M7 17 17 7M9 7h8v8',
+  clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 4v5l3 2',
+  wifi: 'M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0M12 19h.01',
+  plus: 'M12 5v14M5 12h14',
+  bookmark: 'M6 3h12v18l-6-4-6 4z',
+  gym: 'M3 10v4m3-6v8m0-4h12m0-4v8m3-6v4',
+  park: 'M12 21v-6m0 0-4-1.5A4 4 0 0 1 7 6.5 5 5 0 0 1 17 6.5a4 4 0 0 1-1 7z',
+  laundry: 'M5 3h14v18H5zM5 7h14M8 5h.01M12 10a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+  calendar: 'M4 6h16v15H4zM4 10h16M8 3v4m8-4v4',
+  shield: 'M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z',
+  cash: 'M3 7h18v10H3zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM6 12h.01M18 12h.01',
+  compare: 'M4 5h6v14H4zM14 5h6v14h-6z',
 } as const;
 
 export type IconName = keyof typeof PATHS;
@@ -26,15 +37,17 @@ interface Props {
   size?: number;
   className?: string;
   label?: string;
+  /** Solid instead of outlined (used for "saved" bookmarks). */
+  filled?: boolean;
 }
 
-export default function Icon({ name, size = 20, className, label }: Props) {
+export default function Icon({ name, size = 20, className, label, filled = false }: Props) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="none"
+      fill={filled ? 'currentColor' : 'none'}
       stroke="currentColor"
       strokeWidth={1.8}
       strokeLinecap="round"

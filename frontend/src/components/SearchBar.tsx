@@ -27,9 +27,12 @@ function regionLabel(city: City) {
 interface Props {
   /** "hero" is the large search on the home page; "compact" sits in the page header. */
   variant?: 'hero' | 'compact';
+  /** Called with the chosen city instead of opening its page. */
+  onSelect?: (city: City) => void;
+  placeholder?: string;
 }
 
-export default function SearchBar({ variant = 'hero' }: Props) {
+export default function SearchBar({ variant = 'hero', onSelect, placeholder }: Props) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -53,7 +56,8 @@ export default function SearchBar({ variant = 'hero' }: Props) {
   function select(city: City) {
     // The city page can render immediately from what search already returned.
     queryClient.setQueryData(cityKeys.city(city.id), city);
-    navigate(`/city/${encodeURIComponent(city.id)}`);
+    if (onSelect) onSelect(city);
+    else navigate(`/city/${encodeURIComponent(city.id)}`);
     setQuery('');
     setOpen(false);
   }
@@ -92,7 +96,9 @@ export default function SearchBar({ variant = 'hero' }: Props) {
             }}
             onFocus={() => setOpen(true)}
             onKeyDown={handleKeyDown}
-            placeholder={variant === 'hero' ? 'Where to next? Try Lisbon or Mexico City' : 'Search another city'}
+            placeholder={
+              placeholder ?? (variant === 'hero' ? 'Where to next? Try Lisbon or Mexico City' : 'Search another city')
+            }
             className="search-input"
             aria-label="Search for a city"
             autoComplete="off"

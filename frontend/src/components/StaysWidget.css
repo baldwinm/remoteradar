@@ -126,3 +126,20 @@
   font-size: 0.82rem;
   font-weight: 400;
 }
+
+.stays-price-alt {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.stay-local {
+  display: block;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+input[type='date'].select {
+  font-family: inherit;
+  color: var(--ink);
+}

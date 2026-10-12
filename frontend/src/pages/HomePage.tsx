@@ -1,29 +1,54 @@
 import { Link } from 'react-router';
 
+import { useWeather } from '../api/queries';
 import Icon, { type IconName } from '../components/Icon';
 import SearchBar from '../components/SearchBar';
+import { defaultUnitsFor } from '../lib/cityId';
+import { round } from '../lib/format';
+import { type CityRef, toggleSaved, useRecentCities, useSavedCities } from '../lib/savedCities';
+import { clockIn, isValidTimeZone } from '../lib/time';
 import './HomePage.css';
 
 const FEATURES: { icon: IconName; title: string; text: string }[] = [
   {
     icon: 'cloud-sun',
     title: 'Weather',
-    text: 'Conditions now, the next 24 hours, and a 3-day outlook in °F or °C.',
+    text: 'Conditions now, the next 24 hours, a 3-day outlook and daylight hours in °F or °C.',
   },
   {
     icon: 'bed',
     title: 'Where to stay',
-    text: "Tonight's average hotel price and the best-rated options, sorted how you like.",
+    text: 'Average hotel prices for your dates, from one night to a month, in dollars and local money.',
   },
   {
     icon: 'desk',
     title: 'Places to work',
-    text: 'Coffee shops and coworking spaces with ratings, reviews and directions.',
+    text: 'Coffee shops and coworking spaces with ratings, opening hours and directions.',
   },
   {
     icon: 'food',
-    title: 'Places to eat',
-    text: 'Top-rated restaurants, filterable by budget from $ to $$$$.',
+    title: 'Places to eat and live',
+    text: 'Restaurants by budget, plus gyms, parks and laundromats when you need them.',
+  },
+  {
+    icon: 'clock',
+    title: 'Your working hours',
+    text: 'Local time and how many hours overlap with your 9 to 5 back home.',
+  },
+  {
+    icon: 'wifi',
+    title: 'Internet speed',
+    text: 'Typical home and mobile speeds, from millions of real speed tests.',
+  },
+  {
+    icon: 'calendar',
+    title: 'Best time to go',
+    text: 'Five years of weather by month, with the mildest, driest months marked.',
+  },
+  {
+    icon: 'cash',
+    title: 'Money and holidays',
+    text: 'The local currency and exchange rate, public holidays and travel advisories.',
   },
 ];
 
@@ -62,8 +87,8 @@ export default function HomePage() {
           <span className="eyebrow">For remote workers and travelers</span>
           <h1 className="hero-title">Scope out your next city before you book.</h1>
           <p className="hero-lede">
-            Weather, hotel prices, coffee shops, coworking spaces and places to eat, on one page for any city in
-            the world.
+            Weather, hotel prices, internet speed, coworking spaces, time zone overlap and more, on one page for any
+            city in the world.
           </p>
           <SearchBar />
           <div className="popular">
@@ -76,6 +101,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <YourCities />
 
       <section className="features-section" aria-labelledby="features-title">
         <div className="section-head">
@@ -95,5 +122,81 @@ export default function HomePage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function YourCities() {
+  const saved = useSavedCities();
+  const recent = useRecentCities().filter((city) => !saved.some((item) => item.id === city.id));
+  if (saved.length === 0 && recent.length === 0) return null;
+
+  const compareIds = saved
+    .slice(0, 3)
+    .map((city) => encodeURIComponent(city.id))
+    .join(',');
+
+  return (
+    <section className="your-cities" aria-label="Your cities">
+      {saved.length > 0 && (
+        <>
+          <div className="your-cities-head">
+            <h2>Your saved cities</h2>
+            {saved.length > 1 && (
+              <Link to={`/compare?cities=${compareIds}`} className="action-link">
+                <Icon name="compare" size={16} />
+                Compare {saved.length > 3 ? 'first 3' : 'them'}
+              </Link>
+            )}
+          </div>
+          <ul className="saved-grid">
+            {saved.map((city) => (
+              <SavedCityCard key={city.id} city={city} />
+            ))}
+          </ul>
+        </>
+      )}
+      {recent.length > 0 && (
+        <div className="recent-row">
+          <h2>Recently viewed</h2>
+          <div className="recent-chips">
+            {recent.map((city) => (
+              <Link key={city.id} to={`/city/${encodeURIComponent(city.id)}`} className="chip">
+                {city.name}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+      <p className="your-cities-note">Saved and recent cities are kept in this browser only. No account needed.</p>
+    </section>
+  );
+}
+
+function SavedCityCard({ city }: { city: CityRef }) {
+  const units = defaultUnitsFor(city.id);
+  const weather = useWeather(city.id, units);
+  const current = weather.data?.current;
+  const zone = city.timezone && isValidTimeZone(city.timezone) ? city.timezone : weather.data?.timezone;
+
+  return (
+    <li className="saved-card">
+      <Link to={`/city/${encodeURIComponent(city.id)}`} className="saved-card-link">
+        <b>{city.name}</b>
+        <span className="saved-card-meta">
+          {[city.country, zone && isValidTimeZone(zone) ? clockIn(zone) : ''].filter(Boolean).join(' · ')}
+        </span>
+        <span className="saved-card-weather">
+          {current ? `${round(current.temperature)}°${units === 'imperial' ? 'F' : 'C'}, ${current.description}` : ' '}
+        </span>
+      </Link>
+      <button
+        type="button"
+        className="saved-card-remove"
+        aria-label={`Remove ${city.name} from saved cities`}
+        onClick={() => toggleSaved(city)}
+      >
+        ×
+      </button>
+    </li>
   );
 }

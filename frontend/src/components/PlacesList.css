@@ -7,21 +7,78 @@
 
 .chip-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
-.price-filter {
+.refine-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px 10px;
 }
 
-.price-filter-label {
-  font-size: 0.85rem;
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background-color: var(--surface);
+  font-size: 0.86rem;
+}
+
+.toggle-track {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+  background-color: var(--surface-2);
+  transition: background-color 0.15s;
+}
+
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+  transition: transform 0.15s;
+}
+
+.toggle[aria-pressed='true'] {
+  border-color: var(--good);
+  color: var(--good);
+}
+
+.toggle[aria-pressed='true'] .toggle-track {
+  background-color: var(--good);
+}
+
+.toggle[aria-pressed='true'] .toggle-track::after {
+  transform: translateX(12px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle-track,
+  .toggle-track::after {
+    transition: none;
+  }
+}
+
+.open-state {
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--muted);
+}
+
+.open-state.open {
+  color: var(--good);
 }
 
 .places-note {

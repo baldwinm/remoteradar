@@ -1,4 +1,21 @@
-import type { City, CitySearchResponse, PlacesResponse, StaysResponse, Units, Weather } from './types';
+import type {
+  City,
+  CitySearchResponse,
+  Climate,
+  Essentials,
+  ExtraPlaceType,
+  PlacesResponse,
+  StaysResponse,
+  Units,
+  Weather,
+} from './types';
+
+export interface StayOptions {
+  occupants: number;
+  /** "YYYY-MM-DD"; the API picks a week from today when it's missing. */
+  checkin?: string;
+  nights: number;
+}
 
 // Empty by default: the API serves the site, so calls go to same-origin /api URLs (in
 // development, through the dev-server proxy). Set VITE_API_BASE_URL only if the API lives elsewhere.
@@ -47,8 +64,14 @@ export const api = {
   city: (cityId: string, signal?: AbortSignal) => getJson<City>(cityPath(cityId), signal),
   weather: (cityId: string, units: Units, signal?: AbortSignal) =>
     getJson<Weather>(`${cityPath(cityId)}/weather?units=${units}`, signal),
-  places: (cityId: string, signal?: AbortSignal) =>
-    getJson<PlacesResponse>(`${cityPath(cityId)}/places`, signal),
-  stays: (cityId: string, occupants: number, signal?: AbortSignal) =>
-    getJson<StaysResponse>(`${cityPath(cityId)}/stays?occupants=${occupants}`, signal),
+  places: (cityId: string, type?: ExtraPlaceType, signal?: AbortSignal) =>
+    getJson<PlacesResponse>(`${cityPath(cityId)}/places${type ? `?type=${type}` : ''}`, signal),
+  stays: (cityId: string, { occupants, checkin, nights }: StayOptions, signal?: AbortSignal) => {
+    const params = new URLSearchParams({ occupants: String(occupants), nights: String(nights) });
+    if (checkin) params.set('checkin', checkin);
+    return getJson<StaysResponse>(`${cityPath(cityId)}/stays?${params}`, signal);
+  },
+  essentials: (cityId: string, signal?: AbortSignal) => getJson<Essentials>(`${cityPath(cityId)}/essentials`, signal),
+  climate: (cityId: string, units: Units, signal?: AbortSignal) =>
+    getJson<Climate>(`${cityPath(cityId)}/climate?units=${units}`, signal),
 };

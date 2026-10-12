@@ -19,6 +19,7 @@ function place(id: string, type: Place['type'], extra: Partial<Place> = {}): Pla
     website: null,
     phone: null,
     maps_url: `https://maps.google.com/?cid=${id}`,
+    opening_hours: null,
     ...extra,
   };
 }
@@ -61,5 +62,36 @@ describe('PlacesList', () => {
   it('warns when some categories are missing', () => {
     render(<PlacesList places={places} partial />);
     expect(screen.getByText(/may be incomplete/i)).toBeInTheDocument();
+  });
+
+  it('filters to places open now in the city time zone', async () => {
+    const user = userEvent.setup();
+    const always = [{ open_day: 0, open_minute: 0, close_day: null, close_minute: null }];
+    const never = [{ open_day: 0, open_minute: 0, close_day: 0, close_minute: 1 }];
+    render(
+      <PlacesList
+        places={[
+          place('open', 'coffee', { opening_hours: always }),
+          place('shut', 'coffee', { opening_hours: never }),
+        ]}
+        timeZone="Europe/Lisbon"
+      />,
+    );
+    expect(screen.getByText('Open 24 hours')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Open now' }));
+    expect(screen.getByText('1 place')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'coffee shut' })).not.toBeInTheDocument();
+  });
+
+  it('keeps on-demand categories out of All and shows them once loaded', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<PlacesList places={places} extraStatus="pending" />);
+    await user.click(screen.getByRole('button', { name: 'Gyms' }));
+    expect(screen.getByText(/finding gym spots/i)).toBeInTheDocument();
+
+    rerender(<PlacesList places={[...places, place('g1', 'gym')]} extraStatus="success" />);
+    expect(screen.getByText('1 place')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'All' }));
+    expect(screen.getByText('9 places')).toBeInTheDocument();
   });
 });

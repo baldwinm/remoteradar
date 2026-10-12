@@ -53,6 +53,7 @@ SITEMAP_CITY_IDS = (
 _ID = re.compile(CITY_ID_PATTERN)
 _TITLE = re.compile(r"<title>.*?</title>", re.DOTALL)
 _DESCRIPTION = re.compile(r'<meta name="description"[^>]*>')
+_GENERIC_OG = re.compile(r'\s*<meta property="og:[^"]*"[^>]*>')
 _ROOT = '<div id="root"></div>'
 
 
@@ -103,7 +104,7 @@ def render_city_meta(base_html: str, city: City, public_url: str) -> str:
     )
     summary = f'<div id="root"><main><h1>{escape(full_name)}</h1><p>{d}</p></main></div>'
 
-    html = _TITLE.sub(lambda _: f"<title>{t}</title>", base_html, count=1)
+    html = _TITLE.sub(lambda _: f"<title>{t}</title>", _GENERIC_OG.sub("", base_html))
     if _DESCRIPTION.search(html):
         html = _DESCRIPTION.sub(lambda _: tags, html, count=1)
     else:

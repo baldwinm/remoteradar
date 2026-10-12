@@ -50,3 +50,14 @@ export function formatCoords(lat: number, lng: number): string {
 export function shortWeekday(isoDate: string): string {
   return weekdayName(isoDate).slice(0, 3);
 }
+
+/** "2026-11-01" -> "Sun, Nov 1", read as a calendar date. */
+export function shortDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  if (!year || !month || !day) return isoDate;
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}

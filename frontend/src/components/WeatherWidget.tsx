@@ -1,6 +1,7 @@
 import { useWeather } from '../api/queries';
 import type { Units } from '../api/types';
 import { hourLabel, round, shortWeekday } from '../lib/format';
+import { formatDaylight, isoClock } from '../lib/time';
 import { isSunny, weatherIcon } from '../lib/weatherIcons';
 import Icon from './Icon';
 import './WeatherWidget.css';
@@ -50,6 +51,7 @@ export default function WeatherWidget({ cityId, units }: Props) {
   const nowIcon = weatherIcon(current.weather_code, current.is_day);
 
   const days = weather.daily.slice(0, FORECAST_DAYS);
+  const today = weather.daily[0];
   const lows = days.map((day) => day.temperature_min).filter((value): value is number => value !== null);
   const highs = days.map((day) => day.temperature_max).filter((value): value is number => value !== null);
   const scaleMin = Math.min(...lows, ...highs);
@@ -150,6 +152,23 @@ export default function WeatherWidget({ cityId, units }: Props) {
           );
         })}
       </ol>
+
+      {today && (today.sunrise || today.sunset) && (
+        <dl className="sun-row">
+          <div>
+            <dt>Sunrise</dt>
+            <dd>{isoClock(today.sunrise)}</dd>
+          </div>
+          <div>
+            <dt>Sunset</dt>
+            <dd>{isoClock(today.sunset)}</dd>
+          </div>
+          <div>
+            <dt>Daylight</dt>
+            <dd>{formatDaylight(today.daylight_seconds)}</dd>
+          </div>
+        </dl>
+      )}
 
       <div className="card-foot">
         <span>
