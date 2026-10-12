@@ -2,7 +2,9 @@
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from .city_ids import CITY_ID_PATTERN, MAX_ID_LENGTH
 
 Units = Literal["metric", "imperial"]
 PlaceType = Literal["coffee", "coworking", "restaurant", "gym", "park", "laundry"]
@@ -203,6 +205,25 @@ class Climate(BaseModel):
     units: Units
     years: str
     months: list[ClimateMonth]
+
+
+class PopularCity(BaseModel):
+    id: str
+    name: str
+
+
+class PopularCities(BaseModel):
+    # "country": most opened by people in the visitor's country; "site": across the whole
+    # site; "none": not enough data yet, so the frontend keeps its built-in list.
+    scope: Literal["country", "site", "none"]
+    country_code: str = ""
+    cities: list[PopularCity] = []
+
+
+class CityView(BaseModel):
+    city_id: str = Field(max_length=MAX_ID_LENGTH, pattern=CITY_ID_PATTERN)
+    # The browser's IANA time zone, used only to pick the visitor's country.
+    time_zone: str = Field(default="", max_length=64)
 
 
 class ErrorResponse(BaseModel):

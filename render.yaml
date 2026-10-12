@@ -19,3 +19,6 @@ services:
         sync: false
       - key: RAPIDAPI_KEY
         sync: false
+      # A Redis that keeps its data (for example a free Upstash database) for popular-city totals.
+      - key: STATS_REDIS_URL
+        sync: false

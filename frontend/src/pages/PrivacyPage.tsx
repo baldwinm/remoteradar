@@ -94,6 +94,11 @@ export default function PrivacyPage() {
           across sites, and doesn't store IP addresses. It records the page, the referring site, browser and screen
           size, and an approximate country.
         </p>
+        <p>
+          To show popular cities on the home page, we also count how many times each city page is opened, grouped by
+          country. The country comes from your browser's time zone setting, not your IP address. We keep only daily
+          totals per city and country for 30 days, with nothing that identifies you or links one visit to another.
+        </p>
       </section>
 
       <section aria-labelledby="p-third">

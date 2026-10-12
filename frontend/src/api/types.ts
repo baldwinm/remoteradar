@@ -184,3 +184,16 @@ export interface Climate {
   years: string;
   months: ClimateMonth[];
 }
+
+export interface PopularCity {
+  id: string;
+  name: string;
+}
+
+/** "country": most opened by people in the visitor's country; "site": across the whole site;
+ * "none": not enough data yet, so the home page keeps its built-in list. */
+export interface PopularCities {
+  scope: 'country' | 'site' | 'none';
+  country_code: string;
+  cities: PopularCity[];
+}

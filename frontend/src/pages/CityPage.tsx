@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
-import { ApiError, type StayOptions } from '../api/client';
+import { ApiError, type StayOptions, api } from '../api/client';
 import { cityKeys, useCity, useEssentials, usePlaces, useStays, useWeather } from '../api/queries';
 import type { City, Place, Units } from '../api/types';
 import CityMap from '../components/CityMap';
@@ -18,7 +18,14 @@ import WorkPanel from '../components/WorkPanel';
 import { defaultUnitsFor } from '../lib/cityId';
 import { formatCoords, formatWholeMoney, round } from '../lib/format';
 import { recordVisit, toRef, toggleSaved, useHomeZone, useSavedCities } from '../lib/savedCities';
-import { clockIn, formatUtcOffset, isValidTimeZone, utcOffsetMinutes, workOverlap } from '../lib/time';
+import {
+  browserTimeZone,
+  clockIn,
+  formatUtcOffset,
+  isValidTimeZone,
+  utcOffsetMinutes,
+  workOverlap,
+} from '../lib/time';
 import { isSunny, weatherIcon } from '../lib/weatherIcons';
 import './CityPage.css';
 
@@ -34,6 +41,16 @@ function widgetFallback(name: string) {
       <div className="widget-error">The {name} section hit an unexpected error.</div>
     </div>
   );
+}
+
+// Cities already counted toward the popular lists since this tab loaded the site, so
+// re-renders and moving between cities and back don't count the same visit twice.
+const counted = new Set<string>();
+
+function countView(cityId: string) {
+  if (counted.has(cityId)) return;
+  counted.add(cityId);
+  api.recordView(cityId, browserTimeZone());
 }
 
 const SECTIONS = [
@@ -60,7 +77,9 @@ function CityView({ cityId }: { cityId: string }) {
   useCanonicalUrl(cityId, city.data);
 
   useEffect(() => {
-    if (city.data) recordVisit(toRef(city.data));
+    if (!city.data) return;
+    recordVisit(toRef(city.data));
+    countView(city.data.id);
   }, [city.data]);
 
   useEffect(() => {

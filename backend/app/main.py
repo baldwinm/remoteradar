@@ -19,6 +19,7 @@ from .errors import AppError, UpstreamError
 from .http import create_http_client
 from .routes import api
 from .services import internet
+from .services.popular import create_popular_store
 from .web import SecurityHeadersMiddleware, mount_frontend
 
 logger = logging.getLogger("remoteradar")
@@ -43,7 +44,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         cache = create_cache(settings.redis_url)
         http = create_http_client(settings.upstream_timeout_seconds)
-        app.state.context = AppContext(settings=settings, http=http, cache=cache, loader=CachedLoader(cache))
+        popular = create_popular_store(settings.stats_redis_url or settings.redis_url)
+        app.state.context = AppContext(
+            settings=settings, http=http, cache=cache, loader=CachedLoader(cache), popular=popular
+        )
         _warn_missing_keys(settings)
         # Load the bundled internet-speed tables now rather than on someone's first city visit.
         await asyncio.gather(*(asyncio.to_thread(internet.load_table, kind) for kind in ("fixed", "mobile")))
@@ -52,6 +56,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             await http.aclose()
             await cache.close()
+            await popular.close()
 
     docs = settings.is_development
     app = FastAPI(

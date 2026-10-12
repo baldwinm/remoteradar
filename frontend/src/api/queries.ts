@@ -30,6 +30,7 @@ export const cityKeys = {
     ['city', cityId, 'stays', options.occupants, options.checkin ?? '', options.nights] as const,
   essentials: (cityId: string) => ['city', cityId, 'essentials'] as const,
   climate: (cityId: string, units: Units) => ['city', cityId, 'climate', units] as const,
+  popular: (timeZone: string) => ['popular', timeZone] as const,
 };
 
 export function useCitySearch(query: string) {
@@ -88,5 +89,14 @@ export function useClimate(cityId: string, units: Units) {
     queryFn: ({ signal }) => api.climate(cityId, units, signal),
     staleTime: 24 * 60 * 60 * 1000,
     placeholderData: keepPreviousData,
+  });
+}
+
+/** Cities opened most near the visitor (by browser time zone), or across the site. */
+export function usePopularCities(timeZone: string) {
+  return useQuery({
+    queryKey: cityKeys.popular(timeZone),
+    queryFn: ({ signal }) => api.popular(timeZone, signal),
+    retry: false,
   });
 }

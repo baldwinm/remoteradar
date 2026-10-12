@@ -3,24 +3,26 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, Query, Response
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from ..city_ids import CITY_ID_PATTERN, MAX_ID_LENGTH
 from ..context import AppContext, get_context
 from ..models import (
     City,
     CitySearchResponse,
+    CityView,
     Climate,
     ErrorResponse,
     Essentials,
     PlacesResponse,
     PlaceType,
+    PopularCities,
     StaysResponse,
     Units,
     Weather,
 )
 from ..ratelimit import rate_limit
-from ..services import climate, essentials, geocoding, places, stays, weather
+from ..services import climate, essentials, geocoding, places, popular, stays, weather
 
 router = APIRouter(
     responses={
@@ -142,3 +144,34 @@ async def get_climate(ctx: Ctx, response: Response, city_id: CityId, units: Unit
     result = await climate.get_climate(ctx, city, units)
     cache_for(response, 86400)
     return result
+
+
+@router.get(
+    "/popular",
+    response_model=PopularCities,
+    dependencies=[Depends(rate_limit("popular", 30, 60))],
+)
+async def get_popular(
+    ctx: Ctx, response: Response, tz: Annotated[str, Query(max_length=64)] = ""
+) -> PopularCities:
+    """The cities opened most in the last 30 days by people in the visitor's country (from the
+    browser time zone `tz`), or across the whole site when that country has too little data."""
+    country = popular.country_for_timezone(tz) or "none"
+
+    async def load() -> dict:
+        return (await popular.popular_cities(ctx.popular, tz)).model_dump()
+
+    data = await ctx.loader.get_or_load(f"popular:{country}", popular.RESULT_TTL, load)
+    cache_for(response, popular.RESULT_TTL)
+    return PopularCities.model_validate(data)
+
+
+@router.post(
+    "/views",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(rate_limit("views", 10, 60))],
+)
+async def record_view(ctx: Ctx, view: CityView) -> None:
+    """Count one city page view toward the popular-city lists. Stores only daily totals."""
+    city = await geocoding.resolve_city(ctx, view.city_id)
+    await popular.record_view(ctx.popular, city.id, city.name, view.time_zone)

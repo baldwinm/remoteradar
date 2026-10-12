@@ -5,6 +5,7 @@ import type {
   Essentials,
   ExtraPlaceType,
   PlacesResponse,
+  PopularCities,
   StaysResponse,
   Units,
   Weather,
@@ -58,6 +59,16 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
 
 const cityPath = (cityId: string) => `/cities/${encodeURIComponent(cityId)}`;
 
+/** Counts one city page view toward the popular-city lists. Best effort: failures are ignored. */
+function postView(cityId: string, timeZone: string): void {
+  fetch(`${API_BASE}/api/views`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ city_id: cityId, time_zone: timeZone }),
+    keepalive: true,
+  }).catch(() => undefined);
+}
+
 export const api = {
   searchCities: (query: string, signal?: AbortSignal) =>
     getJson<CitySearchResponse>(`/cities?q=${encodeURIComponent(query)}`, signal).then((r) => r.cities),
@@ -74,4 +85,7 @@ export const api = {
   essentials: (cityId: string, signal?: AbortSignal) => getJson<Essentials>(`${cityPath(cityId)}/essentials`, signal),
   climate: (cityId: string, units: Units, signal?: AbortSignal) =>
     getJson<Climate>(`${cityPath(cityId)}/climate?units=${units}`, signal),
+  popular: (timeZone: string, signal?: AbortSignal) =>
+    getJson<PopularCities>(`/popular?tz=${encodeURIComponent(timeZone)}`, signal),
+  recordView: postView,
 };
