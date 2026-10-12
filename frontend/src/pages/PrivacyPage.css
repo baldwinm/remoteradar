@@ -1,0 +1,95 @@
+.privacy {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding-inline: var(--gutter);
+  padding-block: 40px 8px;
+}
+
+.privacy-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.privacy h1 {
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.privacy-lede {
+  font-size: 1.08rem;
+  color: var(--muted);
+}
+
+.privacy section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.privacy h2 {
+  font-size: 1.2rem;
+}
+
+.privacy p,
+.privacy li {
+  line-height: 1.6;
+}
+
+.privacy ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 1.2em;
+}
+
+.privacy .privacy-summary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1px;
+  padding: 0;
+  list-style: none;
+  background-color: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.privacy-summary li {
+  padding: 14px 16px;
+  background-color: var(--surface);
+  color: var(--muted);
+}
+
+.privacy-summary strong {
+  display: block;
+  color: var(--ink);
+}
+
+@media (min-width: 640px) {
+  .privacy .privacy-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .privacy .privacy-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 32px;
+  }
+}
+
+.privacy-todo {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background-color: var(--warn-soft);
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.privacy-back {
+  padding-top: 4px;
+}
