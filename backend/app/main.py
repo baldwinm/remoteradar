@@ -44,7 +44,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         cache = create_cache(settings.redis_url)
         http = create_http_client(settings.upstream_timeout_seconds)
-        popular = create_popular_store(settings.stats_redis_url or settings.redis_url)
+        popular = create_popular_store(settings.stats_db_path)
         app.state.context = AppContext(
             settings=settings, http=http, cache=cache, loader=CachedLoader(cache), popular=popular
         )

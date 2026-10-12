@@ -84,7 +84,7 @@ Backend settings come from environment variables (or `backend/.env` locally):
 | `GOOGLE_API_KEY` | Yes | Needs **Places API (New)** enabled in Google Cloud |
 | `RAPIDAPI_KEY` | Yes | RapidAPI key subscribed to the apidojo Booking API (`AIRBNB_API_KEY` is still accepted) |
 | `REDIS_URL` | No | Shared cache and rate limits; in-memory fallback without it |
-| `STATS_REDIS_URL` | No | Where popular-city totals are kept; must be a Redis that keeps its data (falls back to `REDIS_URL`, then memory) |
+| `STATS_DB_PATH` | No | SQLite file for popular-city totals (default `data/popular.db` at the repo root; memory if that folder is missing) |
 | `CORS_ORIGINS` | No | Comma-separated; only needed if a frontend on another origin calls the API |
 | `ENVIRONMENT` | No | `production` (default) or `development` |
 | `WEB_CONCURRENCY` | No | Gunicorn worker count (default 2) |
@@ -124,10 +124,10 @@ share the cache and rate limits across workers and restarts, add a Render Key Va
 `REDIS_URL` to its internal connection URL.
 
 The home page's popular cities come from daily totals of city page views, grouped by the visitor's
-country (from the browser time zone, never the IP). Those totals need to survive restarts, which Render's
-free Key Value does not do, so point `STATS_REDIS_URL` at a Redis that persists, such as a free Upstash
-database (use its `rediss://` URL). Without it the totals live in memory and reset whenever the free
-service sleeps, and the home page shows its built-in cities.
+country (from the browser time zone, never the IP). The totals live in a SQLite file on a Render
+persistent disk mounted at `/opt/render/project/src/data`, so they survive restarts and deploys. A disk
+needs a paid instance and limits the service to one instance. Without the disk the totals live in
+memory and reset on every restart, and the home page shows its built-in cities.
 
 **Docker.** The `Dockerfile` builds the same single service for any host that runs containers. CI builds
 and smoke-tests it on every push.

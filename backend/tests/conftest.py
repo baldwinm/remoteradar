@@ -12,6 +12,7 @@ def make_settings(**overrides) -> Settings:
         "google_api_key": "test-google",
         "rapidapi_key": "test-rapidapi",
         "redis_url": None,
+        "stats_db_path": None,
         "frontend_dist": "/nonexistent",
         "rate_limits_enabled": True,
     }

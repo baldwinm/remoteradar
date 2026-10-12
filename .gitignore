@@ -18,6 +18,8 @@ frontend/dist/
 !.env.example
 *.log
 logs/
+# Popular-city totals (a Render disk in production)
+/data/
 
 # Editors / OS
 .DS_Store

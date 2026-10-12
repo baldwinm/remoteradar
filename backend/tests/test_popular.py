@@ -1,17 +1,16 @@
 import asyncio
 from datetime import date, timedelta
 
-import fakeredis
 import httpx
 
 from app.services import popular
 from app.services.geocoding import OPENCAGE_URL
-from app.services.popular import MemoryPopularStore, RedisPopularStore
+from app.services.popular import MemoryPopularStore, SqlitePopularStore
 
 from .conftest import opencage_response, opencage_result
 
 DAY = date(2026, 10, 12)
-DAYS = [DAY - timedelta(days=n) for n in range(popular.WINDOW_DAYS)]
+SINCE = DAY - timedelta(days=popular.WINDOW_DAYS - 1)
 
 
 async def fill(store, scope: str, counts: dict[str, int], day: date = DAY) -> None:
@@ -69,34 +68,38 @@ def test_views_older_than_the_window_do_not_count(monkeypatch):
     asyncio.run(run())
 
 
-def test_redis_store_sums_days_and_keeps_names():
+def test_sqlite_store_sums_days_keeps_names_and_survives_reopening(tmp_path):
+    path = tmp_path / "popular.db"
+
     async def run():
-        store = RedisPopularStore.__new__(RedisPopularStore)
-        store._redis = fakeredis.FakeAsyncRedis(decode_responses=True)
+        store = SqlitePopularStore(path)
         await store.record(DAY, ["ALL", "US"], "lisbon--pt", "Lisbon")
         await store.record(DAY - timedelta(days=3), ["ALL", "US"], "lisbon--pt", "Lisbon")
         await store.record(DAY, ["ALL"], "porto--pt", "Porto")
+        # Old enough to fall out of the window, and pruned on the next write.
+        await store.record(DAY - timedelta(days=40), ["ALL"], "bali--id", "Bali")
+        await store.record(DAY, ["ALL"], "porto--pt", "Porto")
 
-        total, names = await store.totals("US", DAYS)
-        assert total == {"lisbon--pt": 2}
-        assert names == {"lisbon--pt": "Lisbon"}
-        assert (await store.totals("ALL", DAYS))[0] == {"lisbon--pt": 2, "porto--pt": 1}
-        ttl = await store._redis.ttl(f"{popular.REDIS_PREFIX}{DAY.isoformat()}:US")
-        assert 0 < ttl <= (popular.WINDOW_DAYS + 2) * 86400
+        reopened = SqlitePopularStore(path)
+        assert await reopened.totals("US", SINCE) == ({"lisbon--pt": 2}, {"lisbon--pt": "Lisbon"})
+        assert (await reopened.totals("ALL", SINCE))[0] == {"lisbon--pt": 2, "porto--pt": 2}
+        assert (await reopened.totals("ALL", DAY - timedelta(days=60)))[0]["bali--id"] == 0
 
     asyncio.run(run())
 
 
-def test_redis_outage_reads_as_no_data():
-    class Broken:
-        def pipeline(self, **kwargs):
-            raise ConnectionError("down")
+def test_store_falls_back_to_memory_without_the_disk(tmp_path):
+    assert isinstance(popular.create_popular_store(tmp_path / "missing" / "popular.db"), MemoryPopularStore)
+    assert isinstance(popular.create_popular_store(None), MemoryPopularStore)
+    assert isinstance(popular.create_popular_store(tmp_path / "popular.db"), SqlitePopularStore)
 
+
+def test_unreadable_database_reads_as_no_data(tmp_path):
     async def run():
-        store = RedisPopularStore.__new__(RedisPopularStore)
-        store._redis = Broken()
+        store = SqlitePopularStore(tmp_path / "popular.db")
+        store._path = tmp_path  # a folder, so every connection fails
         await store.record(DAY, ["ALL"], "lisbon--pt", "Lisbon")
-        assert await store.totals("ALL", DAYS) == ({}, {})
+        assert await store.totals("ALL", SINCE) == ({}, {})
 
     asyncio.run(run())
 
@@ -110,7 +113,7 @@ def test_view_endpoint_counts_the_resolved_city(client, mock_upstream):
     assert response.status_code == 204
 
     store = client.app.state.context.popular
-    total, names = asyncio.run(store.totals("US", [popular.today()]))
+    total, names = asyncio.run(store.totals("US", popular.today()))
     assert total == {"santa-fe--nm--us": 1}
     assert names == {"santa-fe--nm--us": "Santa Fe"}
 
