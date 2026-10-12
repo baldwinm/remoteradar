@@ -185,17 +185,3 @@
     scroll-margin-top: 80px;
   }
 }
-
-.support-band {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 24px;
-  padding: 16px 18px;
-  border: 1px dashed var(--line);
-  border-radius: var(--radius);
-  color: var(--muted);
-  font-size: 0.9rem;
-}

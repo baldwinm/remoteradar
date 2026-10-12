@@ -3,7 +3,6 @@ import { Suspense, lazy, useState } from 'react';
 import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router';
 
 import { createQueryClient } from './api/queries';
-import { SUPPORT_URL } from './config';
 import ErrorBoundary from './components/ErrorBoundary';
 import { Logo } from './components/Icon';
 import SearchBar from './components/SearchBar';
@@ -42,11 +41,6 @@ function Header() {
             <SearchBar variant="compact" />
           </div>
         )}
-        <nav className="header-links" aria-label="Site">
-          <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">
-            Support the project
-          </a>
-        </nav>
       </div>
     </header>
   );

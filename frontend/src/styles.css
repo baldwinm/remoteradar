@@ -188,24 +188,8 @@ a:hover {
   max-width: 380px;
 }
 
-.header-links {
-  display: flex;
-  gap: 18px;
-  flex: none;
-  font-size: 0.9rem;
-}
-
-.header-links a {
-  color: var(--muted);
-}
-
-.header-links a:hover {
-  color: var(--ink);
-}
-
 @media (max-width: 760px) {
-  .header-search,
-  .header-links {
+  .header-search {
     display: none;
   }
 }
@@ -251,11 +235,6 @@ a:hover {
 .button:hover {
   opacity: 0.88;
   text-decoration: none;
-}
-
-.button-quiet {
-  background-color: var(--surface-2);
-  color: var(--ink);
 }
 
 .card {
