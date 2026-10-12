@@ -7,6 +7,7 @@ from fastapi import Request
 
 from .cache import Cache, CachedLoader
 from .config import Settings
+from .services.popular import PopularStore
 
 
 @dataclass
@@ -15,6 +16,7 @@ class AppContext:
     http: httpx.AsyncClient
     cache: Cache
     loader: CachedLoader
+    popular: PopularStore
 
 
 def get_context(request: Request) -> AppContext:

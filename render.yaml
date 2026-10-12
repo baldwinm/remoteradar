@@ -6,7 +6,12 @@ services:
   - type: web
     name: remote-radar
     runtime: python
-    plan: free
+    plan: starter
+    # Popular-city totals (backend/app/services/popular.py) are kept in data/popular.db on this disk.
+    disk:
+      name: data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 5
     buildCommand: cd frontend && npm ci --include=dev && npm run build && cd ../backend && pip install -r requirements.txt
     # backend/gunicorn.conf.py sets the worker class, port and proxy settings.
     startCommand: cd backend && gunicorn wsgi:app

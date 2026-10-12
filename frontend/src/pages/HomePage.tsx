@@ -1,12 +1,12 @@
 import { Link } from 'react-router';
 
-import { useWeather } from '../api/queries';
+import { usePopularCities, useWeather } from '../api/queries';
 import Icon, { type IconName } from '../components/Icon';
 import SearchBar from '../components/SearchBar';
 import { defaultUnitsFor } from '../lib/cityId';
 import { round } from '../lib/format';
 import { type CityRef, toggleSaved, useRecentCities, useSavedCities } from '../lib/savedCities';
-import { clockIn, isValidTimeZone } from '../lib/time';
+import { browserTimeZone, clockIn, isValidTimeZone } from '../lib/time';
 import './HomePage.css';
 
 const FEATURES: { icon: IconName; title: string; text: string }[] = [
@@ -52,7 +52,8 @@ const FEATURES: { icon: IconName; title: string; text: string }[] = [
   },
 ];
 
-// Name + country IDs; the city page resolves them and switches to the full ID.
+// Shown until enough people have searched to build a live list. Name + country IDs;
+// the city page resolves them and switches to the full ID.
 const POPULAR = [
   { id: 'lisbon--pt', name: 'Lisbon' },
   { id: 'mexico-city--mx', name: 'Mexico City' },
@@ -91,14 +92,7 @@ export default function HomePage() {
             city in the world.
           </p>
           <SearchBar />
-          <div className="popular">
-            <span className="popular-label">Popular:</span>
-            {POPULAR.map((city) => (
-              <Link key={city.id} to={`/city/${encodeURIComponent(city.id)}`} className="chip">
-                {city.name}
-              </Link>
-            ))}
-          </div>
+          <PopularCities />
         </div>
       </section>
 
@@ -121,6 +115,46 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+// Country names that read naturally after "in the".
+const NEEDS_THE = new Set(['US', 'GB', 'NL', 'PH', 'AE', 'DO', 'BS', 'GM', 'MV', 'CF', 'KY']);
+
+function countryPhrase(code: string): string {
+  let name = code;
+  try {
+    name = new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code;
+  } catch {
+    // Very old browsers: fall back to the code itself.
+  }
+  return NEEDS_THE.has(code) ? `the ${name}` : name;
+}
+
+function PopularCities() {
+  const live = usePopularCities(browserTimeZone()).data;
+  const hasLive = Boolean(live && live.cities.length > 0);
+  const cities = hasLive && live ? live.cities : POPULAR;
+
+  return (
+    <div className="popular">
+      <span className="popular-label">
+        {hasLive && live?.scope === 'country' ? (
+          <>
+            Popular in <b>{countryPhrase(live.country_code)}</b>:
+          </>
+        ) : hasLive && live?.scope === 'site' ? (
+          'Popular on Remote Radar:'
+        ) : (
+          'Popular:'
+        )}
+      </span>
+      {cities.map((city) => (
+        <Link key={city.id} to={`/city/${encodeURIComponent(city.id)}`} className="chip">
+          {city.name}
+        </Link>
+      ))}
     </div>
   );
 }

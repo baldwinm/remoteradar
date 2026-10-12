@@ -53,6 +53,11 @@
   color: var(--muted);
 }
 
+.popular-label b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .features-section {
   display: flex;
   flex-direction: column;

@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # When set, caches and rate limits are shared by every worker through Redis.
     # Without it each worker process keeps its own in-memory copy.
     redis_url: str | None = None
+    # SQLite file for popular-city totals. The default folder is where the Render persistent
+    # disk is mounted (/opt/render/project/src/data); if the folder is missing, totals stay in memory.
+    stats_db_path: Path | None = BACKEND_DIR.parent / "data" / "popular.db"
 
     # Comma-separated list of extra origins allowed to call the API from a browser.
     # Not needed when the frontend is served from the same origin as the API.
