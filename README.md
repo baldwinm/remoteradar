@@ -1,133 +1,109 @@
 # Remote Radar
 
-## Project Overview
+Remote Radar helps remote workers size up a city before they go: current weather and forecast,
+coffee shops, coworking spaces and restaurants, hotel prices, and a map, all on one page.
 
-Remote Radar is a web application that allows users to explore city information, accommodations, and details using multiple API integrations.
+## How it fits together
 
-## Tech Stack
-
-- **Frontend**: React
-- **Backend**: Flask
-- **APIs**: 
-  - OpenCage API
-  - Google Places API
-  - Airbnb API
-
-## Features
-
-- City search functionality
-- Detailed city information
-- Accommodation listings
-- City map images
-
-## Architecture
-
-### Communication Flow
-
-1. User interacts with React frontend
-2. React components make API requests to Flask backend
-3. Flask backend processes requests and interacts with external APIs
-4. Backend returns data to frontend
-5. React components render the data
-
-### Performance Optimizations
-
-- Code splitting with lazy loading
-- Service Worker for caching and offline support
-- Performance monitoring
-- Error boundaries
-
-## Routing
-
-- `/`: Landing page with search functionality
-- `/city/:cityId`: Detailed view of a specific city
-
-## State Management
-
-Utilizes React hooks:
-- `useState`: Component-level state
-- `useEffect`: Side effects like API calls
-- `useParams`: Accessing route parameters
-
-## Error Handling
-
-### Frontend
-- Error boundaries
-- Loading states
-- Error message displays
-- Fallback UI
-
-### Backend
-- Exception handling
-- Comprehensive logging
-- Graceful degradation
-- Custom error responses
-
-## API Integration
-
-- API keys stored in environment variables
-- Backend acts as a proxy to protect API keys
-- Rate limiting implemented
-
-## Deployment Pipeline
-
-1. Code pushed to version control
-2. Automated tests run
-3. Build process creates optimized assets
-4. Deployment to staging environment
-5. Manual verification
-6. Deployment to production
-
-## Future Enhancements
-
-- User accounts with city favorites
-- Advanced city filtering (cost of living, internet speed, etc.)
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js
-- Python
-- Flask
-- React
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/remote-radar.git
-
-# Install frontend dependencies
-cd remote-radar/frontend
-npm install
-
-# Install backend dependencies
-cd ../backend
-pip install -r requirements.txt
-
-# Set up environment variables
-# Create a .env file with your API keys
+```
+browser ──► FastAPI (backend/) ──► OpenCage, Google Places (New), Open-Meteo, Booking (RapidAPI)
+              │
+              └── serves the built React app (frontend/build) from the same origin
 ```
 
-### Running the Application
+- **frontend/** is a React 19 + TypeScript single-page app built with Vite. It only ever calls
+  same-origin `/api/...` URLs, so no API keys or backend URLs are baked into it.
+- **backend/** is a FastAPI app. It proxies the third-party APIs so their keys stay on the server,
+  caches every upstream response, rate-limits per client IP, and in production also serves the
+  frontend build. One process, one origin, one deploy.
+- **Redis** (optional) shares the cache and rate-limit counters across workers and restarts. Without
+  `REDIS_URL` the app falls back to an in-memory cache per worker.
+
+The frontend and backend are still separate codebases with their own tooling, but they no longer need
+to be deployed separately or know each other's URLs.
+
+## API
+
+All endpoints are `GET` and return JSON. Errors look like `{"error": "not_found", "message": "..."}`.
+
+| Endpoint | What it returns |
+| --- | --- |
+| `/api/health` | `{"status": "ok"}` |
+| `/api/cities?q=santa+fe` | Up to 5 matching cities, each with a stable `id` like `santa-fe--nm--us` |
+| `/api/cities/{id}` | One city (name, region, country, coordinates) |
+| `/api/cities/{id}/weather?units=metric` | Current conditions, the next 24 hours, and 7 days (`metric` or `imperial`) |
+| `/api/cities/{id}/places?type=coffee` | Coffee shops, coworking spaces and restaurants (`type` is optional) |
+| `/api/cities/{id}/stays?occupants=2` | Hotels for one night a week from today, with an average nightly price |
+
+City IDs from the old app (`paris_fr`) still resolve, and the city page redirects them to the new form.
+With `ENVIRONMENT=development`, interactive API docs are at `/api/docs`.
+
+## Running it locally
+
+You need Python 3.12+ (3.13 recommended) and Node 20.19+ (24 recommended).
 
 ```bash
-# Start backend server
+# Backend
 cd backend
-flask run
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env          # then fill in the API keys
+uvicorn app.main:app --reload --port 8000
 
-# Start frontend development server
+# Frontend, in a second terminal
 cd frontend
-npm start
+npm ci
+npm run dev                   # http://localhost:3000, proxies /api to :8000
 ```
 
-## Environment Configuration
+To run the production setup locally instead, build the frontend (`npm run build`) and start the backend
+with `gunicorn wsgi:app` from `backend/`; it then serves the whole site on port 8000.
 
-The application supports different configurations for development and production environments, including:
-- API URLs
-- Debug settings
-- Application name
+## Configuration
+
+Backend settings come from environment variables (or `backend/.env` locally):
+
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `OPENCAGE_API_KEY` | Yes | City search and lookup |
+| `GOOGLE_API_KEY` | Yes | Needs **Places API (New)** enabled in Google Cloud |
+| `RAPIDAPI_KEY` | Yes | RapidAPI key subscribed to the apidojo Booking API (`AIRBNB_API_KEY` is still accepted) |
+| `REDIS_URL` | No | Shared cache and rate limits; in-memory fallback without it |
+| `CORS_ORIGINS` | No | Comma-separated; only needed if the frontend is hosted on another origin |
+| `ENVIRONMENT` | No | `production` (default) or `development` |
+| `WEB_CONCURRENCY` | No | Gunicorn worker count (default 2) |
+
+Frontend build-time variables (all optional):
+
+| Variable | Notes |
+| --- | --- |
+| `VITE_MAPBOX_TOKEN` | Public Mapbox token. Restrict it to your domains in the Mapbox dashboard |
+| `VITE_API_BASE_URL` | Only if the API is on a different origin than the site |
+
+## Tests and checks
+
+```bash
+cd backend && pytest && ruff check . && ruff format --check .
+cd frontend && npm run lint && npm test && npm run build
+```
+
+CI runs all of these plus a Docker build and smoke test on every push and pull request.
+
+## Deploying
+
+**Single service (recommended).** The `Dockerfile` builds the frontend and runs the API with gunicorn,
+serving everything from one origin. `render.yaml` is a Render Blueprint for this setup with a free Redis
+(Key Value) instance; set the three API keys in the Render dashboard.
+
+**Existing two-service Render setup.** This still works without changes to the services:
+
+- Web service: root `backend`, build `pip install -r requirements.txt`, start `gunicorn wsgi:app`
+  (the worker class and port come from `backend/gunicorn.conf.py`).
+- Static site: root `frontend`, build `npm ci && npm run build`, publish `build`, with a rewrite from
+  `/api/*` to the web service and a fallback rewrite from `/*` to `/index.html`. Set `NODE_VERSION=24`
+  if Render does not pick up `.node-version`.
+
+`Documentation_v1.pdf` describes the original Flask version and is out of date.
 
 ## License
 

@@ -1,0 +1,141 @@
+.city-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.city-header {
+  background-color: var(--secondary-color);
+  color: white;
+  padding: 1.5rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.city-title {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  word-break: break-word;
+}
+
+.city-subtitle {
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.city-header .back-link {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.5rem 0;
+  color: white;
+}
+
+.content-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.content-section {
+  min-width: 0;
+}
+
+.city-summary {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+}
+
+.city-summary h3 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: var(--secondary-color);
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.stat-item {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.2rem 0.8rem;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+  font-size: 1.8rem;
+  margin-bottom: 0.6rem;
+}
+
+.stat-value {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: var(--secondary-color);
+  margin-bottom: 0.3rem;
+}
+
+.stat-label {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.support-container {
+  text-align: center;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.coffee-button {
+  display: inline-block;
+  background-color: #5f7fff;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 1rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.coffee-button:hover {
+  background-color: #4a6ae0;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  text-decoration: none;
+}
+
+@media (min-width: 768px) {
+  .city-page {
+    padding: 1rem;
+  }
+
+  .city-header {
+    padding: 2rem 1.5rem;
+  }
+
+  .city-title {
+    font-size: 2.5rem;
+  }
+
+  .content-row {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .content-section {
+    flex: 1;
+  }
+
+  .summary-stats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
