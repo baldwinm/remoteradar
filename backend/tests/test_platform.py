@@ -58,9 +58,9 @@ def test_cors_only_for_configured_origins(mock_upstream):
     assert "access-control-allow-origin" not in denied.headers
 
 
-def test_cors_allows_live_site_by_default(client):
-    response = client.get("/api/health", headers={"Origin": "https://www.remoteradar.net"})
-    assert response.headers["access-control-allow-origin"] == "https://www.remoteradar.net"
+def test_no_cors_by_default(client):
+    response = client.get("/api/health", headers={"Origin": "https://remoteradar.net"})
+    assert "access-control-allow-origin" not in response.headers
 
 
 def test_docs_hidden_in_production(client):

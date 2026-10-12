@@ -1,7 +1,7 @@
 import type { City, CitySearchResponse, PlacesResponse, StaysResponse, Units, Weather } from './types';
 
-// Empty means same-origin /api URLs (the API serving the site, or the dev-server proxy).
-// Production builds point at the separate API service; see .env.production.
+// Empty by default: the API serves the site, so calls go to same-origin /api URLs (in
+// development, through the dev-server proxy). Set VITE_API_BASE_URL only if the API lives elsewhere.
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 export class ApiError extends Error {

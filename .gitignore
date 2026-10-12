@@ -16,7 +16,6 @@ frontend/dist/
 .env
 .env.*
 !.env.example
-!.env.production
 *.log
 logs/
 
