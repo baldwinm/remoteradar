@@ -7,6 +7,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { Logo } from './components/Icon';
 import SearchBar from './components/SearchBar';
 import Spinner from './components/Spinner';
+import ThemeSwitch from './components/ThemeSwitch';
 import { usePageViews } from './lib/analytics';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -43,6 +44,7 @@ function Header() {
             <SearchBar variant="compact" />
           </div>
         )}
+        <ThemeSwitch />
       </div>
     </header>
   );

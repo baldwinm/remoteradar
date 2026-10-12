@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import type { Place, PlaceType } from '../api/types';
 import { MAPBOX_TOKEN } from '../config';
+import { type Theme, useTheme } from '../lib/theme';
 import './CityMap.css';
 
 const STYLES = [
@@ -23,9 +24,7 @@ const LEGEND: { type: PlaceType; label: string }[] = [
   { type: 'restaurant', label: 'Restaurants' },
 ];
 
-function defaultStyle(): StyleId {
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark-v11' : 'light-v11';
-}
+const THEME_STYLES: Record<Theme, StyleId> = { light: 'light-v11', dark: 'dark-v11' };
 
 const styleUrl = (id: StyleId) => `mapbox://styles/mapbox/${id}`;
 
@@ -41,7 +40,8 @@ export default function CityMap({ name, lat, lng, places = [] }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapboxMap | null>(null);
   const lib = useRef<MapboxGl | null>(null);
-  const [style, setStyle] = useState<StyleId>(defaultStyle);
+  const theme = useTheme();
+  const [style, setStyle] = useState<StyleId>(() => THEME_STYLES[theme]);
   const styleRef = useRef(style);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
@@ -111,6 +111,14 @@ export default function CityMap({ name, lat, lng, places = [] }: Props) {
     }
     return () => markers.forEach((marker) => marker.remove());
   }, [places, status]);
+
+  // While the map uses the plain light or dark style, keep it in step with the site theme.
+  useEffect(() => {
+    const current = styleRef.current;
+    const next = THEME_STYLES[theme];
+    if (current === next || (current !== 'light-v11' && current !== 'dark-v11')) return;
+    changeStyle(next);
+  }, [theme]);
 
   function changeStyle(next: StyleId) {
     setStyle(next);

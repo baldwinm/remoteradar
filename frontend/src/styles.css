@@ -37,8 +37,9 @@
   color-scheme: light;
 }
 
+/* Dark: follows the device unless the visitor picked a theme (data-theme on <html>). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #0e0e10;
     --surface: #18181b;
     --surface-2: #222226;
@@ -66,6 +67,35 @@
 
     color-scheme: dark;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0e0e10;
+  --surface: #18181b;
+  --surface-2: #222226;
+  --ink: #ededf0;
+  --muted: #9d9da6;
+  --line: #2a2a2f;
+  --accent: #ededf0;
+  --accent-ink: #16161a;
+  --accent-soft: #26262b;
+  --signal: #60a5fa;
+  --signal-soft: #172338;
+  --danger: #f07a70;
+  --danger-soft: #2a1715;
+  --good: #5fcf91;
+  --good-soft: #14281d;
+  --warn: #f0b952;
+  --warn-soft: #2b2312;
+  --pin-coffee: #c48a52;
+  --pin-coworking: #60a5fa;
+  --pin-restaurant: #f07a70;
+  --pin-gym: #a78bfa;
+  --pin-park: #5fcf91;
+  --pin-laundry: #22d3ee;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.25);
+
+  color-scheme: dark;
 }
 
 *,
@@ -200,6 +230,38 @@ a:hover {
 .header-search {
   flex: 1;
   max-width: 380px;
+  margin-inline: auto;
+}
+
+.theme-switch {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background-color: var(--bg);
+}
+
+.theme-switch button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.theme-switch button:hover {
+  color: var(--ink);
+}
+
+.theme-switch button[aria-pressed='true'] {
+  background-color: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
 }
 
 @media (max-width: 760px) {
