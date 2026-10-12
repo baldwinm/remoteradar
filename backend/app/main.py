@@ -1,5 +1,6 @@
 """FastAPI application: the JSON API under /api, plus the built frontend when present."""
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -17,6 +18,7 @@ from .context import AppContext
 from .errors import AppError, UpstreamError
 from .http import create_http_client
 from .routes import api
+from .services import internet
 from .web import SecurityHeadersMiddleware, mount_frontend
 
 logger = logging.getLogger("remoteradar")
@@ -43,6 +45,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         http = create_http_client(settings.upstream_timeout_seconds)
         app.state.context = AppContext(settings=settings, http=http, cache=cache, loader=CachedLoader(cache))
         _warn_missing_keys(settings)
+        # Load the bundled internet-speed tables now rather than on someone's first city visit.
+        await asyncio.gather(*(asyncio.to_thread(internet.load_table, kind) for kind in ("fixed", "mobile")))
         try:
             yield
         finally:
@@ -76,7 +80,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Render's health check and older monitors call /health without the /api prefix.
     app.add_api_route("/health", api.health, methods=["GET", "HEAD"], include_in_schema=False)
 
-    if mount_frontend(app, settings.frontend_dist):
+    if mount_frontend(app, settings.frontend_dist, settings.public_url):
         logger.info("Serving frontend from %s", settings.frontend_dist)
     else:
         logger.info("No frontend build at %s; serving the API only", settings.frontend_dist)

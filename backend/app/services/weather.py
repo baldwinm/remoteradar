@@ -62,7 +62,7 @@ async def get_weather(ctx: AppContext, city: City, units: Units) -> Weather:
             "precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m",
             "hourly": "temperature_2m,precipitation_probability,weather_code,is_day",
             "daily": "weather_code,temperature_2m_max,temperature_2m_min,"
-            "precipitation_probability_max,sunrise,sunset",
+            "precipitation_probability_max,sunrise,sunset,daylight_duration",
             "timezone": "auto",
             "forecast_days": DAYS_SHOWN,
             "temperature_unit": "fahrenheit" if imperial else "celsius",
@@ -125,6 +125,7 @@ def parse_forecast(raw: dict[str, Any], units: Units) -> Weather:
                 description=describe(_at(daily, "weather_code", i)),
                 sunrise=_at(daily, "sunrise", i),
                 sunset=_at(daily, "sunset", i),
+                daylight_seconds=_at(daily, "daylight_duration", i),
             )
             for i, date in enumerate(daily.get("time") or [])
         ],

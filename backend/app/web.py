@@ -5,10 +5,12 @@ import time
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+from .seo import city_page_html, sitemap_xml
 
 logger = logging.getLogger("remoteradar.access")
 
@@ -89,7 +91,7 @@ class SecurityHeadersMiddleware:
                 )
 
 
-def mount_frontend(app: FastAPI, dist: Path) -> bool:
+def mount_frontend(app: FastAPI, dist: Path, public_url: str) -> bool:
     """Serve the built single-page app. Returns False when there is no build to serve."""
     dist = dist.resolve()
     index = dist / "index.html"
@@ -100,6 +102,15 @@ def mount_frontend(app: FastAPI, dist: Path) -> bool:
     if assets.is_dir():
         app.mount("/assets", ImmutableStaticFiles(directory=assets), name="assets")
 
+    base_html = index.read_text(encoding="utf-8")
+    sitemap = sitemap_xml(public_url)
+
+    @app.get("/sitemap.xml", include_in_schema=False)
+    async def sitemap_route() -> Response:
+        return Response(
+            sitemap, media_type="application/xml", headers={"Cache-Control": "public, max-age=86400"}
+        )
+
     @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
     async def spa(full_path: str, request: Request) -> Response:
         if full_path == "api" or full_path.startswith("api/"):
@@ -108,8 +119,12 @@ def mount_frontend(app: FastAPI, dist: Path) -> bool:
             candidate = (dist / full_path).resolve()
             if candidate.is_relative_to(dist) and candidate.is_file() and candidate != index:
                 return FileResponse(candidate, headers={"Cache-Control": "public, max-age=86400"})
-        # Any other path is a client-side route (e.g. /city/paris--idf--fr).
-        return FileResponse(index, headers={"Cache-Control": "no-cache"})
+        # Any other path is a client-side route (e.g. /city/paris--idf--fr). City pages get
+        # their own title and preview tags so search engines and link previews show the city.
+        html = base_html
+        if full_path.startswith("city/"):
+            html = await city_page_html(request, base_html, full_path)
+        return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
     return True
 

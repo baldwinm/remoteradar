@@ -32,6 +32,7 @@ const WEATHER: Weather = {
       description: 'Partly cloudy',
       sunrise: null,
       sunset: null,
+      daylight_seconds: null,
     },
     {
       date: '2026-10-13',
@@ -42,6 +43,7 @@ const WEATHER: Weather = {
       description: 'Light rain',
       sunrise: null,
       sunset: null,
+      daylight_seconds: null,
     },
   ],
 };

@@ -1,7 +1,7 @@
 import { QueryClient, keepPreviousData, useQuery } from '@tanstack/react-query';
 
-import { ApiError, api } from './client';
-import type { Units } from './types';
+import { ApiError, type StayOptions, api } from './client';
+import type { ExtraPlaceType, Units } from './types';
 
 export function createQueryClient() {
   return new QueryClient({
@@ -25,8 +25,11 @@ export const cityKeys = {
   search: (query: string) => ['cities', 'search', query] as const,
   city: (cityId: string) => ['city', cityId] as const,
   weather: (cityId: string, units: Units) => ['city', cityId, 'weather', units] as const,
-  places: (cityId: string) => ['city', cityId, 'places'] as const,
-  stays: (cityId: string, occupants: number) => ['city', cityId, 'stays', occupants] as const,
+  places: (cityId: string, type?: ExtraPlaceType) => ['city', cityId, 'places', type ?? 'core'] as const,
+  stays: (cityId: string, options: StayOptions) =>
+    ['city', cityId, 'stays', options.occupants, options.checkin ?? '', options.nights] as const,
+  essentials: (cityId: string) => ['city', cityId, 'essentials'] as const,
+  climate: (cityId: string, units: Units) => ['city', cityId, 'climate', units] as const,
 };
 
 export function useCitySearch(query: string) {
@@ -55,17 +58,35 @@ export function useWeather(cityId: string, units: Units) {
   });
 }
 
-export function usePlaces(cityId: string) {
+/** Coffee, coworking and restaurants; or, given `type`, that on-demand category alone. */
+export function usePlaces(cityId: string, type?: ExtraPlaceType, enabled = true) {
   return useQuery({
-    queryKey: cityKeys.places(cityId),
-    queryFn: ({ signal }) => api.places(cityId, signal),
+    queryKey: cityKeys.places(cityId, type),
+    queryFn: ({ signal }) => api.places(cityId, type, signal),
+    enabled,
   });
 }
 
-export function useStays(cityId: string, occupants: number) {
+export function useStays(cityId: string, options: StayOptions) {
   return useQuery({
-    queryKey: cityKeys.stays(cityId, occupants),
-    queryFn: ({ signal }) => api.stays(cityId, occupants, signal),
+    queryKey: cityKeys.stays(cityId, options),
+    queryFn: ({ signal }) => api.stays(cityId, options, signal),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useEssentials(cityId: string) {
+  return useQuery({
+    queryKey: cityKeys.essentials(cityId),
+    queryFn: ({ signal }) => api.essentials(cityId, signal),
+  });
+}
+
+export function useClimate(cityId: string, units: Units) {
+  return useQuery({
+    queryKey: cityKeys.climate(cityId, units),
+    queryFn: ({ signal }) => api.climate(cityId, units, signal),
+    staleTime: 24 * 60 * 60 * 1000,
     placeholderData: keepPreviousData,
   });
 }

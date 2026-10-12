@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     # Not needed when the frontend is served from the same origin as the API.
     cors_origins: str = ""
 
+    # The site's public address, used for canonical links and the sitemap.
+    public_url: str = "https://remoteradar.net"
+
     # Where the built frontend lives. If the folder exists, the API also serves the site.
     frontend_dist: Path = BACKEND_DIR.parent / "frontend" / "build"
 

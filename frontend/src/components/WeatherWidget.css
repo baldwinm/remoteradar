@@ -156,3 +156,33 @@
   border-radius: 3px;
   background: linear-gradient(90deg, var(--muted), var(--signal));
 }
+
+.sun-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--line);
+}
+
+.sun-row div {
+  padding: 10px 12px;
+  border-left: 1px solid var(--line);
+  min-width: 0;
+}
+
+.sun-row div:first-child {
+  border-left: 0;
+}
+
+.sun-row dt {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.sun-row dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

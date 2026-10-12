@@ -97,7 +97,7 @@ async def _geocode(ctx: AppContext, query: str, country_code: str = "") -> list[
         "key": api_key,
         "limit": 8,
         "language": "en",
-        "no_annotations": 1,
+        # Annotations stay on: they carry the city's time zone and currency.
         "no_record": 1,
     }
     if country_code:
@@ -128,6 +128,10 @@ def _parse_result(result: dict[str, Any]) -> City | None:
     if region.casefold() == str(name).casefold():
         region = ""
 
+    annotations = result.get("annotations") or {}
+    timezone = (annotations.get("timezone") or {}).get("name") or ""
+    currency = annotations.get("currency") or {}
+
     return City(
         id=make_city_id(str(name), region, country_code or "xx"),
         name=str(name),
@@ -138,6 +142,10 @@ def _parse_result(result: dict[str, Any]) -> City | None:
         lat=float(lat),
         lng=float(lng),
         formatted=str(result.get("formatted") or ""),
+        timezone=str(timezone),
+        currency_code=str(currency.get("iso_code") or ""),
+        currency_symbol=str(currency.get("symbol") or ""),
+        currency_name=str(currency.get("name") or ""),
     )
 
 

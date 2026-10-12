@@ -79,6 +79,18 @@
   background-color: var(--pin-restaurant);
 }
 
+.map-pin--gym {
+  background-color: var(--pin-gym);
+}
+
+.map-pin--park {
+  background-color: var(--pin-park);
+}
+
+.map-pin--laundry {
+  background-color: var(--pin-laundry);
+}
+
 .city-map .mapboxgl-popup-content {
   padding: 6px 10px;
   border-radius: 8px;

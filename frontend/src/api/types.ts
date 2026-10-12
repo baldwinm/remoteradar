@@ -1,7 +1,10 @@
 // Mirrors backend/app/models.py.
 
 export type Units = 'metric' | 'imperial';
-export type PlaceType = 'coffee' | 'coworking' | 'restaurant';
+export type CorePlaceType = 'coffee' | 'coworking' | 'restaurant';
+/** Fetched only when someone asks for them. */
+export type ExtraPlaceType = 'gym' | 'park' | 'laundry';
+export type PlaceType = CorePlaceType | ExtraPlaceType;
 
 export interface City {
   id: string;
@@ -13,6 +16,10 @@ export interface City {
   lat: number;
   lng: number;
   formatted: string;
+  timezone: string;
+  currency_code: string;
+  currency_symbol: string;
+  currency_name: string;
 }
 
 export interface CitySearchResponse {
@@ -50,6 +57,7 @@ export interface DailyForecast {
   description: string;
   sunrise: string | null;
   sunset: string | null;
+  daylight_seconds: number | null;
 }
 
 export interface Weather {
@@ -58,6 +66,14 @@ export interface Weather {
   current: CurrentWeather;
   hourly: HourlyForecast[];
   daily: DailyForecast[];
+}
+
+/** Days run 0 (Sunday) to 6; minutes from midnight, local time. No close means open 24 hours. */
+export interface OpeningPeriod {
+  open_day: number;
+  open_minute: number;
+  close_day: number | null;
+  close_minute: number | null;
 }
 
 export interface Place {
@@ -73,6 +89,7 @@ export interface Place {
   website: string | null;
   phone: string | null;
   maps_url: string;
+  opening_hours: OpeningPeriod[] | null;
 }
 
 export interface PlacesResponse {
@@ -101,8 +118,69 @@ export interface Stay {
 export interface StaysResponse {
   checkin: string;
   checkout: string;
+  nights: number;
   occupants: number;
   average_price: number | null;
   currency: string;
   stays: Stay[];
+}
+
+export interface Currency {
+  code: string;
+  symbol: string;
+  name: string;
+  /** Units of this currency per 1 USD. */
+  usd_rate: number | null;
+  updated: string | null;
+}
+
+export interface Holiday {
+  date: string;
+  name: string;
+  local_name: string;
+}
+
+export interface Advisory {
+  level: number;
+  title: string;
+  url: string;
+  updated: string | null;
+}
+
+export interface Speed {
+  download_mbps: number;
+  upload_mbps: number;
+  latency_ms: number;
+  tests: number;
+}
+
+export interface Internet {
+  fixed: Speed | null;
+  mobile: Speed | null;
+  period: string;
+}
+
+export interface Essentials {
+  timezone: string;
+  currency: Currency | null;
+  holidays: Holiday[] | null;
+  advisory: Advisory | null;
+  internet: Internet | null;
+  partial: boolean;
+}
+
+export interface ClimateMonth {
+  month: number;
+  temperature_max: number | null;
+  temperature_min: number | null;
+  precipitation: number | null;
+  rainy_days: number | null;
+  sunshine_hours: number | null;
+  best: boolean;
+}
+
+export interface Climate {
+  units: Units;
+  years: string;
+  months: ClimateMonth[];
 }

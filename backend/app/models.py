@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 Units = Literal["metric", "imperial"]
-PlaceType = Literal["coffee", "coworking", "restaurant"]
+PlaceType = Literal["coffee", "coworking", "restaurant", "gym", "park", "laundry"]
 
 
 class City(BaseModel):
@@ -18,6 +18,11 @@ class City(BaseModel):
     lat: float
     lng: float
     formatted: str = ""
+    # IANA time zone ("Europe/Lisbon") and local currency, from the geocoder's annotations.
+    timezone: str = ""
+    currency_code: str = ""
+    currency_symbol: str = ""
+    currency_name: str = ""
 
 
 class CitySearchResponse(BaseModel):
@@ -55,6 +60,7 @@ class DailyForecast(BaseModel):
     description: str
     sunrise: str | None
     sunset: str | None
+    daylight_seconds: float | None = None
 
 
 class Weather(BaseModel):
@@ -63,6 +69,16 @@ class Weather(BaseModel):
     current: CurrentWeather
     hourly: list[HourlyForecast]
     daily: list[DailyForecast]
+
+
+class OpeningPeriod(BaseModel):
+    """One opening span in the place's local time. Days run 0 (Sunday) to 6, minutes from midnight.
+    A missing close means open around the clock."""
+
+    open_day: int
+    open_minute: int
+    close_day: int | None
+    close_minute: int | None
 
 
 class Place(BaseModel):
@@ -78,13 +94,18 @@ class Place(BaseModel):
     website: str | None
     phone: str | None
     maps_url: str
+    # None when Google has no hours for the place.
+    opening_hours: list[OpeningPeriod] | None = None
 
 
 class PlaceCounts(BaseModel):
-    coffee: int
-    coworking: int
-    restaurant: int
-    total: int
+    coffee: int = 0
+    coworking: int = 0
+    restaurant: int = 0
+    gym: int = 0
+    park: int = 0
+    laundry: int = 0
+    total: int = 0
 
 
 class PlacesResponse(BaseModel):
@@ -114,10 +135,74 @@ class Stay(BaseModel):
 class StaysResponse(BaseModel):
     checkin: str
     checkout: str
+    nights: int = 1
     occupants: int
     average_price: float | None
     currency: str
     stays: list[Stay]
+
+
+class Currency(BaseModel):
+    code: str
+    symbol: str
+    name: str
+    # Units of this currency per 1 USD; None when no rate is available.
+    usd_rate: float | None
+    updated: str | None
+
+
+class Holiday(BaseModel):
+    date: str
+    name: str
+    local_name: str
+
+
+class Advisory(BaseModel):
+    level: int
+    title: str
+    url: str
+    updated: str | None
+
+
+class Speed(BaseModel):
+    download_mbps: float
+    upload_mbps: float
+    latency_ms: int
+    tests: int
+
+
+class Internet(BaseModel):
+    fixed: Speed | None
+    mobile: Speed | None
+    period: str
+
+
+class Essentials(BaseModel):
+    """Practical facts for working from a city. Each part is None when its source has nothing."""
+
+    timezone: str
+    currency: Currency | None
+    holidays: list[Holiday] | None
+    advisory: Advisory | None
+    internet: Internet | None
+    # True when a source failed (as opposed to having no data for this city).
+    partial: bool = False
+
+
+class ClimateMonth(BaseModel):
+    month: int
+    temperature_max: float | None
+    temperature_min: float | None
+    precipitation: float | None
+    rainy_days: float | None
+    sunshine_hours: float | None
+    best: bool
+
+
+class Climate(BaseModel):
+    units: Units
+    years: str
+    months: list[ClimateMonth]
 
 
 class ErrorResponse(BaseModel):

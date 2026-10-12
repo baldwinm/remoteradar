@@ -30,7 +30,10 @@ def test_search_returns_cities_with_new_ids(client, mock_upstream):
     assert response.headers["cache-control"] == "public, max-age=3600"
     sent = route.calls.last.request.url.params
     assert sent["q"] == "Santa Fe"
-    assert sent["no_annotations"] == "1"
+    assert "no_annotations" not in sent
+    assert cities[0]["timezone"] == "America/Denver"
+    assert cities[0]["currency_code"] == "USD"
+    assert cities[0]["currency_symbol"] == "$"
 
 
 def test_search_results_are_cached_and_prime_city_lookup(client, mock_upstream):

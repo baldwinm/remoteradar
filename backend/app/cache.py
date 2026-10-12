@@ -15,7 +15,8 @@ from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
 
-KEY_PREFIX = "rr:v2:"
+# Bump when a cached shape changes, so old entries are ignored instead of misread.
+KEY_PREFIX = "rr:v3:"
 
 
 class Cache(Protocol):

@@ -1,5 +1,6 @@
 """Public JSON API under /api."""
 
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query, Response
@@ -9,7 +10,9 @@ from ..context import AppContext, get_context
 from ..models import (
     City,
     CitySearchResponse,
+    Climate,
     ErrorResponse,
+    Essentials,
     PlacesResponse,
     PlaceType,
     StaysResponse,
@@ -17,7 +20,7 @@ from ..models import (
     Weather,
 )
 from ..ratelimit import rate_limit
-from ..services import geocoding, places, stays, weather
+from ..services import climate, essentials, geocoding, places, stays, weather
 
 router = APIRouter(
     responses={
@@ -86,8 +89,10 @@ async def get_weather(ctx: Ctx, response: Response, city_id: CityId, units: Unit
 async def get_places(
     ctx: Ctx, response: Response, city_id: CityId, type: PlaceType | None = None
 ) -> PlacesResponse:
+    """The core categories (coffee, coworking, restaurants) by default. `type` narrows them, and
+    gym, park or laundry fetches that category on its own."""
     city = await geocoding.resolve_city(ctx, city_id)
-    result = await places.get_places(ctx, city)
+    result = await places.get_places(ctx, city, type)
     if type:
         result.places = [p for p in result.places if p.type == type]
     cache_for(response, 3600)
@@ -104,8 +109,36 @@ async def get_stays(
     response: Response,
     city_id: CityId,
     occupants: Annotated[int, Query(ge=1, le=8)] = 1,
+    checkin: date | None = None,
+    nights: Annotated[int, Query(ge=1, le=stays.MAX_NIGHTS)] = 1,
 ) -> StaysResponse:
     city = await geocoding.resolve_city(ctx, city_id)
-    result = await stays.get_stays(ctx, city, occupants)
+    result = await stays.get_stays(ctx, city, occupants, checkin, nights)
     cache_for(response, 1800)
+    return result
+
+
+@router.get(
+    "/cities/{city_id}/essentials",
+    response_model=Essentials,
+    dependencies=[Depends(rate_limit("essentials", 30, 60))],
+)
+async def get_essentials(ctx: Ctx, response: Response, city_id: CityId) -> Essentials:
+    """Time zone, currency and exchange rate, upcoming public holidays, travel advisory, internet speed."""
+    city = await geocoding.resolve_city(ctx, city_id)
+    result = await essentials.get_essentials(ctx, city)
+    cache_for(response, 3600)
+    return result
+
+
+@router.get(
+    "/cities/{city_id}/climate",
+    response_model=Climate,
+    dependencies=[Depends(rate_limit("climate", 30, 60))],
+)
+async def get_climate(ctx: Ctx, response: Response, city_id: CityId, units: Units = "metric") -> Climate:
+    """Average weather for each month of the year, with the best months to visit marked."""
+    city = await geocoding.resolve_city(ctx, city_id)
+    result = await climate.get_climate(ctx, city, units)
+    cache_for(response, 86400)
     return result

@@ -11,6 +11,7 @@ import { usePageViews } from './lib/analytics';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
 const CityPage = lazy(() => import('./pages/CityPage'));
+const ComparePage = lazy(() => import('./pages/ComparePage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 function AppRoutes() {
@@ -20,6 +21,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/city/:cityId" element={<CityPage />} />
+        <Route path="/compare" element={<ComparePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
@@ -64,7 +66,10 @@ export default function App() {
           <footer className="app-footer">
             <div className="footer-content">
               <span>© {new Date().getFullYear()} Remote Radar</span>
-              <span>Data from Open-Meteo, Google Places, Booking.com and OpenCage</span>
+              <span>
+                Data from Open-Meteo, Google Places, Booking.com, OpenCage, Speedtest® by Ookla®, ExchangeRate-API,
+                Nager.Date and the US State Department
+              </span>
             </div>
           </footer>
         </div>
