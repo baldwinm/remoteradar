@@ -11,17 +11,16 @@ browser ──► FastAPI (backend/) ──► OpenCage, Google Places (New), Op
               └── serves the built React app (frontend/build) from the same origin
 ```
 
-- **frontend/** is a React 19 + TypeScript single-page app built with Vite. It holds no API keys.
-  It calls `/api/...` on its own origin, unless `VITE_API_BASE_URL` points it at a separate API
-  service (production builds do, via `frontend/.env.production`).
+- **frontend/** is a React 19 + TypeScript single-page app built with Vite. It only calls same-origin
+  `/api/...` URLs, so no API keys or backend URLs are baked into it.
 - **backend/** is a FastAPI app. It proxies the third-party APIs so their keys stay on the server,
-  caches every upstream response, rate-limits per client IP, and can also serve the frontend build,
-  so the whole site can run as one process on one origin.
+  caches every upstream response, rate-limits per client IP, and serves the built frontend.
+  One service, one origin, one deploy.
 - **Redis** (optional) shares the cache and rate-limit counters across workers and restarts. Without
   `REDIS_URL` the app falls back to an in-memory cache per worker.
 
-The frontend and backend are separate codebases with their own tooling. They can be deployed together
-(one service, same origin) or separately (a static site calling the API cross-origin).
+The frontend and backend are separate codebases with their own tooling, but they build into a single
+Docker image and deploy as one service.
 
 ## API
 
@@ -70,7 +69,7 @@ Backend settings come from environment variables (or `backend/.env` locally):
 | `GOOGLE_API_KEY` | Yes | Needs **Places API (New)** enabled in Google Cloud |
 | `RAPIDAPI_KEY` | Yes | RapidAPI key subscribed to the apidojo Booking API (`AIRBNB_API_KEY` is still accepted) |
 | `REDIS_URL` | No | Shared cache and rate limits; in-memory fallback without it |
-| `CORS_ORIGINS` | No | Comma-separated browser origins allowed to call the API cross-origin; defaults to `https://remoteradar.net` and `https://www.remoteradar.net` |
+| `CORS_ORIGINS` | No | Comma-separated; only needed if a frontend on another origin calls the API |
 | `ENVIRONMENT` | No | `production` (default) or `development` |
 | `WEB_CONCURRENCY` | No | Gunicorn worker count (default 2) |
 
@@ -79,7 +78,7 @@ Frontend build-time variables (all optional):
 | Variable | Notes |
 | --- | --- |
 | `VITE_MAPBOX_TOKEN` | Public Mapbox token. Restrict it to your domains in the Mapbox dashboard |
-| `VITE_API_BASE_URL` | Where the API lives. Production builds use `https://remote-radar-backend.onrender.com` (set in `frontend/.env.production`); set it empty to use same-origin `/api` |
+| `VITE_API_BASE_URL` | Only if the API is on a different origin than the site |
 
 ## Tests and checks
 
@@ -92,19 +91,16 @@ CI runs all of these plus a Docker build and smoke test on every push and pull r
 
 ## Deploying
 
-**Single service (recommended).** The `Dockerfile` builds the frontend and runs the API with gunicorn,
-serving everything from one origin. `render.yaml` is a Render Blueprint for this setup with a free Redis
-(Key Value) instance; set the three API keys in the Render dashboard.
+The site runs as one Docker web service. The `Dockerfile` builds the frontend, installs the API, and
+starts gunicorn, which serves both from the same origin. Any host that runs a Dockerfile works.
 
-**Two Render services (the current live setup).** The static site calls the API service cross-origin:
+On Render, `render.yaml` is a Blueprint for this setup: a Docker web service (`remote-radar`) plus a free
+Key Value (Redis) instance for the shared cache. Create it with **New > Blueprint**, enter the three API
+keys when prompted, then attach the custom domains (`remoteradar.net`, `www.remoteradar.net`) to the
+web service. Pushes to `main` redeploy it automatically.
 
-- Web service `remote-radar-backend`: root `backend`, build `pip install -r requirements.txt`, start
-  `gunicorn wsgi:app` (the worker class and port come from `backend/gunicorn.conf.py`).
-- Static site: root `frontend`, build command `npm run build`, publish directory `build`, with a rewrite
-  from `/*` to `/index.html`. The build output is no longer committed, so the build command is required.
-  Set `NODE_VERSION=24` if Render does not pick up `.node-version`.
-- If the API service's URL or the site's domain changes, update `frontend/.env.production` or set
-  `VITE_API_BASE_URL` on the static site, and set `CORS_ORIGINS` on the API service.
+On Render's free plan the service sleeps after 15 minutes without traffic, so the first visit after a
+quiet spell waits for it to start. A paid instance type stays awake.
 
 `Documentation_v1.pdf` describes the original Flask version and is out of date.
 
