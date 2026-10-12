@@ -28,6 +28,7 @@ const PATHS = {
   shield: 'M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z',
   cash: 'M3 7h18v10H3zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM6 12h.01M18 12h.01',
   compare: 'M4 5h6v14H4zM14 5h6v14h-6z',
+  device: 'M3 5h18v11H3zM8 20h8M12 16v4',
 } as const;
 
 export type IconName = keyof typeof PATHS;
