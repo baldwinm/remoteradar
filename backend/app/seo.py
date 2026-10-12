@@ -114,7 +114,7 @@ def render_city_meta(base_html: str, city: City, public_url: str) -> str:
 
 def sitemap_xml(public_url: str) -> str:
     base = public_url.rstrip("/")
-    urls = [f"{base}/", *(f"{base}/city/{quote(city_id)}" for city_id in SITEMAP_CITY_IDS)]
+    urls = [f"{base}/", f"{base}/privacy", *(f"{base}/city/{quote(city_id)}" for city_id in SITEMAP_CITY_IDS)]
     entries = "\n".join(f"  <url><loc>{escape(url)}</loc></url>" for url in urls)
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'

@@ -6,6 +6,7 @@ import { createQueryClient } from './api/queries';
 import ErrorBoundary from './components/ErrorBoundary';
 import { Logo } from './components/Icon';
 import SearchBar from './components/SearchBar';
+import SiteFooter from './components/SiteFooter';
 import Spinner from './components/Spinner';
 import ThemeSwitch from './components/ThemeSwitch';
 import { usePageViews } from './lib/analytics';
@@ -13,6 +14,7 @@ import { usePageViews } from './lib/analytics';
 const HomePage = lazy(() => import('./pages/HomePage'));
 const CityPage = lazy(() => import('./pages/CityPage'));
 const ComparePage = lazy(() => import('./pages/ComparePage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 function AppRoutes() {
@@ -23,6 +25,7 @@ function AppRoutes() {
         <Route path="/" element={<HomePage />} />
         <Route path="/city/:cityId" element={<CityPage />} />
         <Route path="/compare" element={<ComparePage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
@@ -65,15 +68,7 @@ export default function App() {
             </ErrorBoundary>
           </main>
 
-          <footer className="app-footer">
-            <div className="footer-content">
-              <span>© {new Date().getFullYear()} Remote Radar</span>
-              <span>
-                Data from Open-Meteo, Google Places, Booking.com, OpenCage, Speedtest® by Ookla®, ExchangeRate-API,
-                Nager.Date and the US State Department
-              </span>
-            </div>
-          </footer>
+          <SiteFooter />
         </div>
       </BrowserRouter>
     </QueryClientProvider>
