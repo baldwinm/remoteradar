@@ -9,6 +9,10 @@ RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 # Optional: override the Mapbox public token baked into the bundle.
 ARG VITE_MAPBOX_TOKEN
+# This image serves the API itself, so call it on the same origin instead of the
+# separate Render API service that frontend/.env.production points at.
+ARG VITE_API_BASE_URL=""
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN npm run build
 
 # --- Python runtime -----------------------------------------------------------
