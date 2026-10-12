@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router';
 
 import { cityKeys, useCitySearch } from '../api/queries';
 import type { City } from '../api/types';
+import { formatCoords } from '../lib/format';
+import Icon from './Icon';
 import './SearchBar.css';
 
 const DEBOUNCE_MS = 300;
@@ -22,7 +24,12 @@ function regionLabel(city: City) {
   return [city.state, city.country].filter(Boolean).join(', ');
 }
 
-export default function SearchBar() {
+interface Props {
+  /** "hero" is the large search on the home page; "compact" sits in the page header. */
+  variant?: 'hero' | 'compact';
+}
+
+export default function SearchBar({ variant = 'hero' }: Props) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -71,30 +78,35 @@ export default function SearchBar() {
   }
 
   return (
-    <div className="search-bar" ref={containerRef}>
+    <div className={`search-bar search-bar--${variant}`} ref={containerRef}>
       <form onSubmit={handleSubmit} role="search">
-        <input
-          type="text"
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setActive(0);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={handleKeyDown}
-          placeholder="Enter a city name..."
-          className="search-input"
-          aria-label="Search for a city"
-          autoComplete="off"
-          role="combobox"
-          aria-expanded={showResults}
-          aria-controls={listId}
-          aria-activedescendant={showResults ? `${listId}-${active}` : undefined}
-        />
-        <button type="submit" className="search-button">
-          Search
-        </button>
+        <div className="search-field">
+          <Icon name="search" size={variant === 'hero' ? 20 : 16} />
+          <input
+            type="text"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setActive(0);
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={handleKeyDown}
+            placeholder={variant === 'hero' ? 'Where to next? Try Lisbon or Mexico City' : 'Search another city'}
+            className="search-input"
+            aria-label="Search for a city"
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={showResults}
+            aria-controls={listId}
+            aria-activedescendant={showResults ? `${listId}-${active}` : undefined}
+          />
+        </div>
+        {variant === 'hero' && (
+          <button type="submit" className="button search-button">
+            Explore city
+          </button>
+        )}
       </form>
 
       {open && isFetching && term.length >= 2 && results.length === 0 && (
@@ -118,8 +130,11 @@ export default function SearchBar() {
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => select(city)}
             >
-              <span className="search-result-name">{city.name}</span>
-              <span className="search-result-region">{regionLabel(city)}</span>
+              <span className="search-result-place">
+                <span className="search-result-name">{city.name}</span>
+                <span className="search-result-region">{regionLabel(city)}</span>
+              </span>
+              <span className="search-result-coords mono">{formatCoords(city.lat, city.lng)}</span>
             </li>
           ))}
         </ul>

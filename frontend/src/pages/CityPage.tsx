@@ -3,16 +3,20 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { ApiError } from '../api/client';
-import { cityKeys, useCity, usePlaces, useStays } from '../api/queries';
+import { cityKeys, useCity, usePlaces, useStays, useWeather } from '../api/queries';
 import type { City, Units } from '../api/types';
+import { SUPPORT_URL } from '../config';
 import CityMap from '../components/CityMap';
 import ErrorBoundary from '../components/ErrorBoundary';
+import Icon from '../components/Icon';
 import PlacesList from '../components/PlacesList';
 import Spinner from '../components/Spinner';
 import StaysWidget from '../components/StaysWidget';
+import UnitsToggle from '../components/UnitsToggle';
 import WeatherWidget from '../components/WeatherWidget';
 import { defaultUnitsFor } from '../lib/cityId';
-import { formatMoney } from '../lib/format';
+import { formatCoords, formatWholeMoney, round } from '../lib/format';
+import { isSunny, weatherIcon } from '../lib/weatherIcons';
 import './CityPage.css';
 
 export default function CityPage() {
@@ -22,8 +26,19 @@ export default function CityPage() {
 }
 
 function widgetFallback(name: string) {
-  return <div className="widget-error">The {name} section hit an unexpected error.</div>;
+  return (
+    <div className="card">
+      <div className="widget-error">The {name} section hit an unexpected error.</div>
+    </div>
+  );
 }
+
+const SECTIONS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'weather', label: 'Weather' },
+  { id: 'stays', label: 'Stays' },
+  { id: 'places', label: 'Places' },
+];
 
 function CityView({ cityId }: { cityId: string }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -68,110 +83,145 @@ function CityView({ cityId }: { cityId: string }) {
 
   return (
     <div className="city-page">
-      <header className="city-header">
-        {city.data ? (
-          <>
-            <h1 className="city-title">{city.data.name}</h1>
-            <p className="city-subtitle">{[city.data.state, city.data.country].filter(Boolean).join(', ')}</p>
-          </>
-        ) : (
-          <h1 className="city-title">Loading…</h1>
-        )}
-        <Link to="/" className="back-link">
-          ← Back to search
-        </Link>
-      </header>
-
-      {city.data ? (
-        <ErrorBoundary fallback={widgetFallback('map')}>
-          <CityMap name={city.data.name} lat={city.data.lat} lng={city.data.lng} />
-        </ErrorBoundary>
-      ) : (
-        <Spinner label="Finding city…" />
-      )}
-
-      <ErrorBoundary fallback={widgetFallback('weather')}>
-        <WeatherWidget
-          cityId={cityId}
-          cityName={city.data?.name ?? ''}
-          units={units}
-          onUnitsChange={changeUnits}
-        />
-      </ErrorBoundary>
-
-      <div className="content-row">
-        <div className="content-section">
-          <ErrorBoundary fallback={widgetFallback('accommodation')}>
-            <StaysWidget cityId={cityId} occupants={occupants} onOccupantsChange={setOccupants} />
-          </ErrorBoundary>
+      <section className="city-hero" id="overview">
+        <div className="city-title-row">
+          <div className="city-heading">
+            <h1 className="city-title">{city.data?.name ?? 'Loading…'}</h1>
+            {city.data && (
+              <p className="city-sub">
+                <span>{[city.data.state, city.data.country].filter(Boolean).join(', ')}</span>
+                <span className="mono">{formatCoords(city.data.lat, city.data.lng)}</span>
+              </p>
+            )}
+          </div>
+          <UnitsToggle units={units} onChange={changeUnits} />
         </div>
-        <div className="content-section">
+        <AtAGlance cityId={cityId} units={units} occupants={occupants} />
+      </section>
+
+      <nav className="section-nav" aria-label="Sections">
+        {SECTIONS.map((section) => (
+          <a key={section.id} href={`#${section.id}`}>
+            {section.label}
+          </a>
+        ))}
+      </nav>
+
+      <div className="city-grid">
+        <div className="city-col">
+          {city.data ? (
+            <ErrorBoundary fallback={widgetFallback('map')}>
+              <CityMapWithPlaces cityId={cityId} city={city.data} />
+            </ErrorBoundary>
+          ) : (
+            <div className="card">
+              <Spinner label="Finding city…" />
+            </div>
+          )}
+
           <ErrorBoundary fallback={widgetFallback('places')}>
             <PlacesSection cityId={cityId} />
           </ErrorBoundary>
         </div>
+
+        <div className="city-col">
+          <ErrorBoundary fallback={widgetFallback('weather')}>
+            <WeatherWidget cityId={cityId} units={units} />
+          </ErrorBoundary>
+
+          <ErrorBoundary fallback={widgetFallback('accommodation')}>
+            <StaysWidget cityId={cityId} occupants={occupants} onOccupantsChange={setOccupants} />
+          </ErrorBoundary>
+        </div>
       </div>
 
-      <CitySummary cityId={cityId} cityName={city.data?.name ?? 'this city'} occupants={occupants} />
-
-      <div className="support-container">
-        <a
-          href="https://www.buymeacoffee.com/remoteradar"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="coffee-button"
-        >
-          ☕ Buy me a coffee
+      <aside className="support-band">
+        <span>Remote Radar is free and ad-free. If it helped you pick a city, you can chip in.</span>
+        <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="button button-quiet">
+          Buy me a coffee
         </a>
-      </div>
+      </aside>
     </div>
+  );
+}
+
+function CityMapWithPlaces({ cityId, city }: { cityId: string; city: City }) {
+  const places = usePlaces(cityId);
+  return (
+    <CityMap name={city.name} lat={city.lat} lng={city.lng} places={places.data?.places ?? []} />
   );
 }
 
 function PlacesSection({ cityId }: { cityId: string }) {
   const { data, isPending, isError, error } = usePlaces(cityId);
-  if (isPending) {
-    return (
-      <div className="widget-loading card">
-        <div className="loading-spinner" aria-hidden="true" />
-        <p>Loading places…</p>
-      </div>
-    );
-  }
-  if (isError) {
-    return <div className="widget-error">Places are unavailable right now. {error.message}</div>;
-  }
-  return <PlacesList places={data.places} partial={data.partial} />;
+  return (
+    <section className="card" id="places" aria-labelledby="places-title">
+      {isPending ? (
+        <>
+          <div className="card-head">
+            <h2 id="places-title">Places to work and eat</h2>
+          </div>
+          <div className="widget-loading">
+            <div className="loading-spinner" aria-hidden="true" />
+            <p>Loading places…</p>
+          </div>
+        </>
+      ) : isError ? (
+        <>
+          <div className="card-head">
+            <h2 id="places-title">Places to work and eat</h2>
+          </div>
+          <div className="widget-error">Places are unavailable right now. {error.message}</div>
+        </>
+      ) : (
+        <PlacesList places={data.places} partial={data.partial} titleId="places-title" />
+      )}
+    </section>
+  );
 }
 
-function CitySummary({ cityId, cityName, occupants }: { cityId: string; cityName: string; occupants: number }) {
-  // These reuse the cached responses the widgets above already fetched.
+function AtAGlance({ cityId, units, occupants }: { cityId: string; units: Units; occupants: number }) {
+  // These reuse the cached responses the sections below fetch.
+  const weather = useWeather(cityId, units);
   const places = usePlaces(cityId);
   const stays = useStays(cityId, occupants);
   const counts = places.data?.counts;
-
-  const stats = [
-    { icon: '🏨', label: 'Avg. nightly', value: formatMoney(stays.data?.average_price, stays.data?.currency) },
-    { icon: '☕', label: 'Coffee shops', value: counts?.coffee ?? '–' },
-    { icon: '💻', label: 'Coworking spaces', value: counts?.coworking ?? '–' },
-    { icon: '🍽️', label: 'Restaurants', value: counts?.restaurant ?? '–' },
-  ];
+  const current = weather.data?.current;
+  const icon = current ? weatherIcon(current.weather_code, current.is_day) : 'cloud';
+  const tempUnit = weather.data?.units === 'imperial' ? '°F' : '°C';
+  const guests = occupants === 1 ? '1 guest' : `${occupants} guests`;
 
   return (
-    <section className="city-summary">
-      <h3>About {cityName}</h3>
-      <div className="summary-stats">
-        {stats.map((stat) => (
-          <div className="stat-item" key={stat.label}>
-            <div className="stat-icon" aria-hidden="true">
-              {stat.icon}
-            </div>
-            <div className="stat-value">{stat.value}</div>
-            <div className="stat-label">{stat.label}</div>
-          </div>
-        ))}
+    <dl className="glance">
+      <div className="glance-item glance-now">
+        <Icon name={icon} size={34} className={current && isSunny(icon) ? 'glance-icon sunny' : 'glance-icon'} />
+        <div>
+          <dt>Now</dt>
+          <dd className="glance-value">{current ? `${round(current.temperature)}${tempUnit}` : '–'}</dd>
+          <dd className="glance-hint">{current?.description ?? 'Loading weather'}</dd>
+        </div>
       </div>
-    </section>
+      <div className="glance-item">
+        <dt>Avg. nightly</dt>
+        <dd className="glance-value">{formatWholeMoney(stays.data?.average_price, stays.data?.currency)}</dd>
+        <dd className="glance-hint">Hotels, {guests}</dd>
+      </div>
+      <div className="glance-item">
+        <dt>Coffee</dt>
+        <dd className="glance-value">{counts?.coffee ?? '–'}</dd>
+        <dd className="glance-hint">shops nearby</dd>
+      </div>
+      <div className="glance-item">
+        <dt>Coworking</dt>
+        <dd className="glance-value">{counts?.coworking ?? '–'}</dd>
+        <dd className="glance-hint">spaces nearby</dd>
+      </div>
+      <div className="glance-item">
+        <dt>Restaurants</dt>
+        <dd className="glance-value">{counts?.restaurant ?? '–'}</dd>
+        <dd className="glance-hint">top rated</dd>
+      </div>
+    </dl>
   );
 }
 

@@ -1,6 +1,5 @@
 import { screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { Weather } from '../api/types';
 import { mockApi, renderWithProviders } from '../test/utils';
@@ -34,40 +33,35 @@ const WEATHER: Weather = {
       sunrise: null,
       sunset: null,
     },
+    {
+      date: '2026-10-13',
+      temperature_max: 72,
+      temperature_min: 47,
+      precipitation_probability_max: 30,
+      weather_code: 61,
+      description: 'Light rain',
+      sunrise: null,
+      sunset: null,
+    },
   ],
 };
 
 describe('WeatherWidget', () => {
-  it('shows current conditions, forecast and hourly tabs', async () => {
+  it('shows current conditions, the next hours and the 3-day forecast together', async () => {
     mockApi({ '/api/cities/santa-fe--nm--us/weather': WEATHER });
-    const user = userEvent.setup();
-    renderWithProviders(
-      <WeatherWidget cityId="santa-fe--nm--us" cityName="Santa Fe" units="imperial" onUnitsChange={() => {}} />,
-    );
+    renderWithProviders(<WeatherWidget cityId="santa-fe--nm--us" units="imperial" />);
 
     expect(await screen.findByText('68°F')).toBeInTheDocument();
     expect(screen.getByText('Partly cloudy')).toBeInTheDocument();
     expect(screen.getByText('0%')).toBeInTheDocument(); // 0% humidity is a value, not "N/A"
-
-    await user.click(screen.getByRole('tab', { name: 'Forecast' }));
-    expect(screen.getByText('Monday')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('tab', { name: 'Hourly' }));
     expect(screen.getByText('2 PM')).toBeInTheDocument();
-  });
-
-  it('reports unit changes to the page', async () => {
-    mockApi({ '/api/cities/x--us/weather': WEATHER });
-    const onUnitsChange = vi.fn();
-    const user = userEvent.setup();
-    renderWithProviders(<WeatherWidget cityId="x--us" cityName="X" units="imperial" onUnitsChange={onUnitsChange} />);
-    await user.click(screen.getByRole('button', { name: '°C' }));
-    expect(onUnitsChange).toHaveBeenCalledWith('metric');
+    expect(screen.getByText('Today')).toBeInTheDocument();
+    expect(screen.getByText('Tue')).toBeInTheDocument();
   });
 
   it('shows a friendly message when the API fails', async () => {
     mockApi({});
-    renderWithProviders(<WeatherWidget cityId="x--us" cityName="X" units="metric" onUnitsChange={() => {}} />);
+    renderWithProviders(<WeatherWidget cityId="x--us" units="metric" />);
     expect(await screen.findByText(/weather is unavailable/i)).toBeInTheDocument();
   });
 });

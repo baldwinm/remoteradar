@@ -1,6 +1,7 @@
-import type { Map as MapboxMap } from 'mapbox-gl';
+import type { Map as MapboxMap, Marker } from 'mapbox-gl';
 import { useEffect, useRef, useState } from 'react';
 
+import type { Place, PlaceType } from '../api/types';
 import { MAPBOX_TOKEN } from '../config';
 import './CityMap.css';
 
@@ -14,6 +15,17 @@ const STYLES = [
 ] as const;
 
 type StyleId = (typeof STYLES)[number]['id'];
+type MapboxGl = typeof import('mapbox-gl');
+
+const LEGEND: { type: PlaceType; label: string }[] = [
+  { type: 'coffee', label: 'Coffee' },
+  { type: 'coworking', label: 'Coworking' },
+  { type: 'restaurant', label: 'Restaurants' },
+];
+
+function defaultStyle(): StyleId {
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark-v11' : 'light-v11';
+}
 
 const styleUrl = (id: StyleId) => `mapbox://styles/mapbox/${id}`;
 
@@ -21,12 +33,15 @@ interface Props {
   name: string;
   lat: number;
   lng: number;
+  /** Pinned on the map, colored by type. */
+  places?: Place[];
 }
 
-export default function CityMap({ name, lat, lng }: Props) {
+export default function CityMap({ name, lat, lng, places = [] }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapboxMap | null>(null);
-  const [style, setStyle] = useState<StyleId>('streets-v12');
+  const lib = useRef<MapboxGl | null>(null);
+  const [style, setStyle] = useState<StyleId>(defaultStyle);
   const styleRef = useRef(style);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
@@ -42,6 +57,7 @@ export default function CityMap({ name, lat, lng }: Props) {
       ]);
       if (cancelled || !container.current) return;
 
+      lib.current = mapboxgl;
       mapboxgl.accessToken = MAPBOX_TOKEN;
       instance = new mapboxgl.Map({
         container: container.current,
@@ -52,7 +68,7 @@ export default function CityMap({ name, lat, lng }: Props) {
         cooperativeGestures: true,
       });
       instance.addControl(new mapboxgl.NavigationControl(), 'top-right');
-      new mapboxgl.Marker().setLngLat([lng, lat]).addTo(instance);
+      new mapboxgl.Marker({ color: '#16161a' }).setLngLat([lng, lat]).addTo(instance);
 
       let loaded = false;
       instance.on('load', () => {
@@ -80,6 +96,22 @@ export default function CityMap({ name, lat, lng }: Props) {
     };
   }, [lat, lng]);
 
+  useEffect(() => {
+    const mapboxgl = lib.current;
+    const instance = map.current;
+    if (status !== 'ready' || !mapboxgl || !instance) return;
+    const markers: Marker[] = [];
+    for (const place of places) {
+      if (place.lat === null || place.lng === null) continue;
+      const element = document.createElement('div');
+      element.className = `map-pin map-pin--${place.type}`;
+      element.title = place.name;
+      const popup = new mapboxgl.Popup({ offset: 10, closeButton: false }).setText(place.name);
+      markers.push(new mapboxgl.Marker({ element }).setLngLat([place.lng, place.lat]).setPopup(popup).addTo(instance));
+    }
+    return () => markers.forEach((marker) => marker.remove());
+  }, [places, status]);
+
   function changeStyle(next: StyleId) {
     setStyle(next);
     styleRef.current = next;
@@ -87,7 +119,7 @@ export default function CityMap({ name, lat, lng }: Props) {
   }
 
   return (
-    <section className="city-map-container" aria-label={`Map of ${name}`}>
+    <section className="card city-map" aria-label={`Map of ${name}`}>
       <div className="map-frame">
         {/* Mapbox takes over this element, so React must not render anything inside it. */}
         <div ref={container} className="map-canvas" />
@@ -98,9 +130,18 @@ export default function CityMap({ name, lat, lng }: Props) {
         )}
       </div>
       <div className="map-controls">
+        <ul className="map-legend" aria-label="Pin colors">
+          {LEGEND.map((item) => (
+            <li key={item.type}>
+              <span className={`map-dot map-pin--${item.type}`} aria-hidden="true" />
+              {item.label}
+            </li>
+          ))}
+        </ul>
         <label className="map-style-selector">
-          Map style:
+          Style
           <select
+            className="select"
             value={style}
             onChange={(event) => changeStyle(event.target.value as StyleId)}
             disabled={status !== 'ready'}
