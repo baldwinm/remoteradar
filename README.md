@@ -84,7 +84,11 @@ Backend settings come from environment variables (or `backend/.env` locally):
 | `GOOGLE_API_KEY` | Yes | Needs **Places API (New)** enabled in Google Cloud |
 | `RAPIDAPI_KEY` | Yes | RapidAPI key subscribed to the apidojo Booking API (`AIRBNB_API_KEY` is still accepted) |
 | `REDIS_URL` | No | Shared cache and rate limits; in-memory fallback without it |
-| `STATS_DB_PATH` | No | SQLite file for popular-city totals (default `data/popular.db` at the repo root; memory if that folder is missing) |
+| `STATS_DB_PATH` | No | SQLite file for popular-city totals and provider usage counts (default `data/popular.db` at the repo root; memory if that folder is missing) |
+| `GOOGLE_PLACES_DAILY_LIMIT` | No | Site-wide cap on Google Places calls per UTC day (default 1000; `0` = no cap). A new city page costs 3 |
+| `OPENCAGE_DAILY_LIMIT` | No | Site-wide cap on geocoder calls per UTC day (default 2500, OpenCage's free-tier limit) |
+| `BOOKING_DAILY_LIMIT` | No | Site-wide cap on RapidAPI Booking calls per UTC day (default 500) |
+| `IP_HASH_SECRET` | No | Only with `REDIS_URL` and several processes: shared secret for hashing visitor IPs in rate-limit counters |
 | `CORS_ORIGINS` | No | Comma-separated; only needed if a frontend on another origin calls the API |
 | `ENVIRONMENT` | No | `production` (default) or `development` |
 | `WEB_CONCURRENCY` | No | Gunicorn worker count (default 2) |

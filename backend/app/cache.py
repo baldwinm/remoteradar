@@ -63,8 +63,14 @@ class MemoryCache:
             expires_at, count = now + ttl, 0
         self._counters[key] = (expires_at, count + 1)
         if len(self._counters) > self._max_entries:
-            self._counters = {k: v for k, v in self._counters.items() if v[0] > now}
+            self.sweep()
         return count + 1
+
+    def sweep(self) -> None:
+        """Forget expired counters. Rate-limit counters are keyed by visitor, so they must not
+        linger past their window (the app calls this every few seconds)."""
+        now = time.monotonic()
+        self._counters = {k: v for k, v in self._counters.items() if v[0] > now}
 
     async def close(self) -> None:
         self._values.clear()

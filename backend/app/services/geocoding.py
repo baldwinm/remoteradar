@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 OPENCAGE_URL = "https://api.opencagedata.com/geocode/v1/json"
 SEARCH_TTL = 7 * 24 * 3600
 CITY_TTL = 30 * 24 * 3600
+MISSING_TTL = 24 * 3600
+MISSING: dict[str, Any] = {"missing": True}
 
 # Components that can name the place, most specific first.
 _NAME_COMPONENTS = (
@@ -74,15 +76,19 @@ async def resolve_city(ctx: AppContext, city_id: str) -> City:
     async def load() -> dict[str, Any]:
         ref = parse_city_id(city_id)
         if not ref.name:
-            raise NotFoundError("City not found.")
+            return MISSING
         results = await _geocode(ctx, ref.search_text, country_code=ref.country_code)
         candidates = _dedupe(_parse_result(r) for r in results)
         if not candidates:
-            raise NotFoundError("City not found.")
+            return MISSING
         match = next((c for c in candidates if c.id == city_id), candidates[0])
         return match.model_dump()
 
     data = await ctx.loader.get_or_load(f"city:{city_id}", CITY_TTL, load)
+    if data.get("missing"):
+        # Remembered (briefly) so made-up IDs can't each spend a geocoder call over and over.
+        await ctx.cache.set(f"city:{city_id}", MISSING, MISSING_TTL)
+        raise NotFoundError("City not found.")
     return City.model_validate(data)
 
 
@@ -103,6 +109,7 @@ async def _geocode(ctx: AppContext, query: str, country_code: str = "") -> list[
     if country_code:
         params["countrycode"] = country_code
 
+    await ctx.usage.spend("opencage")
     data = await request_json(ctx.http, "OpenCage", "GET", OPENCAGE_URL, params=params)
     status = (data.get("status") or {}).get("code", 200)
     if status != 200:

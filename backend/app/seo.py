@@ -8,9 +8,7 @@ React replaces once it starts.
 
 import asyncio
 import logging
-import math
 import re
-import time
 from html import escape
 from urllib.parse import quote, unquote
 
@@ -19,7 +17,7 @@ from fastapi import Request
 from .city_ids import CITY_ID_PATTERN
 from .context import AppContext
 from .models import City
-from .ratelimit import client_ip
+from .ratelimit import over_limit
 from .services import geocoding
 
 logger = logging.getLogger(__name__)
@@ -60,7 +58,7 @@ _ROOT = '<div id="root"></div>'
 async def city_page_html(request: Request, base_html: str, full_path: str) -> str:
     """index.html with this city's meta tags, or the unchanged page when the city can't be resolved."""
     city_id = unquote(full_path.removeprefix("city/")).strip("/")
-    if not _ID.match(city_id):
+    if not _ID.fullmatch(city_id):
         return base_html
     ctx: AppContext = request.app.state.context
     if not await _within_budget(ctx, request):
@@ -74,9 +72,7 @@ async def city_page_html(request: Request, base_html: str, full_path: str) -> st
 
 
 async def _within_budget(ctx: AppContext, request: Request) -> bool:
-    window = math.floor(time.time() / 60)
-    count = await ctx.cache.incr(f"rl:seo:{client_ip(request)}:{window}", 60)
-    return count <= LOOKUPS_PER_MINUTE
+    return not await over_limit(ctx, request, "seo", LOOKUPS_PER_MINUTE, 60)
 
 
 def render_city_meta(base_html: str, city: City, public_url: str) -> str:

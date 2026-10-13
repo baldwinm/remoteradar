@@ -229,6 +229,7 @@ async def _search_category(
 ) -> list[dict[str, Any]]:
     url, body = _category_request(category, city)
     headers = {"X-Goog-Api-Key": api_key, "X-Goog-FieldMask": FIELD_MASK}
+    await ctx.usage.spend("google_places")
     try:
         data = await request_json(ctx.http, "Google Places", "POST", url, json=body, headers=headers)
     except UpstreamError as exc:

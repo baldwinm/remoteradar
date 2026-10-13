@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     frontend_dist: Path = BACKEND_DIR.parent / "frontend" / "build"
 
     rate_limits_enabled: bool = True
+    # Secret for hashing visitor IPs in rate-limit counters. Leave unset to pick a random one
+    # per process; set it only when several processes share counters through Redis.
+    ip_hash_secret: str = ""
+
+    # Site-wide daily caps on calls to the providers that bill or have quotas (0 = no cap).
+    # A city page costs 3 Google Places calls the first time it's opened in 12 hours, and a
+    # gym, park or laundry lookup 1 more. See app/usage.py.
+    google_places_daily_limit: int = 1000
+    opencage_daily_limit: int = 2500
+    booking_daily_limit: int = 500
     upstream_timeout_seconds: float = 10.0
     log_level: str = "INFO"
 

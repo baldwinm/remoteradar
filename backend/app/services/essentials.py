@@ -76,7 +76,8 @@ async def _usd_rates(ctx: AppContext) -> dict[str, Any]:
 
 
 async def _holidays(ctx: AppContext, country_code: str) -> list[Holiday] | None:
-    if len(country_code) != 2:
+    # The code goes into the URL path, so accept only two letters.
+    if len(country_code) != 2 or not country_code.isascii() or not country_code.isalpha():
         return None
     today = datetime.now(UTC).date()
     until = today + timedelta(days=HOLIDAY_WINDOW_DAYS)

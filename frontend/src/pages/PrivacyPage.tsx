@@ -56,8 +56,8 @@ export default function PrivacyPage() {
             don't log your IP address or the text you type into search.
           </li>
           <li>
-            <strong>Abuse protection.</strong> To stop automated scraping, we count requests per IP address. Each
-            count is kept in memory for at most one minute and then deleted.
+            <strong>Abuse protection.</strong> To stop automated scraping, we count requests per IP address. The
+            address is only kept as a scrambled code, in memory, and each count is deleted after at most one minute.
           </li>
           <li>
             <strong>Hosting.</strong> The site runs on Render, which may keep standard network logs (including IP
@@ -81,6 +81,10 @@ export default function PrivacyPage() {
           <li>Cities you save, and cities you recently viewed</li>
           <li>The home time zone you pick for the work-overlap view</li>
         </ul>
+        <p>
+          On city pages, the Mapbox map also keeps a random ID and a little usage data in local storage, which it
+          sends to Mapbox with its anonymous usage counts (see below).
+        </p>
       </section>
 
       <section aria-labelledby="p-analytics">

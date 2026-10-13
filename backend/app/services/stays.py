@@ -66,6 +66,7 @@ async def get_stays(
             "order_by": "popularity",
             "offset": 0,
         }
+        await ctx.usage.spend("booking")
         data = await request_json(
             ctx.http, "Booking", "GET", PROPERTIES_URL, params=params, headers=_headers(api_key)
         )
@@ -99,6 +100,7 @@ async def _destination_id(ctx: AppContext, api_key: str, city: City) -> str:
             text = f"{city.name}, {city.country}"
         else:
             text = city.name
+        await ctx.usage.spend("booking")
         results = await request_json(
             ctx.http,
             "Booking",

@@ -16,11 +16,12 @@ logger = logging.getLogger("remoteradar.access")
 
 # Third parties the page legitimately talks to: Mapbox (map tiles, styles, web workers),
 # Google Fonts, GoatCounter analytics. Images come from Booking.com and map providers.
+# The only outside script is GoatCounter's pinned count.v5.js (index.html also checks its hash).
 CONTENT_SECURITY_POLICY = "; ".join(
     [
         "default-src 'self'",
-        "script-src 'self' https://gc.zgo.at",
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "script-src 'self' https://gc.zgo.at/count.v5.js",
+        "style-src 'self' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com",
         "img-src 'self' data: blob: https:",
         "connect-src 'self' https://api.mapbox.com https://*.tiles.mapbox.com "
@@ -31,6 +32,7 @@ CONTENT_SECURITY_POLICY = "; ".join(
         "base-uri 'self'",
         "form-action 'self'",
         "frame-ancestors 'none'",
+        "upgrade-insecure-requests",
     ]
 )
 
@@ -41,7 +43,12 @@ BASE_HEADERS = {
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
     "Cross-Origin-Opener-Policy": "same-origin",
+    # Other sites can't embed the API's JSON or the site's files in their own pages.
+    "Cross-Origin-Resource-Policy": "same-origin",
 }
+
+# The API only ever receives small JSON bodies (POST /api/views is under 200 bytes).
+MAX_BODY_BYTES = 16 * 1024
 
 QUIET_PATHS = ("/api/health", "/health", "/assets/")
 
@@ -89,6 +96,60 @@ class SecurityHeadersMiddleware:
                     status,
                     (time.perf_counter() - started) * 1000,
                 )
+
+
+class MaxBodySizeMiddleware:
+    """Rejects request bodies over MAX_BODY_BYTES before the app reads them into memory."""
+
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        length = dict(scope["headers"]).get(b"content-length")
+        if length is not None and (not length.isdigit() or int(length) > MAX_BODY_BYTES):
+            await _too_large(send)
+            return
+
+        # Chunked bodies have no length up front, so count as they arrive. (FastAPI may turn
+        # the error into its own 400 when it's raised mid-parse; either way the body is refused.)
+        received = 0
+
+        async def limited_receive() -> Message:
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > MAX_BODY_BYTES:
+                    raise _BodyTooLargeError()
+            return message
+
+        try:
+            await self.app(scope, limited_receive, send)
+        except _BodyTooLargeError:
+            await _too_large(send)
+
+
+class _BodyTooLargeError(Exception):
+    pass
+
+
+async def _too_large(send: Send) -> None:
+    body = b'{"error":"payload_too_large","message":"Request body too large."}'
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 413,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode()),
+                (b"cache-control", b"no-store"),
+            ],
+        }
+    )
+    await send({"type": "http.response.body", "body": body})
 
 
 def mount_frontend(app: FastAPI, dist: Path, public_url: str) -> bool:
