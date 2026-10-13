@@ -105,35 +105,7 @@
   color: var(--muted);
 }
 
-/* Shared with the city page's travel advisory. */
-.compare-table .level {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.compare-table .level::before {
-  content: '';
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background-color: currentColor;
-}
-
-.compare-table .level-1 {
-  color: var(--good);
-}
-
-.compare-table .level-2 {
-  color: var(--warn);
-}
-
-.compare-table .level-3,
-.compare-table .level-4 {
-  color: var(--danger);
-}
-
-/* Remote work score rows: the overall score, then its five factors, indented. */
+/* Remote work score rows: the overall score, then its four factors, indented. */
 .compare-table tr.score-row th {
   color: var(--ink);
   font-weight: 700;

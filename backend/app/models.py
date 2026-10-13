@@ -169,13 +169,6 @@ class Holiday(BaseModel):
     local_name: str
 
 
-class Advisory(BaseModel):
-    level: int
-    title: str
-    url: str
-    updated: str | None
-
-
 class Speed(BaseModel):
     download_mbps: float
     upload_mbps: float
@@ -195,7 +188,6 @@ class Essentials(BaseModel):
     timezone: str
     currency: Currency | None
     holidays: list[Holiday] | None
-    advisory: Advisory | None
     internet: Internet | None
     # True when a source failed (as opposed to having no data for this city).
     partial: bool = False
@@ -218,7 +210,7 @@ class Climate(BaseModel):
 
 
 class ScoreFactor(BaseModel):
-    key: Literal["internet", "places", "cost", "safety", "climate"]
+    key: Literal["internet", "places", "cost", "climate"]
     name: str
     # This factor's share of the score in percent, after missing factors are left out; 0 when missing.
     weight: int

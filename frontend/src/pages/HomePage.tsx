@@ -48,7 +48,7 @@ const FEATURES: { icon: IconName; title: string; text: string }[] = [
   {
     icon: 'cash',
     title: 'Money and holidays',
-    text: 'The local currency and exchange rate, public holidays and travel advisories.',
+    text: 'The local currency and exchange rate, and upcoming public holidays.',
   },
 ];
 

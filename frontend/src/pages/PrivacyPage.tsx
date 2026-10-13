@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { CONTACT_EMAIL } from '../config';
 import './PrivacyPage.css';
 
-const UPDATED = 'October 12, 2026';
+const UPDATED = 'October 13, 2026';
 
 export default function PrivacyPage() {
   useEffect(() => {
@@ -114,7 +114,6 @@ export default function PrivacyPage() {
           <li>Booking.com via RapidAPI (hotel prices)</li>
           <li>ExchangeRate-API (currency rates)</li>
           <li>Nager.Date (public holidays)</li>
-          <li>US State Department (travel advisories)</li>
         </ul>
         <p>Internet speeds come from Speedtest® by Ookla® open data that we bundle with the site, so no lookup is made.</p>
         <p>Two things load directly in your browser, so those providers do see your IP address:</p>
