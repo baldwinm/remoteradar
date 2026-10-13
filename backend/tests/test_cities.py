@@ -113,3 +113,16 @@ def test_geocoder_timeout_is_502(client, mock_upstream):
 def test_invalid_city_id_is_rejected(client):
     assert client.get("/api/cities/<script>").status_code in (400, 404)
     assert client.get("/api/cities/" + "a" * 200).status_code == 400
+
+
+def test_city_carries_geocoder_bounds():
+    from app.services.geocoding import _parse_result
+
+    result = opencage_result()
+    result["bounds"] = {
+        "northeast": {"lat": 35.75, "lng": -105.88},
+        "southwest": {"lat": 35.6, "lng": -106.1},
+    }
+    city = _parse_result(result)
+    assert city.bounds.model_dump() == {"south": 35.6, "west": -106.1, "north": 35.75, "east": -105.88}
+    assert _parse_result(opencage_result()).bounds is None

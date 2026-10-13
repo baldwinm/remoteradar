@@ -140,6 +140,94 @@ def test_places_all_failing_is_502(client, mock_upstream):
     assert client.get(f"/api/cities/{CITY_ID}/places").status_code == 502
 
 
+def address_in(town, state="LA"):
+    return {
+        "addressComponents": [
+            {"longText": town, "shortText": town, "types": ["locality", "political"]},
+            {"longText": "Louisiana", "shortText": state, "types": ["administrative_area_level_1"]},
+        ]
+    }
+
+
+def lafayette(geocoder):
+    result = opencage_result(name="Lafayette", state="Louisiana", state_code="LA", lat=30.2241, lng=-92.0198)
+    result["bounds"] = {
+        "northeast": {"lat": 30.2900, "lng": -91.9700},
+        "southwest": {"lat": 30.1300, "lng": -92.0700},
+    }
+    geocoder.mock(return_value=httpx.Response(200, json=opencage_response(result)))
+    return "lafayette--la--us"
+
+
+def test_places_stay_inside_the_searched_city(client, mock_upstream, geocoder):
+    city_id = lafayette(geocoder)
+    mock_places(
+        mock_upstream,
+        coffee=httpx.Response(
+            200,
+            json={
+                "places": [
+                    google_place("c1", "Rêve Coffee", **address_in("Lafayette")),
+                    google_place("c2", "Broussard Beans", **address_in("Broussard")),
+                    google_place("c3", "No Town Given"),
+                ]
+            },
+        ),
+        coworking=httpx.Response(
+            200,
+            json={
+                "places": [
+                    google_place("w1", "FlexHub Workspace - New Orleans", rating=5.0, **address_in("Kenner")),
+                    google_place("w2", "Opportunity Machine", **address_in("Lafayette")),
+                ]
+            },
+        ),
+        restaurant=httpx.Response(200, json={"places": []}),
+    )
+    data = client.get(f"/api/cities/{city_id}/places").json()
+    assert sorted(p["id"] for p in data["places"]) == ["c1", "c3", "w2"]
+    assert data["counts"]["coworking"] == 1
+
+    requests = [
+        json.loads(c.request.content)
+        for c in mock_upstream.calls
+        if "places.googleapis" in str(c.request.url)
+    ]
+    coworking = next(body for body in requests if "textQuery" in body)
+    assert "locationBias" not in coworking
+    box = coworking["locationRestriction"]["rectangle"]
+    # Clipped to the city's own bounds on the sides where they're tighter than the 5 km box.
+    assert box["high"]["longitude"] == pytest.approx(-91.97)
+    assert box["low"]["latitude"] == pytest.approx(30.2241 - 5000 / 111_320)
+    for body in requests:
+        assert "locationRestriction" in body
+
+
+def test_places_filter_handles_spelling_and_naming_differences(client, mock_upstream, geocoder):
+    city_id = lafayette(geocoder)
+    mock_places(
+        mock_upstream,
+        coffee=httpx.Response(200, json={"places": [google_place("c1", "Beans", **address_in("LAFAYETTE"))]}),
+        coworking=httpx.Response(200, json={"places": []}),
+        restaurant=httpx.Response(200, json={"places": []}),
+    )
+    assert [p["id"] for p in client.get(f"/api/cities/{city_id}/places").json()["places"]] == ["c1"]
+
+
+def test_places_are_kept_when_google_never_names_the_city(client, mock_upstream):
+    # e.g. the geocoder says "Mexico City" and Google says "Ciudad de México": dropping
+    # everything would be worse than trusting the search area.
+    mock_places(
+        mock_upstream,
+        coffee=httpx.Response(
+            200, json={"places": [google_place("c1", "Café", **address_in("Ciudad Santa Fe"))]}
+        ),
+        coworking=httpx.Response(200, json={"places": []}),
+        restaurant=httpx.Response(200, json={"places": []}),
+    )
+    assert [p["id"] for p in client.get(f"/api/cities/{CITY_ID}/places").json()["places"]] == ["c1"]
+
+
 def open_meteo_payload():
     hours = [f"2026-10-12T{h:02d}:00" for h in range(24)] + [f"2026-10-13T{h:02d}:00" for h in range(24)]
     return {
