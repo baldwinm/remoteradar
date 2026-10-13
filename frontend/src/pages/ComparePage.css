@@ -132,3 +132,24 @@
 .compare-table .level-4 {
   color: var(--danger);
 }
+
+/* Remote work score rows: the overall score, then its five factors, indented. */
+.compare-table tr.score-row th {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.compare-table tr.score-sub-row th {
+  padding-left: 30px;
+  font-size: 0.86rem;
+}
+
+.compare-table tr.score-sub-row:has(+ tr:not(.score-sub-row)) th,
+.compare-table tr.score-sub-row:has(+ tr:not(.score-sub-row)) td {
+  border-bottom-width: 2px;
+}
+
+.compare-table tr.score-row td.best,
+.compare-table tr.score-sub-row td.best {
+  background-color: var(--good-soft);
+}

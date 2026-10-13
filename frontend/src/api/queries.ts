@@ -29,6 +29,7 @@ export const cityKeys = {
   stays: (cityId: string, options: StayOptions) =>
     ['city', cityId, 'stays', options.occupants, options.checkin ?? '', options.nights] as const,
   essentials: (cityId: string) => ['city', cityId, 'essentials'] as const,
+  score: (cityId: string) => ['city', cityId, 'score'] as const,
   climate: (cityId: string, units: Units) => ['city', cityId, 'climate', units] as const,
   popular: (timeZone: string) => ['popular', timeZone] as const,
 };
@@ -80,6 +81,13 @@ export function useEssentials(cityId: string) {
   return useQuery({
     queryKey: cityKeys.essentials(cityId),
     queryFn: ({ signal }) => api.essentials(cityId, signal),
+  });
+}
+
+export function useWorkScore(cityId: string) {
+  return useQuery({
+    queryKey: cityKeys.score(cityId),
+    queryFn: ({ signal }) => api.score(cityId, signal),
   });
 }
 

@@ -197,3 +197,24 @@ export interface PopularCities {
   country_code: string;
   cities: PopularCity[];
 }
+
+export type ScoreFactorKey = 'internet' | 'places' | 'cost' | 'safety' | 'climate';
+export type ScoreTier = 'excellent' | 'good' | 'fair' | 'low' | 'none';
+
+export interface ScoreFactor {
+  key: ScoreFactorKey;
+  name: string;
+  /** Share of the score in percent once missing factors are left out; 0 when missing. */
+  weight: number;
+  score: number | null;
+  detail: string;
+}
+
+export interface WorkScore {
+  /** 0 to 100; null when too few factors have data. */
+  score: number | null;
+  tier: ScoreTier;
+  label: string;
+  counted: number;
+  factors: ScoreFactor[];
+}
