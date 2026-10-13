@@ -20,9 +20,10 @@ from ..models import (
     StaysResponse,
     Units,
     Weather,
+    WorkScore,
 )
 from ..ratelimit import rate_limit
-from ..services import climate, essentials, geocoding, places, popular, stays, weather
+from ..services import climate, essentials, geocoding, places, popular, score, stays, weather
 
 router = APIRouter(
     responses={
@@ -143,6 +144,20 @@ async def get_climate(ctx: Ctx, response: Response, city_id: CityId, units: Unit
     city = await geocoding.resolve_city(ctx, city_id)
     result = await climate.get_climate(ctx, city, units)
     cache_for(response, 86400)
+    return result
+
+
+@router.get(
+    "/cities/{city_id}/score",
+    response_model=WorkScore,
+    dependencies=[Depends(rate_limit("score", 30, 60))],
+)
+async def get_score(ctx: Ctx, response: Response, city_id: CityId) -> WorkScore:
+    """The remote work score (0-100) with its five factors: internet, places to work, cost,
+    safety and climate. Factors without data are left out and the rest reweighted."""
+    city = await geocoding.resolve_city(ctx, city_id)
+    result = await score.get_score(ctx, city)
+    cache_for(response, 3600)
     return result
 
 

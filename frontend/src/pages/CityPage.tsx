@@ -15,6 +15,7 @@ import StaysWidget, { localPrice } from '../components/StaysWidget';
 import UnitsToggle from '../components/UnitsToggle';
 import WeatherWidget from '../components/WeatherWidget';
 import WorkPanel from '../components/WorkPanel';
+import { ScoreBadge, ScoreCard } from '../components/WorkScore';
 import { defaultUnitsFor } from '../lib/cityId';
 import { formatCoords, formatWholeMoney, round } from '../lib/format';
 import { recordVisit, toRef, toggleSaved, useHomeZone, useSavedCities } from '../lib/savedCities';
@@ -55,6 +56,7 @@ function countView(cityId: string) {
 
 const SECTIONS = [
   { id: 'overview', label: 'Overview' },
+  { id: 'score', label: 'Score' },
   { id: 'work', label: 'Work from here' },
   { id: 'weather', label: 'Weather' },
   { id: 'climate', label: 'Best time to go' },
@@ -134,6 +136,11 @@ function CityView({ cityId }: { cityId: string }) {
               </p>
             )}
           </div>
+          {city.data && (
+            <ErrorBoundary fallback={<span />}>
+              <ScoreBadge cityId={cityId} />
+            </ErrorBoundary>
+          )}
           <div className="city-actions">
             {city.data && <CityActions city={city.data} />}
             <UnitsToggle units={units} onChange={changeUnits} />
@@ -154,6 +161,9 @@ function CityView({ cityId }: { cityId: string }) {
         <div className="city-col">
           {city.data ? (
             <>
+              <ErrorBoundary fallback={widgetFallback('score')}>
+                <ScoreCard cityId={cityId} cityName={city.data.name} />
+              </ErrorBoundary>
               <ErrorBoundary fallback={widgetFallback('work')}>
                 <WorkPanel cityId={cityId} city={city.data} />
               </ErrorBoundary>

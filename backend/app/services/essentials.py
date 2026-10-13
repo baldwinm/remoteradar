@@ -65,7 +65,7 @@ async def get_essentials(ctx: AppContext, city: City) -> Essentials:
     rates, holidays, advisory = await asyncio.gather(
         _usd_rates(ctx),
         _holidays(ctx, city.country_code),
-        _advisory(ctx, city),
+        advisory_for(ctx, city),
         return_exceptions=True,
     )
     partial = False
@@ -166,7 +166,7 @@ def _within(day: str, start: date, end: date) -> bool:
     return start <= parsed <= end
 
 
-async def _advisory(ctx: AppContext, city: City) -> Advisory | None:
+async def advisory_for(ctx: AppContext, city: City) -> Advisory | None:
     # The State Department doesn't publish an advisory for the US itself.
     if not city.country or city.country_code == "us":
         return None

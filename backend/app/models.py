@@ -207,6 +207,25 @@ class Climate(BaseModel):
     months: list[ClimateMonth]
 
 
+class ScoreFactor(BaseModel):
+    key: Literal["internet", "places", "cost", "safety", "climate"]
+    name: str
+    # This factor's share of the score in percent, after missing factors are left out; 0 when missing.
+    weight: int
+    score: int | None
+    detail: str
+
+
+class WorkScore(BaseModel):
+    """How well a city suits remote work, 0-100. `score` is None when too few factors have data."""
+
+    score: int | None
+    tier: Literal["excellent", "good", "fair", "low", "none"]
+    label: str
+    counted: int
+    factors: list[ScoreFactor]
+
+
 class PopularCity(BaseModel):
     id: str
     name: str

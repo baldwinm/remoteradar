@@ -4,11 +4,22 @@ import { Link, useSearchParams } from 'react-router';
 
 import { api } from '../api/client';
 import { cityKeys } from '../api/queries';
-import type { City, Climate, Essentials, PlacesResponse, StaysResponse, Units, Weather } from '../api/types';
+import type {
+  City,
+  Climate,
+  Essentials,
+  PlacesResponse,
+  ScoreFactorKey,
+  StaysResponse,
+  Units,
+  Weather,
+  WorkScore,
+} from '../api/types';
 import { bestMonths } from '../components/ClimateCard';
 import SearchBar from '../components/SearchBar';
 import UnitsToggle from '../components/UnitsToggle';
 import { formatRate } from '../components/WorkPanel';
+import { FactorScore, ScoreChip } from '../components/WorkScore';
 import { defaultUnitsFor } from '../lib/cityId';
 import { formatWholeMoney, round } from '../lib/format';
 import { useHomeZone } from '../lib/savedCities';
@@ -30,6 +41,7 @@ type Better = 'high' | 'low';
 
 interface Row {
   label: string;
+  className?: string;
   /** Number used to mark the best city in the row; null when unknown. */
   score: (index: number) => number | null;
   better?: Better;
@@ -87,6 +99,13 @@ export default function ComparePage() {
     })),
   }) as UseQueryResult<StaysResponse>[];
 
+  const scores = useQueries({
+    queries: ids.map((id) => ({
+      queryKey: cityKeys.score(id),
+      queryFn: ({ signal }: { signal: AbortSignal }) => api.score(id, signal),
+    })),
+  }) as UseQueryResult<WorkScore>[];
+
   function setIds(next: string[]) {
     setSearchParams(
       (params) => {
@@ -105,7 +124,29 @@ export default function ComparePage() {
     query?.data !== undefined ? show(query.data) : query?.isError ? unknown : loading;
   const temp = units === 'imperial' ? '°F' : '°C';
 
+  const factorScore = (i: number, key: ScoreFactorKey) =>
+    scores[i]?.data?.factors.find((factor) => factor.key === key)?.score ?? null;
+  const factorRow = (key: ScoreFactorKey, label: string): Row => ({
+    label,
+    className: 'score-sub-row',
+    better: 'high',
+    score: (i) => factorScore(i, key),
+    render: (i) => cell(scores[i], () => <FactorScore score={factorScore(i, key)} />),
+  });
+
   const rows: Row[] = [
+    {
+      label: 'Remote work score',
+      className: 'score-row',
+      better: 'high',
+      score: (i) => scores[i]?.data?.score ?? null,
+      render: (i) => cell(scores[i], (data) => <ScoreChip data={data} />),
+    },
+    factorRow('internet', 'Internet'),
+    factorRow('places', 'Places to work'),
+    factorRow('cost', 'Cost'),
+    factorRow('safety', 'Safety'),
+    factorRow('climate', 'Climate'),
     {
       label: 'Local time',
       score: () => null,
@@ -253,7 +294,7 @@ export default function ComparePage() {
               {rows.map((row) => {
                 const best = bestIndex(row);
                 return (
-                  <tr key={row.label}>
+                  <tr key={row.label} className={row.className}>
                     <th scope="row">{row.label}</th>
                     {ids.map((id, i) => (
                       <td key={id} className={best === i ? 'best' : undefined}>
@@ -268,7 +309,8 @@ export default function ComparePage() {
         </div>
       )}
       <p className="compare-note">
-        Hotel prices are for one night, one guest, a week from today. Work overlap uses your time zone, which you can
+        Hotel prices are for one night, one guest, a week from today. Remote work scores run from 0 to
+        100; each city page shows how its score breaks down. Work overlap uses your time zone, which you can
         change on any city page.
       </p>
     </div>

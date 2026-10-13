@@ -9,6 +9,7 @@ import type {
   StaysResponse,
   Units,
   Weather,
+  WorkScore,
 } from './types';
 
 export interface StayOptions {
@@ -83,6 +84,7 @@ export const api = {
     return getJson<StaysResponse>(`${cityPath(cityId)}/stays?${params}`, signal);
   },
   essentials: (cityId: string, signal?: AbortSignal) => getJson<Essentials>(`${cityPath(cityId)}/essentials`, signal),
+  score: (cityId: string, signal?: AbortSignal) => getJson<WorkScore>(`${cityPath(cityId)}/score`, signal),
   climate: (cityId: string, units: Units, signal?: AbortSignal) =>
     getJson<Climate>(`${cityPath(cityId)}/climate?units=${units}`, signal),
   popular: (timeZone: string, signal?: AbortSignal) =>
