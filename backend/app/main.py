@@ -12,15 +12,17 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .cache import CachedLoader, create_cache
+from .cache import Cache, CachedLoader, create_cache
 from .config import Settings, get_settings
 from .context import AppContext
 from .errors import AppError, UpstreamError
 from .http import create_http_client
+from .ratelimit import new_ip_hash_key
 from .routes import api
 from .services import internet
 from .services.popular import create_popular_store
-from .web import SecurityHeadersMiddleware, mount_frontend
+from .usage import Cap, UsageMeter
+from .web import MaxBodySizeMiddleware, SecurityHeadersMiddleware, mount_frontend
 
 logger = logging.getLogger("remoteradar")
 
@@ -45,15 +47,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         cache = create_cache(settings.redis_url)
         http = create_http_client(settings.upstream_timeout_seconds)
         popular = create_popular_store(settings.stats_db_path)
+        usage = UsageMeter(cache, usage_caps(settings), settings.stats_db_path)
         app.state.context = AppContext(
-            settings=settings, http=http, cache=cache, loader=CachedLoader(cache), popular=popular
+            settings=settings,
+            http=http,
+            cache=cache,
+            loader=CachedLoader(cache),
+            popular=popular,
+            usage=usage,
+            ip_hash_key=new_ip_hash_key(settings.ip_hash_secret),
         )
+        sweeper = asyncio.create_task(_sweep_expired(cache))
         _warn_missing_keys(settings)
         # Load the bundled internet-speed tables now rather than on someone's first city visit.
         await asyncio.gather(*(asyncio.to_thread(internet.load_table, kind) for kind in ("fixed", "mobile")))
         try:
             yield
         finally:
+            sweeper.cancel()
             await http.aclose()
             await cache.close()
             await popular.close()
@@ -78,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             allow_credentials=False,
             max_age=3600,
         )
+    app.add_middleware(MaxBodySizeMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
 
     _register_error_handlers(app)
@@ -91,6 +103,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         logger.info("No frontend build at %s; serving the API only", settings.frontend_dist)
 
     return app
+
+
+def usage_caps(settings: Settings) -> dict[str, Cap]:
+    return {
+        "google_places": Cap(per_minute=90, per_day=settings.google_places_daily_limit),
+        "opencage": Cap(per_minute=60, per_day=settings.opencage_daily_limit),
+        "booking": Cap(per_minute=30, per_day=settings.booking_daily_limit),
+    }
+
+
+async def _sweep_expired(cache: Cache) -> None:
+    """Drop expired rate-limit counters promptly, even when no new requests arrive."""
+    while True:
+        await asyncio.sleep(5)
+        sweep = getattr(cache, "sweep", None)
+        if sweep:
+            sweep()
 
 
 def _error(status: int, code: str, message: str, headers: dict[str, str] | None = None) -> JSONResponse:

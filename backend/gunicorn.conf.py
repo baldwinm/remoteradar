@@ -9,7 +9,8 @@ workers = int(os.environ.get("WEB_CONCURRENCY", "2"))
 timeout = 60
 graceful_timeout = 20
 keepalive = 5
-# Trust X-Forwarded-For from the hosting platform's load balancer so rate limits
-# apply per visitor instead of to the load balancer's address.
+# Trust the platform's forwarded headers (mainly X-Forwarded-Proto). Rate limits don't rely
+# on this: app/ratelimit.py picks the visitor's address itself, ignoring the forgeable
+# first X-Forwarded-For entry that uvicorn would use here.
 forwarded_allow_ips = os.environ.get("FORWARDED_ALLOW_IPS", "*")
 accesslog = None  # the app logs one line per request itself
