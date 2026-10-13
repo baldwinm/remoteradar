@@ -1,4 +1,4 @@
-"""Essentials (currency, holidays, advisory, internet), climate, stay dates and extra place types."""
+"""Essentials (currency, holidays, internet), climate, stay dates and extra place types."""
 
 import json
 from datetime import UTC, date, datetime, timedelta
@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from app.services.climate import ARCHIVE_URL, monthly_averages
-from app.services.essentials import ADVISORIES_URL, RATES_URL, normalize_country
+from app.services.essentials import RATES_URL
 from app.services.geocoding import OPENCAGE_URL
 from app.services.places import SEARCH_NEARBY_URL, SEARCH_TEXT_URL
 from app.services.stays import AUTOCOMPLETE_URL, PROPERTIES_URL
@@ -36,7 +36,7 @@ def geocoder(mock_upstream):
     )
 
 
-def mock_essentials_sources(router, holidays=None, advisories=None, rates=None):
+def mock_essentials_sources(router, holidays=None, rates=None):
     router.get(RATES_URL).mock(
         return_value=rates
         or httpx.Response(
@@ -60,20 +60,6 @@ def mock_essentials_sources(router, holidays=None, advisories=None, rates=None):
         router.get(HOLIDAYS_PT.format(year=year)).mock(
             return_value=holidays or httpx.Response(200, json=default_holidays)
         )
-    router.get(ADVISORIES_URL).mock(
-        return_value=advisories
-        or httpx.Response(
-            200,
-            json=[
-                {
-                    "Title": "Portugal - Level 1: Exercise Normal Precautions",
-                    "Link": "https://travel.state.gov/portugal",
-                    "Updated": "2026-07-01",
-                },
-                {"Title": "Burma - Level 4: Do Not Travel", "Link": "https://travel.state.gov/burma"},
-            ],
-        )
-    )
 
 
 def test_essentials_combine_every_source(client, mock_upstream):
@@ -88,8 +74,7 @@ def test_essentials_combine_every_source(client, mock_upstream):
     assert data["currency"]["symbol"] == "€"
     assert data["currency"]["usd_rate"] == 0.92
     assert [h["name"] for h in data["holidays"]] == ["Day X"]
-    assert data["advisory"]["level"] == 1
-    assert data["advisory"]["url"] == "https://travel.state.gov/portugal"
+    assert "advisory" not in data
     # Shipped Ookla data covers Lisbon.
     assert data["internet"]["fixed"]["download_mbps"] > 0
     assert data["internet"]["period"]
@@ -97,11 +82,11 @@ def test_essentials_combine_every_source(client, mock_upstream):
 
 
 def test_essentials_survive_a_failing_source(client, mock_upstream):
-    mock_essentials_sources(mock_upstream, advisories=httpx.Response(500, text="down"))
+    mock_essentials_sources(mock_upstream, rates=httpx.Response(500, text="down"))
     data = client.get(f"/api/cities/{LISBON_ID}/essentials").json()
-    assert data["advisory"] is None
     assert data["partial"] is True
-    assert data["currency"]["usd_rate"] == 0.92
+    assert data["currency"]["usd_rate"] is None
+    assert [h["name"] for h in data["holidays"]] == ["Day X"]
 
 
 def test_essentials_treat_unsupported_holiday_country_as_no_data(client, mock_upstream):
@@ -109,11 +94,6 @@ def test_essentials_treat_unsupported_holiday_country_as_no_data(client, mock_up
     data = client.get(f"/api/cities/{LISBON_ID}/essentials").json()
     assert data["holidays"] is None
     assert data["partial"] is False
-
-
-def test_advisory_country_names_match_state_department_spelling():
-    assert normalize_country("Côte d'Ivoire") == "cote d ivoire"
-    assert normalize_country("Türkiye") == "turkiye"
 
 
 def climate_payload():

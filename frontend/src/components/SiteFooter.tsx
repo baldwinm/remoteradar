@@ -47,8 +47,8 @@ export default function SiteFooter() {
         <div className="footer-content">
           <span>© {new Date().getFullYear()} Remote Radar</span>
           <span>
-            Data from Open-Meteo, Google Places, Booking.com, OpenCage, Speedtest® by Ookla®, ExchangeRate-API,
-            Nager.Date and the US State Department
+            Data from Open-Meteo, Google Places, Booking.com, OpenCage, Speedtest® by Ookla®, ExchangeRate-API and
+            Nager.Date
           </span>
         </div>
       </div>

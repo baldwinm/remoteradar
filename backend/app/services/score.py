@@ -1,7 +1,7 @@
 """The remote work score: one 0-100 number per city, built from data the site already loads.
 
-Five factors, each scored 0-100 on a smooth scale and weighted:
-internet 25, places to work 25, cost 20, safety 15, climate 15.
+Four factors, each scored 0-100 on a smooth scale and weighted:
+internet 29, places to work 29, cost 24, climate 18.
 
 A factor with no data (or whose source failed) drops out and the others scale up to fill its
 share, so the score keeps working without any one source. With fewer than MIN_FACTORS
@@ -22,7 +22,6 @@ from typing import Any
 from ..context import AppContext
 from ..errors import AppError
 from ..models import (
-    Advisory,
     City,
     Climate,
     Internet,
@@ -33,7 +32,7 @@ from ..models import (
     WorkScore,
 )
 from . import climate as climate_service
-from . import essentials, places, stays
+from . import places, stays
 from .internet import get_internet
 
 logger = logging.getLogger(__name__)
@@ -41,12 +40,11 @@ logger = logging.getLogger(__name__)
 SCORE_TTL = 3600
 MIN_FACTORS = 3
 
-WEIGHTS = {"internet": 25, "places": 25, "cost": 20, "safety": 15, "climate": 15}
+WEIGHTS = {"internet": 29, "places": 29, "cost": 24, "climate": 18}
 NAMES = {
     "internet": "Internet",
     "places": "Places to work",
     "cost": "Cost",
-    "safety": "Safety",
     "climate": "Climate",
 }
 TIERS = (
@@ -62,8 +60,6 @@ GOOD_RATING = 4.3
 POOR_RATING = 3.5
 EARLY_MINUTE = 8 * 60
 LATE_MINUTE = 18 * 60
-
-ADVISORY_SCORES = {1: 100, 2: 75, 3: 30, 4: 0}
 
 CHEAP_NIGHT_USD = 60
 DEAR_NIGHT_USD = 250
@@ -82,10 +78,9 @@ def tier_for(score: int) -> tuple[str, str]:
 
 async def get_score(ctx: AppContext, city: City) -> WorkScore:
     async def load() -> dict[str, Any]:
-        place_data, stay_data, advisory, climate_data = await asyncio.gather(
+        place_data, stay_data, climate_data = await asyncio.gather(
             _optional(lambda: places.get_places(ctx, city)),
             _optional(lambda: stays.get_stays(ctx, city, occupants=1)),
-            _optional(lambda: essentials.advisory_for(ctx, city)),
             _optional(lambda: climate_service.get_climate(ctx, city, "metric")),
         )
         return combine(
@@ -93,12 +88,11 @@ async def get_score(ctx: AppContext, city: City) -> WorkScore:
                 "internet": internet_factor(get_internet(city)),
                 "places": places_factor(city, place_data),
                 "cost": cost_factor(stay_data),
-                "safety": safety_factor(city, advisory),
                 "climate": climate_factor(climate_data),
             }
         ).model_dump()
 
-    data = await ctx.loader.get_or_load(f"score:{city.id}", SCORE_TTL, load)
+    data = await ctx.loader.get_or_load(f"score:v2:{city.id}", SCORE_TTL, load)
     return WorkScore.model_validate(data)
 
 
@@ -226,17 +220,6 @@ def cost_factor(data: StaysResponse | None) -> tuple[float, str] | None:
     return 100 * _ramp(
         price, DEAR_NIGHT_USD, CHEAP_NIGHT_USD
     ), f"Average hotel night ${price:,.0f}, a week from now"
-
-
-def safety_factor(city: City, advisory: Advisory | None) -> tuple[float, str] | None:
-    # The State Department publishes no advisory for the US itself.
-    if city.country_code == "us":
-        return 100, "No US State Dept advisory for the US itself; counted as Level 1"
-    if advisory is None or advisory.level not in ADVISORY_SCORES:
-        return None
-    text = advisory.title.split(":", 1)[1].strip() if ":" in advisory.title else ""
-    detail = f"US State Dept advisory: Level {advisory.level}" + (f", {text.lower()}" if text else "")
-    return ADVISORY_SCORES[advisory.level], detail
 
 
 def climate_factor(data: Climate | None) -> tuple[float, str] | None:

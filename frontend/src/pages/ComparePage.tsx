@@ -145,7 +145,6 @@ export default function ComparePage() {
     factorRow('internet', 'Internet'),
     factorRow('places', 'Places to work'),
     factorRow('cost', 'Cost'),
-    factorRow('safety', 'Safety'),
     factorRow('climate', 'Climate'),
     {
       label: 'Local time',
@@ -216,15 +215,6 @@ export default function ComparePage() {
           e.currency?.usd_rate && e.currency.code !== 'USD'
             ? `$1 = ${formatRate(e.currency.usd_rate, e.currency.symbol)}`
             : (e.currency?.code ?? '–'),
-        ),
-    },
-    {
-      label: 'Travel advisory',
-      better: 'low',
-      score: (i) => essentials[i]?.data?.advisory?.level ?? null,
-      render: (i) =>
-        cell(essentials[i], (e) =>
-          e.advisory ? <span className={`level level-${e.advisory.level}`}>Level {e.advisory.level}</span> : 'None listed',
         ),
     },
   ];

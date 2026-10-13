@@ -149,10 +149,8 @@ function speedValue(speed: Speed | null) {
   return speed ? `${Math.round(speed.download_mbps)} / ${Math.round(speed.upload_mbps)} Mbps` : 'No data';
 }
 
-const ADVISORY_TEXT = ['', 'Exercise normal precautions', 'Exercise increased caution', 'Reconsider travel', 'Do not travel'];
-
 function EssentialFacts({ essentials }: { essentials: Essentials }) {
-  const { internet, currency, advisory, holidays } = essentials;
+  const { internet, currency, holidays } = essentials;
   return (
     <>
       <dl className="facts">
@@ -176,21 +174,6 @@ function EssentialFacts({ essentials }: { essentials: Essentials }) {
             {currency?.usd_rate ? `$1 = ${formatRate(currency.usd_rate, currency.symbol)}` : (currency?.code ?? '–')}
           </dd>
           <dd className="fact-hint">{currency ? `${currency.name} (${currency.code})` : 'Currency unknown'}</dd>
-        </div>
-        <div className="fact">
-          <dt>Travel advisory</dt>
-          <dd className="fact-value">
-            {advisory ? (
-              <a href={advisory.url} target="_blank" rel="noopener noreferrer" className={`level level-${advisory.level}`}>
-                Level {advisory.level}
-              </a>
-            ) : (
-              'None listed'
-            )}
-          </dd>
-          <dd className="fact-hint">
-            {advisory ? `${ADVISORY_TEXT[advisory.level] ?? ''} · US State Dept` : 'US State Dept'}
-          </dd>
         </div>
       </dl>
 

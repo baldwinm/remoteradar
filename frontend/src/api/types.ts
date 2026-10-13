@@ -142,13 +142,6 @@ export interface Holiday {
   local_name: string;
 }
 
-export interface Advisory {
-  level: number;
-  title: string;
-  url: string;
-  updated: string | null;
-}
-
 export interface Speed {
   download_mbps: number;
   upload_mbps: number;
@@ -166,7 +159,6 @@ export interface Essentials {
   timezone: string;
   currency: Currency | null;
   holidays: Holiday[] | null;
-  advisory: Advisory | null;
   internet: Internet | null;
   partial: boolean;
 }
@@ -200,7 +192,7 @@ export interface PopularCities {
   cities: PopularCity[];
 }
 
-export type ScoreFactorKey = 'internet' | 'places' | 'cost' | 'safety' | 'climate';
+export type ScoreFactorKey = 'internet' | 'places' | 'cost' | 'climate';
 export type ScoreTier = 'excellent' | 'good' | 'fair' | 'low' | 'none';
 
 export interface ScoreFactor {

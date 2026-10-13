@@ -2,10 +2,9 @@
 
 import httpx
 
-from app.models import Advisory, City, Internet, OpeningPeriod, Place, PlacesResponse, Speed, StaysResponse
+from app.models import City, Internet, OpeningPeriod, Place, PlacesResponse, Speed, StaysResponse
 from app.services import score
 from app.services.climate import ARCHIVE_URL
-from app.services.essentials import ADVISORIES_URL
 from app.services.places import SEARCH_NEARBY_URL, SEARCH_TEXT_URL
 from app.services.stays import AUTOCOMPLETE_URL, PROPERTIES_URL
 
@@ -75,32 +74,15 @@ def test_cost_slides_from_cheap_to_dear():
     assert score.cost_factor(stays_at(None)) is None
 
 
-def test_safety_levels_and_us_cities():
-    advisory = Advisory(
-        level=2, title="Mexico - Level 2: Exercise Increased Caution", url="https://x", updated=None
-    )
-    assert score.safety_factor(CITY, advisory) == (
-        75,
-        "US State Dept advisory: Level 2, exercise increased caution",
-    )
-    assert score.safety_factor(CITY, None) is None
-    us = CITY.model_copy(update={"country_code": "us"})
-    assert score.safety_factor(us, None)[0] == 100
-
-
 def test_missing_factors_drop_out_and_the_rest_reweight():
-    result = score.combine(
-        {"internet": None, "places": (80, "a"), "cost": (50, "b"), "safety": (100, "c"), "climate": None}
-    )
-    # (25*80 + 20*50 + 15*100) / 60
+    result = score.combine({"internet": None, "places": (80, "a"), "cost": (50, "b"), "climate": (100, "c")})
+    # (29*80 + 24*50 + 18*100) / 71
     assert result.score == 75
     assert (result.tier, result.label, result.counted) == ("good", "Good", 3)
     weights = {f.key: f.weight for f in result.factors}
-    assert weights == {"internet": 0, "places": 42, "cost": 33, "safety": 25, "climate": 0}
+    assert weights == {"internet": 0, "places": 41, "cost": 34, "climate": 25}
 
-    too_few = score.combine(
-        {"internet": (90, "a"), "places": (90, "b"), "cost": None, "safety": None, "climate": None}
-    )
+    too_few = score.combine({"internet": (90, "a"), "places": (90, "b"), "cost": None, "climate": None})
     assert too_few.score is None and too_few.tier == "none"
 
 
@@ -159,15 +141,12 @@ def test_score_endpoint_uses_every_source(client, mock_upstream):
             },
         )
     )
-    mock_upstream.get(ADVISORIES_URL).mock(
-        return_value=httpx.Response(200, json=[{"Title": "Portugal - Level 1: Exercise Normal Precautions"}])
-    )
     mock_upstream.get(ARCHIVE_URL).mock(return_value=httpx.Response(200, json=climate_payload()))
 
     data = client.get(f"/api/cities/{LISBON_ID}/score").json()
 
     factors = {f["key"]: f for f in data["factors"]}
-    assert factors["safety"]["score"] == 100
+    assert set(factors) == {"internet", "places", "cost", "climate"}
     assert factors["cost"]["detail"] == "Average hotel night $100, a week from now"
     assert factors["places"]["detail"].startswith("1 coworking space (avg 4.8★), 5 cafés")
     assert factors["climate"]["score"] is not None
@@ -179,7 +158,6 @@ def test_score_survives_failing_sources(client, mock_upstream):
     for route in (mock_upstream.post(SEARCH_NEARBY_URL), mock_upstream.post(SEARCH_TEXT_URL)):
         route.mock(return_value=httpx.Response(500))
     mock_upstream.get(AUTOCOMPLETE_URL).mock(return_value=httpx.Response(500))
-    mock_upstream.get(ADVISORIES_URL).mock(return_value=httpx.Response(500))
     mock_upstream.get(ARCHIVE_URL).mock(return_value=httpx.Response(500))
 
     response = client.get(f"/api/cities/{LISBON_ID}/score")

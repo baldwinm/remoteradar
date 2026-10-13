@@ -127,7 +127,7 @@ async def get_stays(
     dependencies=[Depends(rate_limit("essentials", 30, 60))],
 )
 async def get_essentials(ctx: Ctx, response: Response, city_id: CityId) -> Essentials:
-    """Time zone, currency and exchange rate, upcoming public holidays, travel advisory, internet speed."""
+    """Time zone, currency and exchange rate, upcoming public holidays, internet speed."""
     city = await geocoding.resolve_city(ctx, city_id)
     result = await essentials.get_essentials(ctx, city)
     cache_for(response, 3600)
@@ -153,8 +153,8 @@ async def get_climate(ctx: Ctx, response: Response, city_id: CityId, units: Unit
     dependencies=[Depends(rate_limit("score", 30, 60))],
 )
 async def get_score(ctx: Ctx, response: Response, city_id: CityId) -> WorkScore:
-    """The remote work score (0-100) with its five factors: internet, places to work, cost,
-    safety and climate. Factors without data are left out and the rest reweighted."""
+    """The remote work score (0-100) with its four factors: internet, places to work, cost and
+    climate. Factors without data are left out and the rest reweighted."""
     city = await geocoding.resolve_city(ctx, city_id)
     result = await score.get_score(ctx, city)
     cache_for(response, 3600)
