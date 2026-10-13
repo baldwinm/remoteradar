@@ -20,6 +20,8 @@ export interface City {
   currency_code: string;
   currency_symbol: string;
   currency_name: string;
+  /** The geocoder's bounding box for the city; missing for some places. */
+  bounds?: { south: number; west: number; north: number; east: number } | null;
 }
 
 export interface CitySearchResponse {

@@ -8,7 +8,7 @@ from ..city_ids import make_city_id, parse_city_id
 from ..context import AppContext
 from ..errors import NotFoundError, ServiceNotConfiguredError, UpstreamError
 from ..http import request_json
-from ..models import City
+from ..models import Bounds, City
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +146,20 @@ def _parse_result(result: dict[str, Any]) -> City | None:
         currency_code=str(currency.get("iso_code") or ""),
         currency_symbol=str(currency.get("symbol") or ""),
         currency_name=str(currency.get("name") or ""),
+        bounds=_parse_bounds(result.get("bounds")),
     )
+
+
+def _parse_bounds(raw: Any) -> Bounds | None:
+    try:
+        ne, sw = raw["northeast"], raw["southwest"]
+        bounds = Bounds(south=sw["lat"], west=sw["lng"], north=ne["lat"], east=ne["lng"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    # Boxes that cross the antimeridian are rare for cities; skip them rather than mishandle them.
+    if bounds.south >= bounds.north or bounds.west >= bounds.east:
+        return None
+    return bounds
 
 
 def _dedupe(cities: Any) -> list[City]:

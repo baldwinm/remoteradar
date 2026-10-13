@@ -4,10 +4,19 @@ The three core categories are requested together when a city page opens. Gyms, p
 laundromats are only requested when someone asks for them, so they cost nothing for most
 visits. Each request already asks for website, phone, Maps link and opening hours through
 the field mask, so no follow-up Place Details calls are needed.
+
+Results are kept inside the searched city: every search is restricted to an area around
+the city (never just biased toward it), and then any place whose address names a different
+town is dropped. A small town can show fewer places because of this; that's intended, so
+a search for one city doesn't fill up with its neighbours.
 """
 
 import asyncio
 import logging
+import math
+import re
+import unicodedata
+from collections.abc import Iterable
 from typing import Any
 
 from ..context import AppContext
@@ -38,6 +47,8 @@ FIELD_MASK = ",".join(
         "businessStatus",
         # Same billing tier as rating, website and phone above, so it adds no cost.
         "regularOpeningHours.periods",
+        # Same tier again; used to drop places that are in a different town.
+        "addressComponents",
     )
 )
 
@@ -58,8 +69,41 @@ EXTRA_CATEGORIES: dict[PlaceType, tuple[list[str], float]] = {
 }
 
 
+# Text search can only be restricted to a rectangle: the city's own bounding box, trimmed
+# to this far from the centre so a sprawling municipality doesn't reach into the countryside.
+TEXT_SEARCH_HALF_SIZE_M = 5000
+METERS_PER_DEGREE_LAT = 111_320
+
+# Address components that name the town a place is in.
+_TOWN_TYPES = frozenset({"locality", "postal_town"})
+# Further components that may carry the city's name when the town above differs from what
+# the geocoder calls the city (e.g. a district inside it).
+_CITY_NAME_TYPES = _TOWN_TYPES | {
+    "administrative_area_level_3",
+    "sublocality",
+    "sublocality_level_1",
+}
+_NAME_ABBREVIATIONS = {"saint": "st", "sainte": "ste", "mount": "mt", "fort": "ft"}
+
+
 def _circle(city: City, radius_m: float) -> dict[str, Any]:
     return {"circle": {"center": {"latitude": city.lat, "longitude": city.lng}, "radius": radius_m}}
+
+
+def _rectangle(city: City) -> dict[str, Any]:
+    dlat = TEXT_SEARCH_HALF_SIZE_M / METERS_PER_DEGREE_LAT
+    dlng = dlat / max(math.cos(math.radians(city.lat)), 0.01)
+    south, west, north, east = city.lat - dlat, city.lng - dlng, city.lat + dlat, city.lng + dlng
+    if b := city.bounds:
+        clipped = (max(south, b.south), max(west, b.west), min(north, b.north), min(east, b.east))
+        if clipped[0] < clipped[2] and clipped[1] < clipped[3]:
+            south, west, north, east = clipped
+    return {
+        "rectangle": {
+            "low": {"latitude": south, "longitude": west},
+            "high": {"latitude": north, "longitude": east},
+        }
+    }
 
 
 def _category_request(category: PlaceType, city: City) -> tuple[str, dict[str, Any]]:
@@ -68,6 +112,7 @@ def _category_request(category: PlaceType, city: City) -> tuple[str, dict[str, A
             "includedTypes": ["coffee_shop", "cafe"],
             "maxResultCount": 20,
             "rankPreference": "POPULARITY",
+            "languageCode": "en",
             "locationRestriction": _circle(city, 3000),
         }
     if category == "coworking":
@@ -75,15 +120,58 @@ def _category_request(category: PlaceType, city: City) -> tuple[str, dict[str, A
         return SEARCH_TEXT_URL, {
             "textQuery": "coworking space",
             "pageSize": 20,
-            "locationBias": _circle(city, 5000),
+            "languageCode": "en",
+            "locationRestriction": _rectangle(city),
         }
     included_types, radius = EXTRA_CATEGORIES.get(category, (["restaurant"], 3000))
     return SEARCH_NEARBY_URL, {
         "includedTypes": included_types,
         "maxResultCount": 20,
         "rankPreference": "POPULARITY",
+        "languageCode": "en",
         "locationRestriction": _circle(city, radius),
     }
+
+
+def _normalize_name(name: str) -> str:
+    """ "Saint-Étienne" and "St Etienne" both become "stetienne"."""
+    text = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode().casefold()
+    words = re.findall(r"[a-z0-9]+", text)
+    if words[:2] == ["city", "of"]:
+        words = words[2:]
+    return "".join(_NAME_ABBREVIATIONS.get(word, word) for word in words)
+
+
+def _in_city(raw: dict[str, Any], city_name: str) -> bool | None:
+    """Whether a place's address puts it in the city; None when the address names no town."""
+    components = [c for c in raw.get("addressComponents") or [] if isinstance(c, dict)]
+    if not any(_TOWN_TYPES & set(c.get("types") or ()) for c in components):
+        return None
+    names = {
+        _normalize_name(str(c.get(key) or ""))
+        for c in components
+        if _CITY_NAME_TYPES & set(c.get("types") or ())
+        for key in ("longText", "shortText")
+    }
+    return city_name in names
+
+
+def _keep_in_city(batches: Iterable[list[dict[str, Any]]], city: City) -> list[list[dict[str, Any]]]:
+    """Drop places whose address names a different town than the searched city.
+
+    If not a single place names the city, the geocoder and Google probably just spell it
+    differently ("Mexico City" vs "Ciudad de México"), so nothing is dropped and the search
+    area restriction alone keeps results local.
+    """
+    batches = list(batches)
+    city_name = _normalize_name(city.name)
+    verdicts = [[_in_city(raw, city_name) for raw in batch] for batch in batches]
+    if not any(v for batch in verdicts for v in batch):
+        return batches
+    return [
+        [raw for raw, verdict in zip(batch, batch_verdicts, strict=True) if verdict is not False]
+        for batch, batch_verdicts in zip(batches, verdicts, strict=True)
+    ]
 
 
 async def get_places(ctx: AppContext, city: City, category: PlaceType | None = None) -> PlacesResponse:
@@ -106,13 +194,17 @@ async def get_places(ctx: AppContext, city: City, category: PlaceType | None = N
         if len(failures) == len(results):
             raise failures[0]
 
+        loaded = [
+            (c, r) for c, r in zip(categories, results, strict=True) if not isinstance(r, BaseException)
+        ]
+        kept = _keep_in_city((raw for _, raw in loaded), city)
+
         seen: set[str] = set()
         places: list[Place] = []
-        for batch in results:
-            if isinstance(batch, BaseException):
-                continue
-            for place in batch:
-                if place.id not in seen:
+        for (batch_category, _), batch in zip(loaded, kept, strict=True):
+            for raw in batch:
+                place = _parse_place(raw, batch_category)
+                if place and place.id not in seen:
                     seen.add(place.id)
                     places.append(place)
 
@@ -124,15 +216,17 @@ async def get_places(ctx: AppContext, city: City, category: PlaceType | None = N
 
     if category in EXTRA_CATEGORIES:
         categories: tuple[PlaceType, ...] = (category,)
-        key = f"places:{city.id}:{category}"
+        key = f"places:v2:{city.id}:{category}"
     else:
         categories = CORE_CATEGORIES
-        key = f"places:{city.id}"
+        key = f"places:v2:{city.id}"
     data = await ctx.loader.get_or_load(key, PLACES_TTL, load)
     return PlacesResponse.model_validate(data)
 
 
-async def _search_category(ctx: AppContext, api_key: str, category: PlaceType, city: City) -> list[Place]:
+async def _search_category(
+    ctx: AppContext, api_key: str, category: PlaceType, city: City
+) -> list[dict[str, Any]]:
     url, body = _category_request(category, city)
     headers = {"X-Goog-Api-Key": api_key, "X-Goog-FieldMask": FIELD_MASK}
     try:
@@ -145,7 +239,7 @@ async def _search_category(ctx: AppContext, api_key: str, category: PlaceType, c
                 "restrictions allow it."
             )
         raise
-    return [p for raw in data.get("places") or [] if (p := _parse_place(raw, category))]
+    return [raw for raw in data.get("places") or [] if isinstance(raw, dict)]
 
 
 def _parse_place(raw: dict[str, Any], category: PlaceType) -> Place | None:

@@ -10,6 +10,15 @@ Units = Literal["metric", "imperial"]
 PlaceType = Literal["coffee", "coworking", "restaurant", "gym", "park", "laundry"]
 
 
+class Bounds(BaseModel):
+    """The geocoder's bounding box for a city, roughly its limits."""
+
+    south: float
+    west: float
+    north: float
+    east: float
+
+
 class City(BaseModel):
     id: str
     name: str
@@ -25,6 +34,7 @@ class City(BaseModel):
     currency_code: str = ""
     currency_symbol: str = ""
     currency_name: str = ""
+    bounds: Bounds | None = None
 
 
 class CitySearchResponse(BaseModel):
