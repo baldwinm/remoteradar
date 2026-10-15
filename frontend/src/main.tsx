@@ -2,7 +2,13 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import App from './App';
-import './styles.css';
+import './styles/tokens.css';
+import './styles/site.css';
+import './styles/city.css';
+import './styles/home.css';
+import './styles/pages.css';
+import './styles/extras.css';
+import './styles/tablet.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

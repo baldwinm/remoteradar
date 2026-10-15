@@ -173,3 +173,103 @@ export function openState(periods: OpeningPeriod[] | null, timeZone: string, whe
   const time = minuteLabel(next % DAY).replace('noon', '12 PM').replace('midnight', '12 AM');
   return { open: false, label: sameDay ? `Opens ${time}` : `Opens ${WEEKDAYS[Math.floor(next / DAY) % 7]} ${time}` };
 }
+
+/** Minutes from midnight -> "9:05 AM", or "9 AM" when `compact` and on the hour. A no-break space keeps "AM" with its time. */
+export function fmtClock(minutes: number, compact = false): string {
+  const m = ((Math.round(minutes) % DAY) + DAY) % DAY;
+  const hour = Math.floor(m / 60);
+  const minute = m % 60;
+  const h12 = hour % 12 || 12;
+  const suffix = hour < 12 ? 'AM' : 'PM';
+  if (compact && minute === 0) return `${h12}\u00a0${suffix}`;
+  return `${h12}:${String(minute).padStart(2, '0')}\u00a0${suffix}`;
+}
+
+/** Keeps "AM" and "PM" on the same line as their time in labels like "Open until 6 PM". */
+export function keepTimeTogether(label: string): string {
+  return label.replace(/ (AM|PM)\b/g, '\u00a0$1');
+}
+
+export interface ZoneDate {
+  year: number;
+  /** 1 to 12 */
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  /** 0 = Sunday */
+  weekday: number;
+}
+
+const WEEKDAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+/** The calendar date and wall-clock time in `timeZone`. */
+export function zoneDate(timeZone: string, when = new Date()): ZoneDate {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    weekday: 'short',
+  }).formatToParts(when);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+  return {
+    year: Number(get('year')),
+    month: Number(get('month')),
+    day: Number(get('day')),
+    hour: Number(get('hour')) % 24,
+    minute: Number(get('minute')),
+    weekday: WEEKDAY_INDEX[get('weekday')] ?? 0,
+  };
+}
+
+/** Minutes since midnight in `timeZone`. */
+export function localMinutes(timeZone: string, when = new Date()): number {
+  const date = zoneDate(timeZone, when);
+  return date.hour * 60 + date.minute;
+}
+
+/** 150 -> "2.5 hours", 60 -> "1 hour". */
+export function hoursLabel(minutes: number): string {
+  const hours = Math.round((minutes / 60) * 10) / 10;
+  return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+}
+
+/** 150 -> "2.5 h". */
+export function shortHours(minutes: number): string {
+  return `${Math.round((minutes / 60) * 10) / 10} h`;
+}
+
+function hoursApart(difference: number): string {
+  const hours = Math.abs(difference) / 60;
+  return Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
+}
+
+/** "6 h ahead of you", "1.5 h behind you" or "same time as you". */
+export function diffLabel(cityZone: string, homeZone: string, when = new Date()): string {
+  const difference = utcOffsetMinutes(cityZone, when) - utcOffsetMinutes(homeZone, when);
+  if (difference === 0) return 'same time as you';
+  return `${hoursApart(difference)} h ${difference > 0 ? 'ahead of' : 'behind'} you`;
+}
+
+/** "6 h ahead", "1 h behind" or "Same time", for tight spaces. */
+export function diffShort(cityZone: string, homeZone: string, when = new Date()): string {
+  const difference = utcOffsetMinutes(cityZone, when) - utcOffsetMinutes(homeZone, when);
+  if (difference === 0) return 'Same time';
+  return `${hoursApart(difference)} h ${difference > 0 ? 'ahead' : 'behind'}`;
+}
+
+/** One sentence on how a 9-to-5 at home lines up with one in the city. */
+export function overlapSentence(cityName: string, overlap: Overlap): string {
+  if (overlap.difference === 0) return `Same working hours as you: ${cityName} is on your time.`;
+  if (overlap.minutes === 0) {
+    return `No overlap: 9\u00a0AM in ${cityName} is ${fmtClock(WORKDAY_START - overlap.difference)} for you.`;
+  }
+  return `${fmtClock(overlap.cityStart, true)} to ${fmtClock(overlap.cityEnd, true)} in ${cityName} is ${fmtClock(
+    overlap.homeStart,
+    true,
+  )} to ${fmtClock(overlap.homeEnd, true)} for you.`;
+}

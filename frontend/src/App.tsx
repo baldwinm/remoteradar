@@ -1,15 +1,15 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Suspense, lazy, useState } from 'react';
-import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router';
+import { Suspense, lazy, useEffect, useState } from 'react';
+import { BrowserRouter, Route, Routes, useLocation, useNavigationType } from 'react-router';
 
 import { createQueryClient } from './api/queries';
 import ErrorBoundary from './components/ErrorBoundary';
-import { Logo } from './components/Icon';
-import SearchBar from './components/SearchBar';
+import Header from './components/Header';
+import { ToastHost } from './components/overlays';
+import { SearchOverlay } from './components/Search';
 import SiteFooter from './components/SiteFooter';
-import Spinner from './components/Spinner';
-import ThemeSwitch from './components/ThemeSwitch';
 import { usePageViews } from './lib/analytics';
+import { setLayerElement, setSiteElement, useHeaderAway } from './lib/chrome';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
 const CityPage = lazy(() => import('./pages/CityPage'));
@@ -17,39 +17,47 @@ const ComparePage = lazy(() => import('./pages/ComparePage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
-function AppRoutes() {
-  usePageViews();
-  return (
-    <Suspense fallback={<Spinner label="Loading…" />}>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/city/:cityId" element={<CityPage />} />
-        <Route path="/compare" element={<ComparePage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </Suspense>
-  );
+/** A new page starts at the top. Back and forward keep the browser's position. */
+function useScrollToTop(pathname: string) {
+  const type = useNavigationType();
+  useEffect(() => {
+    if (type !== 'POP' && !window.location.hash) window.scrollTo(0, 0);
+  }, [pathname, type]);
 }
 
-function Header() {
-  // The home page has its own large search box, so the header one only shows elsewhere.
-  const onHome = useLocation().pathname === '/';
+function SiteFrame() {
+  const { pathname } = useLocation();
+  const away = useHeaderAway();
+  usePageViews();
+  useScrollToTop(pathname);
+
   return (
-    <header className="app-header">
-      <div className="header-content">
-        <Link to="/" className="logo">
-          <Logo />
-          Remote Radar
-        </Link>
-        {!onHome && (
-          <div className="header-search">
-            <SearchBar variant="compact" />
-          </div>
-        )}
-        <ThemeSwitch />
+    <>
+      <div className={`site${away ? ' hdr-away' : ''}`} ref={setSiteElement}>
+        <a className="skip-link" href="#main">
+          Skip to content
+        </a>
+        <Header />
+        <main id="main" tabIndex={-1}>
+          <ErrorBoundary resetKey={pathname}>
+            <Suspense fallback={<div className="page-wait" aria-busy="true" />}>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/city/:cityId" element={<CityPage />} />
+                <Route path="/compare" element={<ComparePage />} />
+                <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
+        </main>
+        <SiteFooter />
       </div>
-    </header>
+      <div className="layer" ref={setLayerElement}>
+        <ToastHost />
+      </div>
+      <SearchOverlay />
+    </>
   );
 }
 
@@ -59,17 +67,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <div className="app">
-          <Header />
-
-          <main className="app-content">
-            <ErrorBoundary>
-              <AppRoutes />
-            </ErrorBoundary>
-          </main>
-
-          <SiteFooter />
-        </div>
+        <SiteFrame />
       </BrowserRouter>
     </QueryClientProvider>
   );

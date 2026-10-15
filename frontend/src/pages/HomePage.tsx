@@ -1,198 +1,224 @@
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
-import { usePopularCities, useWeather } from '../api/queries';
-import Icon, { type IconName } from '../components/Icon';
-import SearchBar from '../components/SearchBar';
-import { defaultUnitsFor } from '../lib/cityId';
-import { round } from '../lib/format';
-import { type CityRef, toggleSaved, useRecentCities, useSavedCities } from '../lib/savedCities';
-import { browserTimeZone, clockIn, isValidTimeZone } from '../lib/time';
-import './HomePage.css';
+import type { Units } from '../api/types';
+import { useWeather } from '../api/queries';
+import Bento from '../components/Bento';
+import { compareHref } from '../components/Header';
+import Icon from '../components/Icon';
+import RadarPanel from '../components/RadarPanel';
+import { SearchResults, openSearch, resultKeys, usePickCity, useSearchModel } from '../components/Search';
+import { cssVars } from '../components/ui';
+import { toast } from '../lib/chrome';
+import { useNow } from '../lib/clock';
+import { useIsPhone } from '../lib/layout';
+import { usePopular } from '../lib/popular';
+import { type CityRef, unsave, useHomeZone, useRecentCities, useSavedCities } from '../lib/savedCities';
+import { skyState, sunTimes } from '../lib/sky';
+import { diffShort, fmtClock, isValidTimeZone, localMinutes } from '../lib/time';
+import { degrees, usePageUnits } from '../lib/units';
+import { weatherIcon } from '../lib/weatherIcons';
 
-const FEATURES: { icon: IconName; title: string; text: string }[] = [
-  {
-    icon: 'cloud-sun',
-    title: 'Weather',
-    text: 'Conditions now, the next 24 hours, a 3-day outlook and daylight hours in °F or °C.',
-  },
-  {
-    icon: 'bed',
-    title: 'Where to stay',
-    text: 'Average hotel prices for your dates, from one night to a month, in dollars and local money.',
-  },
-  {
-    icon: 'desk',
-    title: 'Places to work',
-    text: 'Coffee shops and coworking spaces with ratings, opening hours and directions.',
-  },
-  {
-    icon: 'food',
-    title: 'Places to eat and live',
-    text: 'Restaurants by budget, plus gyms, parks and laundromats when you need them.',
-  },
-  {
-    icon: 'clock',
-    title: 'Your working hours',
-    text: 'Local time and how many hours overlap with your 9 to 5 back home.',
-  },
-  {
-    icon: 'wifi',
-    title: 'Internet speed',
-    text: 'Typical home and mobile speeds, from millions of real speed tests.',
-  },
-  {
-    icon: 'calendar',
-    title: 'Best time to go',
-    text: 'Five years of weather by month, with the mildest, driest months marked.',
-  },
-  {
-    icon: 'cash',
-    title: 'Money and holidays',
-    text: 'The local currency and exchange rate, and upcoming public holidays.',
-  },
-];
-
-// Shown until enough people have searched to build a live list. Name + country IDs;
-// the city page resolves them and switches to the full ID.
-const POPULAR = [
-  { id: 'lisbon--pt', name: 'Lisbon' },
-  { id: 'mexico-city--mx', name: 'Mexico City' },
-  { id: 'chiang-mai--th', name: 'Chiang Mai' },
-  { id: 'medellín--co', name: 'Medellín' },
-  { id: 'tbilisi--ge', name: 'Tbilisi' },
-];
-
-function RadarRings() {
-  return (
-    <svg className="hero-rings" viewBox="0 0 520 520" aria-hidden="true" focusable="false">
-      <g fill="none" stroke="currentColor">
-        <circle cx="260" cy="260" r="80" strokeOpacity=".16" />
-        <circle cx="260" cy="260" r="150" strokeOpacity=".16" />
-        <circle cx="260" cy="260" r="220" strokeOpacity=".16" />
-        <path d="M260 20v480M20 260h480" strokeOpacity=".08" />
-      </g>
-      <path d="M260 260 L260 40 A220 220 0 0 1 450 150 Z" fill="currentColor" fillOpacity=".05" />
-      <circle cx="372" cy="170" r="6" fill="var(--signal)" />
-      <circle cx="190" cy="352" r="4" fill="currentColor" fillOpacity=".5" />
-      <circle cx="330" cy="330" r="4" fill="currentColor" fillOpacity=".3" />
-    </svg>
-  );
-}
+const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+// Saved cities shown before "Show all", so a long list doesn't load a forecast for every city at once.
+const FIRST_CARDS = 8;
 
 export default function HomePage() {
+  const phone = useIsPhone();
+  const [units] = usePageUnits();
+  const homeZone = useHomeZone();
+
+  useEffect(() => {
+    document.title = 'Remote Radar - Find Your Perfect Remote Work Destination';
+  }, []);
+
   return (
-    <div className="home-page">
-      <section className="hero">
-        <RadarRings />
-        <div className="hero-inner">
-          <span className="eyebrow">For remote workers and travelers</span>
-          <h1 className="hero-title">Scope out your next city before you book.</h1>
-          <p className="hero-lede">
-            Weather, hotel prices, internet speed, coworking spaces, time zone overlap and more, on one page for any
-            city in the world.
+    <div>
+      <section className="home-hero">
+        <div className="wrap">
+          <span className="hh-eyebrow">
+            <span className="live-dot" />
+            Live data for any city in the world
+          </span>
+          <h1 className="hh-title">
+            Scope out your next city <span className="hh-dim">before you book.</span>
+          </h1>
+          <p className="hh-lede">
+            Weather, hotel prices, internet speed, places to work and how your hours line up, on one page for any city.
           </p>
-          <SearchBar />
-          <PopularCities />
+          <div className="hh-search-wrap">{phone ? <PhoneSearch /> : <HeroSearch />}</div>
+          <PopularChips />
+          <YourCities units={units} homeZone={homeZone} />
+          <RadarPanel units={units} homeZone={homeZone} />
         </div>
       </section>
-
-      <YourCities />
-
-      <section className="features-section" aria-labelledby="features-title">
-        <div className="section-head">
-          <h2 id="features-title">Everything on one page</h2>
-          <p>Each city page pulls live data from a few trusted sources.</p>
-        </div>
-        <div className="features-grid">
-          {FEATURES.map((feature) => (
-            <div className="feature" key={feature.title}>
-              <span className="icon-tile">
-                <Icon name={feature.icon} />
-              </span>
-              <h3>{feature.title}</h3>
-              <p>{feature.text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <Bento units={units} homeZone={homeZone} />
     </div>
   );
 }
 
-// Country names that read naturally after "in the".
-const NEEDS_THE = new Set(['US', 'GB', 'NL', 'PH', 'AE', 'DO', 'BS', 'GM', 'MV', 'CF', 'KY']);
+/* ---------- Search ---------- */
 
-function countryPhrase(code: string): string {
-  let name = code;
-  try {
-    name = new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code;
-  } catch {
-    // Very old browsers: fall back to the code itself.
-  }
-  return NEEDS_THE.has(code) ? `the ${name}` : name;
+function PhoneSearch() {
+  return (
+    <button type="button" className="hh-search" onClick={() => openSearch()}>
+      <Icon name="search" size={20} />
+      <span>Search any city</span>
+    </button>
+  );
 }
 
-function PopularCities() {
-  const live = usePopularCities(browserTimeZone()).data;
-  const hasLive = Boolean(live && live.cities.length > 0);
-  const cities = hasLive && live ? live.cities : POPULAR;
+/** The big search box on desktop, with results dropping below it as you type. */
+function HeroSearch() {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const input = useRef<HTMLInputElement>(null);
+  const listId = useId();
+  const model = useSearchModel(query, 'go');
+  const pick = usePickCity();
+
+  function go(item: Parameters<typeof pick>[0]) {
+    setOpen(false);
+    input.current?.blur();
+    pick(item);
+  }
 
   return (
-    <div className="popular">
-      <span className="popular-label">
-        {hasLive && live?.scope === 'country' ? (
+    <>
+      <label className="hh-search">
+        <Icon name="search" size={22} />
+        <input
+          ref={input}
+          type="text"
+          data-hero-search=""
+          value={query}
+          placeholder="Search any city in the world"
+          autoComplete="off"
+          spellCheck={false}
+          role="combobox"
+          aria-label="Search for a city"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-activedescendant={open && model.items.length ? `${listId}-${active}` : undefined}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setActive(0);
+            setOpen(true);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              if (open) {
+                event.preventDefault();
+                setOpen(false);
+              }
+              return;
+            }
+            if (!open) setOpen(true);
+            resultKeys(event, model, active, setActive, go, listId);
+          }}
+        />
+        <span className="kbds" aria-hidden="true">
+          <span className="kbd">{MAC ? '⌘' : 'Ctrl'}</span>
+          <span className="kbd">K</span>
+        </span>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            const item = model.items[active] ?? model.items[0];
+            if (query.trim().length >= 2 && item) go(item);
+            else {
+              input.current?.focus();
+              setOpen(true);
+            }
+          }}
+        >
+          Search
+        </button>
+      </label>
+      {open && (
+        <div className="hh-drop">
+          <SearchResults model={model} query={query} listId={listId} active={active} onActive={setActive} onPick={go} />
+          <div className="hh-drop-foot">
+            Local time in each city. Press <span className="kbd">↵</span> to open the first match.
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ---------- Popular ---------- */
+
+function PopularChips() {
+  const phone = useIsPhone();
+  const popular = usePopular();
+  const chips = popular.cities.map((city) => (
+    <Link key={city.id} to={`/city/${encodeURIComponent(city.id)}`} className="chip">
+      {city.name}
+    </Link>
+  ));
+  return (
+    <div className="hh-popular">
+      <span className="hh-popular-label">
+        {popular.scope === 'country' ? (
           <>
-            Popular in <b>{countryPhrase(live.country_code)}</b>:
+            Popular in <b>{popular.place}</b>
           </>
-        ) : hasLive && live?.scope === 'site' ? (
-          'Popular on Remote Radar:'
+        ) : popular.scope === 'site' ? (
+          'Popular on Remote Radar'
         ) : (
-          'Popular:'
+          'Popular'
         )}
       </span>
-      {cities.map((city) => (
-        <Link key={city.id} to={`/city/${encodeURIComponent(city.id)}`} className="chip">
-          {city.name}
-        </Link>
-      ))}
+      {phone ? <div className="hscroll">{chips}</div> : chips}
     </div>
   );
 }
 
-function YourCities() {
+/* ---------- Your cities (returning visitors) ---------- */
+
+function YourCities({ units, homeZone }: { units: Units; homeZone: string }) {
+  const phone = useIsPhone();
   const saved = useSavedCities();
   const recent = useRecentCities().filter((city) => !saved.some((item) => item.id === city.id));
+  const [all, setAll] = useState(false);
   if (saved.length === 0 && recent.length === 0) return null;
-
-  const compareIds = saved
-    .slice(0, 3)
-    .map((city) => encodeURIComponent(city.id))
-    .join(',');
+  const shown = all ? saved : saved.slice(0, FIRST_CARDS);
 
   return (
-    <section className="your-cities" aria-label="Your cities">
+    <section className="yc" aria-labelledby={saved.length ? 'yc-title' : undefined} aria-label={saved.length ? undefined : 'Recently viewed'}>
       {saved.length > 0 && (
         <>
-          <div className="your-cities-head">
-            <h2>Your saved cities</h2>
+          <div className="yc-head">
+            <h2 id="yc-title">Your cities</h2>
             {saved.length > 1 && (
-              <Link to={`/compare?cities=${compareIds}`} className="action-link">
-                <Icon name="compare" size={16} />
-                Compare {saved.length > 3 ? 'first 3' : 'them'}
+              <Link className="btn btn-secondary" to={compareHref(saved)}>
+                <Icon name="compare" size={17} />
+                Compare{saved.length > 3 ? ' first 3' : ''}
               </Link>
             )}
           </div>
-          <ul className="saved-grid">
-            {saved.map((city) => (
-              <SavedCityCard key={city.id} city={city} />
+          <div className={`yc-grid${phone ? ' hscroll' : ''}`}>
+            {shown.map((city) => (
+              <CityCard key={city.id} city={city} units={units} homeZone={homeZone} />
             ))}
-          </ul>
+          </div>
+          {saved.length > shown.length && (
+            <button type="button" className="btn btn-ghost yc-more" onClick={() => setAll(true)}>
+              Show all {saved.length} cities
+            </button>
+          )}
         </>
       )}
       {recent.length > 0 && (
-        <div className="recent-row">
-          <h2>Recently viewed</h2>
-          <div className="recent-chips">
+        <div className="yc-foot">
+          <div className="yc-recent">
+            <span>Recently viewed</span>
             {recent.map((city) => (
               <Link key={city.id} to={`/city/${encodeURIComponent(city.id)}`} className="chip">
                 {city.name}
@@ -201,36 +227,59 @@ function YourCities() {
           </div>
         </div>
       )}
-      <p className="your-cities-note">Saved and recent cities are kept in this browser only. No account needed.</p>
     </section>
   );
 }
 
-function SavedCityCard({ city }: { city: CityRef }) {
-  const units = defaultUnitsFor(city.id);
+function CityCard({ city, units, homeZone }: { city: CityRef; units: Units; homeZone: string }) {
+  const now = useNow();
   const weather = useWeather(city.id, units);
-  const current = weather.data?.current;
   const zone = city.timezone && isValidTimeZone(city.timezone) ? city.timezone : weather.data?.timezone;
+  const when = new Date(now);
+  const minute = zone ? localMinutes(zone, when) : null;
+  const position = zone && city.lat !== undefined && city.lng !== undefined ? { lat: city.lat, lng: city.lng, timeZone: zone } : null;
+  const sun = sunTimes(weather.data?.daily[0], position) ?? { rise: 420, set: 1140 };
+  const sky = minute !== null ? skyState(minute, sun.rise, sun.set) : null;
+  // The sun (or moon) stays in the open sky above the name, clear of the remove button.
+  const f = sky?.f ?? 0.5;
+  const current = weather.data?.current;
+
+  function remove() {
+    const undo = unsave(city.id);
+    if (undo) toast(`Removed ${city.name}`, { undo });
+  }
 
   return (
-    <li className="saved-card">
-      <Link to={`/city/${encodeURIComponent(city.id)}`} className="saved-card-link">
-        <b>{city.name}</b>
-        <span className="saved-card-meta">
-          {[city.country, zone && isValidTimeZone(zone) ? clockIn(zone) : ''].filter(Boolean).join(' · ')}
-        </span>
-        <span className="saved-card-weather">
-          {current ? `${round(current.temperature)}°${units === 'imperial' ? 'F' : 'C'}, ${current.description}` : ' '}
-        </span>
+    <div className="ycard" data-phase={sky?.phase ?? 'day'}>
+      <Link to={`/city/${encodeURIComponent(city.id)}`}>
+        <div
+          className="ycard-sky"
+          style={cssVars({ '--sx': `${(10 + f * 68).toFixed(1)}%`, '--sy': `${(36 - Math.sin(Math.PI * f) * 22).toFixed(1)}%` })}
+        >
+          <b>{city.name}</b>
+          <span>
+            {minute !== null && fmtClock(minute)}
+            <span className={minute !== null ? 'sep' : undefined}>{city.country}</span>
+          </span>
+        </div>
+        <div className="ycard-b">
+          <span>
+            {current && current.temperature !== null ? (
+              <>
+                <Icon name={weatherIcon(current.weather_code, current.is_day)} size={16} />
+                <b>{degrees(current.temperature)}</b>
+                {current.description}
+              </>
+            ) : (
+              <span className="skel ycard-skel" />
+            )}
+          </span>
+          {zone && <span>{diffShort(zone, homeZone, when)}</span>}
+        </div>
       </Link>
-      <button
-        type="button"
-        className="saved-card-remove"
-        aria-label={`Remove ${city.name} from saved cities`}
-        onClick={() => toggleSaved(city)}
-      >
-        ×
+      <button type="button" className="ycard-x" aria-label={`Remove ${city.name} from your cities`} onClick={remove}>
+        <Icon name="x" size={14} />
       </button>
-    </li>
+    </div>
   );
 }
