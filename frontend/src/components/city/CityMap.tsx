@@ -10,7 +10,7 @@ import Icon from '../Icon';
 import { Seg } from '../ui';
 import { PLACE_KINDS } from './common';
 
-type MapboxGl = typeof import('mapbox-gl');
+type MapboxGl = (typeof import('mapbox-gl'))['default'];
 type Look = 'map' | 'satellite';
 
 /** A place that has coordinates, so it can be pinned. */
