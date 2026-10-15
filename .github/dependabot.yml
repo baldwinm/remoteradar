@@ -1,5 +1,6 @@
 # Weekly checks for security fixes and updates in the Python, npm and GitHub Actions
-# dependencies. Updates are grouped into one PR per ecosystem to keep the noise down.
+# dependencies. Minor and patch updates are grouped into one PR per ecosystem to keep the
+# noise down; major updates come as their own PRs so a breaking one can't hide in a batch.
 version: 2
 updates:
   - package-ecosystem: pip
@@ -9,6 +10,7 @@ updates:
     groups:
       python:
         patterns: ["*"]
+        update-types: [minor, patch]
   - package-ecosystem: npm
     directory: /frontend
     schedule:
@@ -16,6 +18,13 @@ updates:
     groups:
       npm:
         patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      # typescript-eslint only supports the TypeScript versions it lists as a peer
+      # dependency, so a TypeScript major breaks `npm ci`. Bump it by hand once
+      # typescript-eslint supports the new version.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -23,3 +32,4 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+        update-types: [minor, patch]
