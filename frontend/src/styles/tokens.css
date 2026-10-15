@@ -1,0 +1,261 @@
+/* Design tokens for Remote Radar: Graphite & blue with Helvetica (Arial where Helvetica isn't installed).
+   Every color is a token. Light values live on :root, and both dark blocks redefine them, so the
+   theme switch (data-theme) wins over the device setting in either direction. */
+:root {
+  --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Cool-biased neutrals, ink for actions, blue for links, selection and "now". */
+  --bg: #f5f6f8;
+  --bg-2: #eceef2;
+  --surface: #ffffff;
+  --surface-2: #f3f4f7;
+  --surface-3: #e8ebf0;
+  --ink: #0c0e12;
+  --ink-2: #3b414b;
+  --muted: #646b77;
+  --faint: #a3a9b3;
+  --ink-dim: #868d98;
+  --line: #e3e6eb;
+  --line-2: #d2d7de;
+  --accent: #0c0e12;
+  --accent-ink: #ffffff;
+  --signal: #2563eb;
+  --signal-2: #1d4ed8;
+  --signal-soft: #e8effd;
+  --good: #187a47;
+  --good-soft: #e3f3ea;
+  --warn: #9c5c00;
+  --warn-soft: #fbf0d8;
+  --danger: #be3329;
+  --danger-soft: #fcebe9;
+  --sun: #d79500;
+  --pin-coffee: #95602f;
+  --pin-coworking: #2563eb;
+  --pin-restaurant: #cf4639;
+  --pin-gym: #7c3aed;
+  --pin-park: #187a47;
+  --pin-laundry: #0e7490;
+  --map-land: #eef0f3;
+  --map-block: #e5e8ed;
+  --map-water: #cddcf0;
+  --map-park: #d9eadb;
+  --map-road: #ffffff;
+  --map-casing: #d6dbe2;
+  --map-label: #7a818c;
+  --glass: rgb(255 255 255 / 0.6);
+  --glass-line: rgb(255 255 255 / 0.75);
+  --scrim: rgb(12 14 18 / 0.34);
+  --shadow-1: 0 1px 2px rgb(12 14 18 / 0.06);
+  --shadow-2: 0 1px 2px rgb(12 14 18 / 0.04), 0 6px 18px -4px rgb(12 14 18 / 0.1);
+  --shadow-3: 0 2px 6px rgb(12 14 18 / 0.05), 0 22px 48px -10px rgb(12 14 18 / 0.2);
+  --hi: inset 0 1px 0 rgb(255 255 255 / 0);
+  /* Hotel photo placeholders, shown when Booking.com has no photo. */
+  --ph-1: #e9c6a8;
+  --ph-2: #b9cde8;
+  --ph-3: #a9d3cf;
+  --ph-4: #e8dcc3;
+  --ph-5: #cbbfe0;
+  --ph-6: #c9d6b3;
+
+  /* The radar. Its green is too light to read on white, so it always sits on the dark scope:
+     the logo badge and the home page radar look the same in both themes. */
+  --radar: #a1fa78;
+  --radar-ink: #0b0f0c;
+  --scope: #0b0f0d;
+  --scope-2: #121915;
+  --scope-ink: #edf3ea;
+  --scope-muted: rgb(237 243 234 / 0.62);
+  --scope-line: rgb(237 243 234 / 0.1);
+  --scope-dot: rgb(237 243 234 / 0.26);
+  --scope-edge: rgb(237 243 234 / 0.12);
+
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0a0b0d;
+    --bg-2: #060708;
+    --surface: #121418;
+    --surface-2: #181b20;
+    --surface-3: #21252b;
+    --ink: #eef0f3;
+    --ink-2: #c3c8d0;
+    --muted: #8c939f;
+    --faint: #59606b;
+    --ink-dim: #6c737f;
+    --line: #23272d;
+    --line-2: #30353d;
+    --accent: #eef0f3;
+    --accent-ink: #0a0b0d;
+    --signal: #5b9dff;
+    --signal-2: #82b4ff;
+    --signal-soft: #11203a;
+    --good: #46c584;
+    --good-soft: #0f2419;
+    --warn: #e9b44c;
+    --warn-soft: #29200e;
+    --danger: #f2776b;
+    --danger-soft: #2c1513;
+    --sun: #f5c244;
+    --pin-coffee: #c98e57;
+    --pin-coworking: #5b9dff;
+    --pin-restaurant: #f2776b;
+    --pin-gym: #a78bfa;
+    --pin-park: #46c584;
+    --pin-laundry: #2cc4df;
+    --map-land: #14171c;
+    --map-block: #191d23;
+    --map-water: #0d1a2c;
+    --map-park: #112319;
+    --map-road: #252a32;
+    --map-casing: #0e1014;
+    --map-label: #6f7783;
+    --glass: rgb(20 23 28 / 0.5);
+    --glass-line: rgb(255 255 255 / 0.09);
+    --scrim: rgb(0 0 0 / 0.55);
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-2: 0 1px 2px rgb(0 0 0 / 0.35), 0 8px 22px -6px rgb(0 0 0 / 0.5);
+    --shadow-3: 0 2px 8px rgb(0 0 0 / 0.4), 0 26px 56px -12px rgb(0 0 0 / 0.7);
+    --hi: inset 0 1px 0 rgb(255 255 255 / 0.05);
+    --ph-1: #5a3f2e;
+    --ph-2: #26364f;
+    --ph-3: #1f4744;
+    --ph-4: #4d4431;
+    --ph-5: #3a3150;
+    --ph-6: #3a4630;
+    --scope-line: rgb(237 243 234 / 0.08);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0a0b0d;
+  --bg-2: #060708;
+  --surface: #121418;
+  --surface-2: #181b20;
+  --surface-3: #21252b;
+  --ink: #eef0f3;
+  --ink-2: #c3c8d0;
+  --muted: #8c939f;
+  --faint: #59606b;
+  --ink-dim: #6c737f;
+  --line: #23272d;
+  --line-2: #30353d;
+  --accent: #eef0f3;
+  --accent-ink: #0a0b0d;
+  --signal: #5b9dff;
+  --signal-2: #82b4ff;
+  --signal-soft: #11203a;
+  --good: #46c584;
+  --good-soft: #0f2419;
+  --warn: #e9b44c;
+  --warn-soft: #29200e;
+  --danger: #f2776b;
+  --danger-soft: #2c1513;
+  --sun: #f5c244;
+  --pin-coffee: #c98e57;
+  --pin-coworking: #5b9dff;
+  --pin-restaurant: #f2776b;
+  --pin-gym: #a78bfa;
+  --pin-park: #46c584;
+  --pin-laundry: #2cc4df;
+  --map-land: #14171c;
+  --map-block: #191d23;
+  --map-water: #0d1a2c;
+  --map-park: #112319;
+  --map-road: #252a32;
+  --map-casing: #0e1014;
+  --map-label: #6f7783;
+  --glass: rgb(20 23 28 / 0.5);
+  --glass-line: rgb(255 255 255 / 0.09);
+  --scrim: rgb(0 0 0 / 0.55);
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-2: 0 1px 2px rgb(0 0 0 / 0.35), 0 8px 22px -6px rgb(0 0 0 / 0.5);
+  --shadow-3: 0 2px 8px rgb(0 0 0 / 0.4), 0 26px 56px -12px rgb(0 0 0 / 0.7);
+  --hi: inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --ph-1: #5a3f2e;
+  --ph-2: #26364f;
+  --ph-3: #1f4744;
+  --ph-4: #4d4431;
+  --ph-5: #3a3150;
+  --ph-6: #3a4630;
+  --scope-line: rgb(237 243 234 / 0.08);
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+img {
+  max-width: 100%;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--signal) 24%, transparent);
+}
+
+/* While a sheet or the search palette is open, the page behind it stays put. */
+html.is-locked,
+html.is-locked body {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

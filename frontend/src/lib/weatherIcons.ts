@@ -4,7 +4,7 @@ import type { IconName } from '../components/Icon';
 const ICONS: Record<number, IconName | [day: IconName, night: IconName]> = {
   0: ['sun', 'moon'],
   1: ['sun', 'moon'],
-  2: ['cloud-sun', 'cloud'],
+  2: ['cloud-sun', 'cloud-moon'],
   3: 'cloud',
   45: 'fog',
   48: 'fog',
@@ -36,9 +36,4 @@ export function weatherIcon(code: number | null, isDay = true): IconName {
   const icon = code === null ? undefined : ICONS[code];
   if (!icon) return 'cloud';
   return typeof icon === 'string' ? icon : isDay ? icon[0] : icon[1];
-}
-
-/** Clear and sunny conditions get the warm highlight color. */
-export function isSunny(icon: IconName): boolean {
-  return icon === 'sun' || icon === 'cloud-sun';
 }

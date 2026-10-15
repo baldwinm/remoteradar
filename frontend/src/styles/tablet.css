@@ -1,0 +1,343 @@
+/*
+ * Tablets and narrow desktop windows. Phones (760px and under) have their own layout; between 761px and
+ * 1100px the desktop layout stays, but tightens, and below 960px the side-by-side blocks stack.
+ */
+
+/* Pieces that must never push the page sideways at any width */
+.subnav-city {
+  min-width: 0;
+}
+
+.subnav-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subnav .tabs {
+  flex: none;
+}
+
+.conv span {
+  flex-wrap: wrap;
+  row-gap: 0;
+}
+
+.mini-rate small {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .is-desk .hdr-search {
+    flex: 0 1 280px;
+    width: auto;
+    min-width: 0;
+  }
+
+  .is-desk .hdr-search > span:not(.kbds) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Key numbers under the city sky: room for a two-line hint instead of cutting it off */
+  .is-desk .vital {
+    padding-inline: 20px;
+  }
+
+  .is-desk .vital .v-hint {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+  }
+
+  /* Weather now: the four stats move under the temperature */
+  .is-desk .wx-now {
+    flex-wrap: wrap;
+    row-gap: 22px;
+  }
+
+  .is-desk .wx-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+    margin-left: 0;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+
+  /* Next 7 days: narrower fixed columns leave the temperature bar room */
+  .is-desk .day7 {
+    grid-template-columns: 40px 24px 32px 28px minmax(0, 1fr) 28px;
+    gap: 6px;
+  }
+
+  .is-desk .pv-body {
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 56px;
+  }
+
+  .is-desk .ftr-top {
+    gap: 40px 32px;
+  }
+}
+
+@media (max-width: 1023px) {
+  /* City sky: the score card moves under the name and lays out sideways */
+  .is-desk .sky-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 30px;
+    padding: 36px 36px 0;
+    min-height: 0;
+  }
+
+  .is-desk .sky-city {
+    font-size: 72px;
+  }
+
+  .is-desk .scorecard:has(.sc-factors) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr auto;
+    column-gap: 28px;
+  }
+
+  .is-desk .scorecard .sc-top {
+    grid-area: 1 / 1;
+  }
+
+  .is-desk .scorecard .sc-verdict {
+    grid-area: 2 / 1;
+  }
+
+  .is-desk .scorecard .sc-more {
+    grid-area: 3 / 1;
+    justify-self: start;
+  }
+
+  .is-desk .scorecard .sc-factors {
+    grid-area: 1 / 2 / 4 / 3;
+    align-content: center;
+    margin-top: 0;
+    padding: 0 0 0 28px;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 960px) {
+  /* Header */
+  .is-desk .hdr-search .kbds {
+    display: none;
+  }
+
+  /* Five key numbers as three over two */
+  .is-desk .vitals {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .is-desk .vital {
+    grid-column: span 2;
+  }
+
+  .is-desk .vital:nth-child(n + 4) {
+    grid-column: span 3;
+    border-top: 1px solid var(--sky-line);
+  }
+
+  .is-desk .vital:nth-child(4) {
+    border-left: 0;
+  }
+
+  /* Section bar: tighter tabs, and the search button keeps only its icon */
+  .is-desk .subnav .wrap {
+    gap: 12px;
+  }
+
+  .is-desk .subnav .tabs {
+    gap: 0;
+    margin-left: 4px;
+  }
+
+  .is-desk .subnav .tabs a {
+    padding: 0 9px;
+  }
+
+  .is-desk .subnav-acts .kbd {
+    display: none;
+  }
+
+  .is-desk .subnav-acts .subnav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* Score: the breakdown takes the full width, the scale and the note sit side by side under it */
+  .is-desk .score-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .is-desk .score-grid > .stack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .is-desk .score-grid > .stack > .card:last-child {
+    display: grid;
+    align-content: center;
+  }
+
+  /* Internet and money side by side, holidays across the full width */
+  .is-desk .trio {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .is-desk .trio > :nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  .is-desk .trio .hols {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px 24px;
+  }
+
+  .is-desk .trio .hol-more {
+    grid-column: 1 / -1;
+  }
+
+  /* Weather, best time to go */
+  .is-desk .wx-grid,
+  .is-desk .best-wrap {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .is-desk .best-wrap {
+    gap: 28px;
+  }
+
+  /* Hotels: one per row, photo on the left */
+  .is-desk .hotels {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .is-desk .hotel {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  .is-desk .hotel .photo {
+    aspect-ratio: auto;
+    min-height: 168px;
+  }
+
+  .is-desk .hotel-b {
+    grid-template-rows: auto auto 1fr;
+    padding: 18px 22px;
+  }
+
+  .is-desk .hotel-row {
+    align-self: end;
+  }
+
+  /* Places: list and map share the width */
+  .is-desk .split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  /* Compare: a narrower label column, and the score cards drop their caption */
+  .is-desk .cmp {
+    --cols: 148px repeat(3, minmax(0, 1fr));
+  }
+
+  .is-desk .cmp-cities,
+  .is-desk .cmp-row {
+    column-gap: 12px;
+  }
+
+  .is-desk .cmp-score {
+    padding-inline: 14px;
+  }
+
+  .is-desk .cmp-score small {
+    display: none;
+  }
+
+  .is-desk .cmp-label {
+    padding-left: 16px;
+  }
+
+  /* Home: saved cities two across; the bento in two columns with the places map across both */
+  .is-desk .yc-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .is-desk .bento {
+    gap: 16px;
+  }
+
+  .is-desk .bt {
+    grid-column: span 6;
+  }
+
+  .is-desk .bt:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  /* Working hours tile: lane names above the tracks, as on phones, so the hour labels have room */
+  .is-desk .mini-lane {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .is-desk .mini-band {
+    top: 25px;
+    left: calc(100% * var(--a) / 100);
+    width: calc(100% * var(--w) / 100);
+  }
+
+  .is-desk .mini-axis {
+    margin-left: 0;
+  }
+
+  /* Privacy */
+  .is-desk .pv-promises {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .is-desk .pv-body {
+    grid-template-columns: 172px minmax(0, 1fr);
+    gap: 40px;
+  }
+
+  /* Footer: brand and links on one row, data sources across the full width */
+  .is-desk .ftr-top {
+    grid-template-columns: 1.4fr 1fr 1fr;
+  }
+
+  .is-desk .ftr-data {
+    grid-column: 1 / -1;
+  }
+
+  .is-desk .ftr .sources {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 359px) {
+  .legend {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 800px) {
+  /* The section bar gives the city name the logo's room */
+  .is-desk .subnav-home,
+  .is-desk .subnav-sep {
+    display: none;
+  }
+}

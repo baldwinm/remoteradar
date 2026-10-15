@@ -44,11 +44,15 @@ export function useCitySearch(query: string) {
   });
 }
 
+/* The city's own sections take an empty ID while the page is still working out which city it is,
+   and wait until they get a real one. */
+
 export function useCity(cityId: string) {
   return useQuery({
     queryKey: cityKeys.city(cityId),
     queryFn: ({ signal }) => api.city(cityId, signal),
     staleTime: Infinity,
+    enabled: cityId !== '',
   });
 }
 
@@ -57,6 +61,7 @@ export function useWeather(cityId: string, units: Units) {
     queryKey: cityKeys.weather(cityId, units),
     queryFn: ({ signal }) => api.weather(cityId, units, signal),
     placeholderData: keepPreviousData,
+    enabled: cityId !== '',
   });
 }
 
@@ -65,7 +70,7 @@ export function usePlaces(cityId: string, type?: ExtraPlaceType, enabled = true)
   return useQuery({
     queryKey: cityKeys.places(cityId, type),
     queryFn: ({ signal }) => api.places(cityId, type, signal),
-    enabled,
+    enabled: enabled && cityId !== '',
   });
 }
 
@@ -74,6 +79,7 @@ export function useStays(cityId: string, options: StayOptions) {
     queryKey: cityKeys.stays(cityId, options),
     queryFn: ({ signal }) => api.stays(cityId, options, signal),
     placeholderData: keepPreviousData,
+    enabled: cityId !== '',
   });
 }
 
@@ -81,6 +87,7 @@ export function useEssentials(cityId: string) {
   return useQuery({
     queryKey: cityKeys.essentials(cityId),
     queryFn: ({ signal }) => api.essentials(cityId, signal),
+    enabled: cityId !== '',
   });
 }
 
@@ -88,6 +95,7 @@ export function useWorkScore(cityId: string) {
   return useQuery({
     queryKey: cityKeys.score(cityId),
     queryFn: ({ signal }) => api.score(cityId, signal),
+    enabled: cityId !== '',
   });
 }
 
@@ -97,6 +105,7 @@ export function useClimate(cityId: string, units: Units) {
     queryFn: ({ signal }) => api.climate(cityId, units, signal),
     staleTime: 24 * 60 * 60 * 1000,
     placeholderData: keepPreviousData,
+    enabled: cityId !== '',
   });
 }
 

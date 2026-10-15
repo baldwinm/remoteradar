@@ -10,6 +10,9 @@ export interface CityRef {
   country: string;
   /** IANA zone, for showing the local time without an API call. */
   timezone?: string;
+  /** For drawing the city's sky (sunrise and sunset) before its forecast loads. */
+  lat?: number;
+  lng?: number;
 }
 
 const SAVED_KEY = 'rr:saved-cities';
@@ -70,7 +73,14 @@ function isCityRef(value: unknown): value is CityRef {
 }
 
 export function toRef(city: City): CityRef {
-  return { id: city.id, name: city.name, country: city.country, timezone: city.timezone || undefined };
+  return {
+    id: city.id,
+    name: city.name,
+    country: city.country,
+    timezone: city.timezone || undefined,
+    lat: city.lat,
+    lng: city.lng,
+  };
 }
 
 export function useSavedCities(): CityRef[] {
@@ -85,6 +95,19 @@ export function toggleSaved(city: CityRef) {
   const saved = snapshot(SAVED_KEY);
   const exists = saved.some((item) => item.id === city.id);
   write(SAVED_KEY, exists ? saved.filter((item) => item.id !== city.id) : [city, ...saved].slice(0, MAX_SAVED));
+}
+
+/** Removes a saved city and returns a function that puts it back where it was (for Undo). */
+export function unsave(id: string): (() => void) | null {
+  const saved = snapshot(SAVED_KEY);
+  const index = saved.findIndex((item) => item.id === id);
+  const city = saved[index];
+  if (!city) return null;
+  write(SAVED_KEY, saved.filter((item) => item.id !== id));
+  return () => {
+    const now = snapshot(SAVED_KEY).filter((item) => item.id !== id);
+    write(SAVED_KEY, [...now.slice(0, index), city, ...now.slice(index)].slice(0, MAX_SAVED));
+  };
 }
 
 export function recordVisit(city: CityRef) {

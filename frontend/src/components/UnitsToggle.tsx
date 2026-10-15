@@ -1,23 +1,25 @@
 import type { Units } from '../api/types';
+import { Seg } from './ui';
 
 interface Props {
   units: Units;
   onChange: (units: Units) => void;
+  /** Frosted, for the city sky. */
+  glass?: boolean;
 }
 
-export default function UnitsToggle({ units, onChange }: Props) {
+/** °C or °F. */
+export default function UnitsToggle({ units, onChange, glass = false }: Props) {
   return (
-    <div className="segmented" role="group" aria-label="Temperature units">
-      {(['imperial', 'metric'] as const).map((option) => (
-        <button
-          key={option}
-          type="button"
-          aria-pressed={units === option}
-          onClick={() => onChange(option)}
-        >
-          {option === 'imperial' ? '°F' : '°C'}
-        </button>
-      ))}
-    </div>
+    <Seg
+      label="Temperature units"
+      className={glass ? 'glass' : undefined}
+      value={units}
+      onChange={onChange}
+      options={[
+        { value: 'metric', label: '°C' },
+        { value: 'imperial', label: '°F' },
+      ]}
+    />
   );
 }

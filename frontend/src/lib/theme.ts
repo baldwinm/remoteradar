@@ -7,7 +7,7 @@ export type Theme = 'light' | 'dark';
 // Also read by public/theme-init.js before the page paints.
 const STORAGE_KEY = 'rr-theme';
 const DARK_QUERY = '(prefers-color-scheme: dark)';
-const THEME_COLORS: Record<Theme, string> = { light: '#ffffff', dark: '#18181b' };
+const THEME_COLORS: Record<Theme, string> = { light: '#f5f6f8', dark: '#0a0b0d' };
 
 const listeners = new Set<() => void>();
 
