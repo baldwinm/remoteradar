@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [react()],
   build: {
-    // "build" (not Vite's default "dist") so existing static-site deploy settings keep working.
+    // "build" (not Vite's default "dist"): the backend serves the site from frontend/build.
     outDir: 'build',
     sourcemap: false,
     // mapbox-gl is ~1.8 MB on its own; it is loaded lazily, only on city pages.
