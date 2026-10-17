@@ -155,9 +155,6 @@ totals live in memory and reset on every restart, and the home page shows its bu
 and smoke-tests it on every push. Inside the image the default stats file would be `/app/data/popular.db`,
 so mount a volume there (or set `STATS_DB_PATH`) to keep popular-city totals across restarts.
 
-`Documentation_v1.pdf` describes the original Flask version and is kept only for history; this README is
-the current documentation.
-
 ## License
 
 MIT License
