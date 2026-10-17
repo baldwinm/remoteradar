@@ -228,6 +228,7 @@
 
   .is-desk .hotel {
     grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-rows: none;
   }
 
   .is-desk .hotel .photo {
@@ -236,7 +237,7 @@
   }
 
   .is-desk .hotel-b {
-    grid-template-rows: auto auto 1fr;
+    grid-template-rows: auto auto 1fr auto;
     padding: 18px 22px;
   }
 

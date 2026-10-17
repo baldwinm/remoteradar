@@ -388,3 +388,21 @@ function RadarCard({ blip, below, units, homeZone, when }: CardProps) {
     </div>
   );
 }
+
+/** Phones: one line of popular cities' local times instead of the radar map. */
+export function RadarTicker({ homeZone }: { homeZone: string }) {
+  const now = useNow();
+  const when = new Date(now);
+  return (
+    <div className="rp-ticker" role="group" aria-label="Right now in popular cities">
+      <span className="live-dot" aria-hidden="true" />
+      <span className="rp-ticker-label">Right now</span>
+      {FEATURED.slice(0, 8).map((city) => (
+        <Link key={city.id} to={`/city/${encodeURIComponent(city.id)}`}>
+          <b>{city.name}</b> {fmtClock(localMinutes(city.zone, when))}
+          <span className="sr-only">, {diffShort(city.zone, homeZone, when)}</span>
+        </Link>
+      ))}
+    </div>
+  );
+}

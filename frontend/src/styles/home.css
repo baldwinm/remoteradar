@@ -23,36 +23,17 @@
   z-index: 1;
 }
 
-.hh-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  height: 32px;
-  padding: 0 14px 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface);
-  box-shadow: var(--shadow-1), var(--hi);
-  color: var(--ink-2);
-  font-size: 13px;
-  font-weight: 500;
-}
-
 .hh-title {
   max-width: 920px;
-  margin: 22px auto 0;
+  margin: 20px auto 0;
   font-size: 68px;
   font-weight: 700;
   letter-spacing: -0.045em;
   line-height: 1;
 }
 
-.hh-dim {
-  color: var(--ink-dim);
-}
-
 .hh-lede {
-  max-width: 600px;
+  max-width: 680px;
   margin: 22px auto 0;
   color: var(--ink-2);
   font-size: 19px;
@@ -575,38 +556,52 @@
 /* ---------- Feature bento ---------- */
 
 .feat {
-  padding-top: 128px;
+  padding-top: 96px;
 }
 
 .feat-head {
-  max-width: 720px;
-  margin: 0 auto;
-  text-align: center;
-}
-
-.feat-head .sec-kicker {
-  justify-content: center;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
 }
 
 .feat-head h2 {
-  margin-top: 12px;
-  font-size: 46px;
+  font-size: 36px;
   font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 1.05;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
 }
 
 .feat-head p {
-  margin-top: 16px;
+  margin-top: 8px;
   color: var(--ink-2);
-  font-size: 18px;
+  font-size: 17px;
+}
+
+.feat-open {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  color: var(--signal);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.feat-open:hover .ic {
+  transform: translateX(2px);
+}
+
+.feat-open .ic {
+  transition: transform 0.15s var(--ease);
 }
 
 .bento {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 20px;
-  margin-top: 56px;
+  margin-top: 28px;
 }
 
 .bt {
@@ -622,6 +617,47 @@
   border-radius: 24px;
   background: var(--surface);
   box-shadow: var(--shadow-1), var(--hi);
+  color: var(--ink);
+  transition: transform 0.22s var(--ease), box-shadow 0.22s var(--ease), border-color 0.22s;
+}
+
+/* Each tile opens that part of Lisbon's page. */
+.bt:hover {
+  transform: translateY(-3px);
+  border-color: var(--line-2);
+  box-shadow: var(--shadow-3);
+}
+
+.bt-go {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 -28px;
+  padding: 14px 28px 16px;
+  border-top: 1px solid var(--line);
+  color: var(--signal);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.bt-go .ic {
+  transition: transform 0.15s var(--ease);
+}
+
+.bt:hover .bt-go .ic {
+  transform: translateX(3px);
+}
+
+.bt-skel {
+  display: block;
+  width: 96px;
+  height: 34px;
+  border-radius: 8px;
+}
+
+.bt-skel.wide {
+  width: 100%;
+  height: 92px;
 }
 
 .bt-top {
@@ -912,13 +948,8 @@
   height: 420px;
 }
 
-.is-phone .hh-eyebrow {
-  height: 30px;
-  font-size: 12.5px;
-}
-
 .is-phone .hh-title {
-  margin-top: 18px;
+  margin-top: 12px;
   font-size: 40px;
   letter-spacing: -0.04em;
   line-height: 1.02;
@@ -1038,19 +1069,15 @@
 }
 
 .is-phone .feat {
-  padding-top: 72px;
+  padding-top: 44px;
 }
 
 .is-phone .feat-head {
   text-align: left;
 }
 
-.is-phone .feat-head .sec-kicker {
-  justify-content: flex-start;
-}
-
 .is-phone .feat-head h2 {
-  font-size: 30px;
+  font-size: 26px;
   letter-spacing: -0.035em;
 }
 
@@ -1156,4 +1183,106 @@
   height: 38px;
   padding: 0 12px;
   font-size: 14px;
+}
+
+/* ---------- Radar: a short strip below the examples (desktop), a one-line ticker (phones) ---------- */
+
+.home-radar {
+  padding-top: 64px;
+}
+
+.is-desk .home-radar .radar-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  grid-template-rows: 1fr auto;
+  margin-top: 0;
+}
+
+.is-desk .home-radar .rp-top {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 28px 28px 0;
+}
+
+.is-desk .home-radar .rp-map {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  height: 260px;
+  margin: 18px 22px 18px 0;
+}
+
+.is-desk .home-radar .rp-foot {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  margin-top: 0;
+  padding: 0 28px 26px;
+  border-top: 0;
+}
+
+.rp-ticker {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 28px -16px 0;
+  padding: 12px 16px;
+  overflow-x: auto;
+  background: var(--scope);
+  color: var(--scope-muted);
+  font-size: 14px;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.rp-ticker::-webkit-scrollbar {
+  display: none;
+}
+
+.rp-ticker .live-dot {
+  flex: none;
+  background: var(--radar);
+}
+
+.rp-ticker .live-dot::after {
+  border-color: var(--radar);
+}
+
+.rp-ticker-label {
+  color: var(--scope-ink);
+  font-weight: 500;
+}
+
+.rp-ticker a {
+  position: relative;
+  color: var(--scope-muted);
+}
+
+.rp-ticker a b {
+  color: var(--scope-ink);
+  font-weight: 700;
+}
+
+/* Phones: hours, hotels and places in a swipe row */
+.is-phone .bento.hscroll {
+  display: flex;
+  margin-top: 20px;
+}
+
+.is-phone .bento.hscroll .bt {
+  width: 290px;
+}
+
+.is-phone .bt:hover {
+  transform: none;
+}
+
+.is-phone .bt-go {
+  margin: 0 -20px;
+  padding: 12px 20px 14px;
+}
+
+.is-phone .feat-head p {
+  margin-top: 6px;
 }

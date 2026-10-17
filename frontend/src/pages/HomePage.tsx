@@ -6,8 +6,8 @@ import { useWeather } from '../api/queries';
 import Bento from '../components/Bento';
 import { compareHref } from '../components/Header';
 import Icon from '../components/Icon';
-import RadarPanel from '../components/RadarPanel';
-import { SearchResults, openSearch, resultKeys, usePickCity, useSearchModel } from '../components/Search';
+import RadarPanel, { RadarTicker } from '../components/RadarPanel';
+import { SearchResults, currentIndex, openSearch, resultKeys, usePickCity, useSearchModel } from '../components/Search';
 import { cssVars } from '../components/ui';
 import { toast } from '../lib/chrome';
 import { useNow } from '../lib/clock';
@@ -27,6 +27,7 @@ export default function HomePage() {
   const phone = useIsPhone();
   const [units] = usePageUnits();
   const homeZone = useHomeZone();
+  const returning = useSavedCities().length > 0;
 
   useEffect(() => {
     document.title = 'Remote Radar - Find Your Perfect Remote Work Destination';
@@ -36,23 +37,24 @@ export default function HomePage() {
     <div>
       <section className="home-hero">
         <div className="wrap">
-          <span className="hh-eyebrow">
-            <span className="live-dot" />
-            Live data for any city in the world
-          </span>
-          <h1 className="hh-title">
-            Scope out your next city <span className="hh-dim">before you book.</span>
-          </h1>
-          <p className="hh-lede">
-            Weather, hotel prices, internet speed, places to work and how your hours line up, on one page for any city.
-          </p>
+          <h1 className="hh-title">Scope out your next city before you book.</h1>
+          <p className="hh-lede">Weather, hotel prices, internet speed and places to work, for any city.</p>
           <div className="hh-search-wrap">{phone ? <PhoneSearch /> : <HeroSearch />}</div>
+          {/* Returning visitors see their own cities first. */}
+          {returning && <YourCities units={units} homeZone={homeZone} />}
           <PopularChips />
-          <YourCities units={units} homeZone={homeZone} />
-          <RadarPanel units={units} homeZone={homeZone} />
+          {!returning && <YourCities units={units} homeZone={homeZone} />}
+          {phone && <RadarTicker homeZone={homeZone} />}
         </div>
       </section>
       <Bento units={units} homeZone={homeZone} />
+      {!phone && (
+        <section className="home-radar" aria-label="Right now around the world">
+          <div className="wrap">
+            <RadarPanel units={units} homeZone={homeZone} />
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -72,11 +74,12 @@ function PhoneSearch() {
 function HeroSearch() {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState(-1);
   const input = useRef<HTMLInputElement>(null);
   const listId = useId();
   const model = useSearchModel(query, 'go');
   const pick = usePickCity();
+  const shown = currentIndex(model, active);
 
   function go(item: Parameters<typeof pick>[0]) {
     setOpen(false);
@@ -100,12 +103,12 @@ function HeroSearch() {
           aria-label="Search for a city"
           aria-expanded={open}
           aria-controls={listId}
-          aria-activedescendant={open && model.items.length ? `${listId}-${active}` : undefined}
+          aria-activedescendant={open && shown >= 0 && model.items.length ? `${listId}-${shown}` : undefined}
           onFocus={() => setOpen(true)}
           onBlur={() => setOpen(false)}
           onChange={(event) => {
             setQuery(event.target.value);
-            setActive(0);
+            setActive(-1);
             setOpen(true);
           }}
           onKeyDown={(event) => {
@@ -129,7 +132,7 @@ function HeroSearch() {
           className="btn btn-primary"
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => {
-            const item = model.items[active] ?? model.items[0];
+            const item = model.items[shown];
             if (query.trim().length >= 2 && item) go(item);
             else {
               input.current?.focus();
@@ -142,10 +145,13 @@ function HeroSearch() {
       </label>
       {open && (
         <div className="hh-drop">
-          <SearchResults model={model} query={query} listId={listId} active={active} onActive={setActive} onPick={go} />
-          <div className="hh-drop-foot">
-            Local time in each city. Press <span className="kbd">↵</span> to open the first match.
-          </div>
+          <SearchResults model={model} query={query} listId={listId} active={shown} onActive={setActive} onPick={go} />
+          {/* Only while there's a match for Enter to open. */}
+          {(model.status === 'results' || model.status === 'start') && model.items.length > 0 && (
+            <div className="hh-drop-foot">
+              Local time in each city. Press <span className="kbd">↵</span> to open the first match.
+            </div>
+          )}
         </div>
       )}
     </>

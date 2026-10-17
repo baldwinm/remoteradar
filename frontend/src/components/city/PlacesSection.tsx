@@ -18,7 +18,7 @@ import { useNow } from '../../lib/clock';
 import { scrollBehavior, useIsPhone } from '../../lib/layout';
 import { type OpenState, fmtClock, keepTimeTogether, localMinutes, openState } from '../../lib/time';
 import Icon from '../Icon';
-import { Sheet, SheetHead, useDialogFocus, usePresence, useScrollLock } from '../overlays';
+import { Popover, Sheet, SheetHead, useDialogFocus, usePresence, useScrollLock } from '../overlays';
 import { SecHead, Seg, cssVars } from '../ui';
 import CityMap, { type Padding, type Pinned, hasCoords } from './CityMap';
 import { PLACE_KINDS, distanceKm, placeKind, priceMarks, shortAddress } from './common';
@@ -173,37 +173,17 @@ export default function PlacesSection({ city, dataId, zone, units }: Props) {
     setShown(PAGE);
   }
 
-  const chips = (
-    <div className="chip-row" role="group" aria-label="Kind of place">
-      {PLACE_KINDS.map((item) => {
-        const total = totals[item.key];
-        return (
-          <button
-            key={item.key}
-            type="button"
-            className="chip"
-            aria-pressed={kind === item.key}
-            onClick={() => chooseKind(item.key)}
-          >
-            {item.key !== 'all' && <span className={`dot dot-${item.key}`} aria-hidden="true" />}
-            {item.label}
-            {total !== undefined && <span className="n">{total}</span>}
-          </button>
-        );
-      })}
-    </div>
-  );
+  const chips = <KindChips kind={kind} totals={totals} onChoose={chooseKind} />;
 
-  const openSwitch = (withText: boolean) => (
+  const openSwitch = (
     <button
       type="button"
       className="switch"
       aria-pressed={refine.open}
-      aria-label={withText ? undefined : 'Open now'}
+      aria-label="Open now"
       onClick={() => changeRefine({ open: !refine.open })}
     >
       <span className="switch-track" aria-hidden="true" />
-      {withText && 'Open now'}
     </button>
   );
 
@@ -363,7 +343,7 @@ export default function PlacesSection({ city, dataId, zone, units }: Props) {
                         At {fmtClock(minute)} {city.name} time
                       </div>
                     </div>
-                    {openSwitch(false)}
+                    {openSwitch}
                   </div>
                 )}
                 <div>
@@ -386,11 +366,29 @@ export default function PlacesSection({ city, dataId, zone, units }: Props) {
             kind={kind}
             openNow={active.open}
             refine={
-              <div className="refine">
-                {hasHours && openSwitch(true)}
-                {ratingSeg}
-                {hasPrices && priceSeg}
-              </div>
+              <DeskFilters count={refineCount} onClear={clearRefine}>
+                {hasHours && (
+                  <div className="sheet-row">
+                    <div>
+                      <b className="sheet-row-title">Open now</b>
+                      <div className="hint">
+                        At {fmtClock(minute)} {city.name} time
+                      </div>
+                    </div>
+                    {openSwitch}
+                  </div>
+                )}
+                <div>
+                  <span className="field-label">Minimum rating</span>
+                  {ratingSeg}
+                </div>
+                {hasPrices && (
+                  <div>
+                    <span className="field-label">Price</span>
+                    {priceSeg}
+                  </div>
+                )}
+              </DeskFilters>
             }
             onShow={setShown}
           />
@@ -401,6 +399,120 @@ export default function PlacesSection({ city, dataId, zone, units }: Props) {
 }
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+const MAIN_KINDS = PLACE_KINDS.filter((item) => !item.extra);
+const EXTRA_KINDS = PLACE_KINDS.filter((item) => item.extra);
+
+/** The three everyday kinds of place as chips; gyms, parks and laundry sit behind More. */
+function KindChips({
+  kind,
+  totals,
+  onChoose,
+}: {
+  kind: Kind;
+  totals: Partial<Record<Kind, number>>;
+  onChoose: (kind: Kind) => void;
+}) {
+  const moreButton = useRef<HTMLButtonElement>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const extra = EXTRA_KINDS.find((item) => item.key === kind);
+
+  function choose(next: Kind) {
+    setMoreOpen(false);
+    onChoose(next);
+  }
+
+  return (
+    <div className="chip-row" role="group" aria-label="Kind of place">
+      {MAIN_KINDS.map((item) => {
+        const total = totals[item.key];
+        return (
+          <button
+            key={item.key}
+            type="button"
+            className="chip"
+            aria-pressed={kind === item.key}
+            // A kind with nothing in it can't be picked, so no one lands on an empty list.
+            disabled={total === 0 && kind !== item.key}
+            onClick={() => choose(item.key)}
+          >
+            {item.key !== 'all' && <span className={`dot dot-${item.key}`} aria-hidden="true" />}
+            {item.label}
+            {total !== undefined && <span className="n">{total}</span>}
+          </button>
+        );
+      })}
+      <button
+        type="button"
+        className="chip"
+        ref={moreButton}
+        aria-pressed={!!extra}
+        aria-haspopup="dialog"
+        aria-expanded={moreOpen}
+        onClick={() => setMoreOpen((open) => !open)}
+      >
+        {extra ? (
+          <>
+            <span className={`dot dot-${extra.key}`} aria-hidden="true" />
+            {extra.label}
+            {totals[extra.key] !== undefined && <span className="n">{totals[extra.key]}</span>}
+          </>
+        ) : (
+          'More'
+        )}
+        <Icon name="chevron-down" size={14} />
+      </button>
+      <Popover open={moreOpen} onClose={() => setMoreOpen(false)} anchor={moreButton} label="More kinds of place">
+        <div className="mp-label">Loads when you pick it</div>
+        {EXTRA_KINDS.map((item) => (
+          <button key={item.key} type="button" aria-pressed={kind === item.key} onClick={() => choose(item.key)}>
+            <Icon name={item.icon} size={16} />
+            {item.label}
+            {totals[item.key] !== undefined && <small>{totals[item.key]}</small>}
+          </button>
+        ))}
+      </Popover>
+    </div>
+  );
+}
+
+/** Desktop: open now, rating and price behind one Filters button. */
+function DeskFilters({ count, onClear, children }: { count: number; onClear: () => void; children: ReactNode }) {
+  const button = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        className="btn btn-secondary filters-btn"
+        ref={button}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <Icon name="sliders" size={16} />
+        Filters
+        {count > 0 && (
+          <span className="badge">
+            {count}
+            <span className="sr-only"> on</span>
+          </span>
+        )}
+      </button>
+      <Popover open={open} onClose={() => setOpen(false)} anchor={button} label="Filters" align="right" className="pop filters-pop">
+        <div className="filters-body">{children}</div>
+        <div className="pop-foot">
+          <button type="button" className="btn btn-ghost" onClick={onClear} disabled={count === 0}>
+            Clear
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => setOpen(false)}>
+            Done
+          </button>
+        </div>
+      </Popover>
+    </>
+  );
+}
 
 interface Shared {
   loading: boolean;

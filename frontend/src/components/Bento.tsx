@@ -1,81 +1,54 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router';
 
-import type { Units } from '../api/types';
+import { useCity, useClimate, useEssentials, usePlaces, useStays, useWeather } from '../api/queries';
+import type { ClimateMonth, Units, Weather } from '../api/types';
 import { smoothPath, seeded } from '../lib/charts';
 import { useNow } from '../lib/clock';
+import { shortWeekday } from '../lib/format';
 import { useIsPhone } from '../lib/layout';
-import { fmtClock, shortHours, workOverlap } from '../lib/time';
+import { fmtClock, openState, shortHours, workOverlap, zoneDate } from '../lib/time';
+import { degrees } from '../lib/units';
+import { weatherIcon } from '../lib/weatherIcons';
 import { zoneCity } from '../lib/world';
 import { DotPlot } from './charts';
+import { inLocal, usd } from './city/common';
 import Icon, { type IconName } from './Icon';
 import { cssVars } from './ui';
 
-/* "Everything you'd check before you book": one tile per part of a city page, each with a small
-   preview drawn from example numbers for Lisbon. The working-hours tile uses the visitor's own
-   time zone. */
+/* "What a city page shows": one tile per part of a city page, each a link to that part of Lisbon's
+   page, with the same live numbers it shows there. The working-hours tile uses the visitor's own
+   time zone. On phones, three tiles in a swipe row. */
 
-const toF = (celsius: number) => (celsius * 9) / 5 + 32;
-const deg = (celsius: number, units: Units) => `${Math.round(units === 'imperial' ? toF(celsius) : celsius)}°`;
-const pct = (minutes: number) => +((minutes / 1440) * 100).toFixed(2);
-
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const EXAMPLE = 'lisbon--pt';
+const ZONE = 'Europe/Lisbon';
+// The hotel numbers match the city page as it first opens: one guest, one night.
+const STAY = { occupants: 1, nights: 1 };
 const MONTH_LETTERS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+const pct = (minutes: number) => +((minutes / 1440) * 100).toFixed(2);
+const pad = (value: number) => String(value).padStart(2, '0');
 
-// A mild October week, then the climate by month: [low, high, best].
-const WEEK: { hi: number; icon: IconName }[] = [
-  { hi: 23, icon: 'sun' },
-  { hi: 22, icon: 'cloud-sun' },
-  { hi: 20, icon: 'rain' },
-  { hi: 19, icon: 'drizzle' },
-  { hi: 21, icon: 'cloud-sun' },
-  { hi: 23, icon: 'sun' },
-  { hi: 24, icon: 'sun' },
-];
+/** A short grey bar where a number goes while it loads. */
+const Loading = ({ wide = false }: { wide?: boolean }) => <span className={`skel bt-skel${wide ? ' wide' : ''}`} />;
 
-const CLIMATE: [number, number, boolean][] = [
-  [8, 15, false],
-  [9, 16, false],
-  [11, 19, false],
-  [12, 20, false],
-  [14, 23, true],
-  [17, 27, true],
-  [18, 29, false],
-  [19, 29, false],
-  [18, 27, true],
-  [15, 23, true],
-  [12, 18, false],
-  [9, 16, false],
-];
-
-const HOTEL_PRICES = [
-  52, 58, 61, 66, 72, 78, 79, 84, 88, 91, 94, 97, 99, 104, 108, 112, 115, 118, 121, 124, 128, 131, 134, 138, 142, 147, 152,
-  155, 161, 164, 172, 181, 196, 214, 238, 262, 286, 341,
-];
-
-/** A day of temperatures between 15° and 23°, warmest mid-afternoon. */
-function dayCurve(): [number, number][] {
-  const rise = 461;
-  const peak = 15 * 60;
-  const points: [number, number][] = [];
-  for (let i = 0; i <= 24; i++) {
-    const minute = (i * 60 + 360) % 1440;
-    let f: number;
-    if (minute >= rise && minute <= peak) f = (1 - Math.cos((Math.PI * (minute - rise)) / (peak - rise))) / 2;
-    else {
-      const span = 1440 - (peak - rise);
-      const since = minute > peak ? minute - peak : minute + 1440 - peak;
-      f = (1 + Math.cos((Math.PI * since) / span)) / 2;
-    }
-    points.push([10 + i * 18.3, 70 - ((15 + 8 * f - 14) / 10) * 52]);
-  }
-  return points;
-}
-
-const CURVE = dayCurve();
-const CURVE_PATH = smoothPath(CURVE);
-
-function Sparkline() {
-  const now = CURVE[9]!;
+/** The next 24 hours of temperatures as a line, with a dot on now. */
+function Sparkline({ weather, when }: { weather: Weather; when: Date }) {
+  const local = zoneDate(weather.timezone, when);
+  const thisHour = `${local.year}-${pad(local.month)}-${pad(local.day)}T${pad(local.hour)}`;
+  const temps = weather.hourly
+    .filter((hour) => hour.time.slice(0, 13) >= thisHour && hour.temperature !== null)
+    .slice(0, 25)
+    .map((hour) => hour.temperature as number);
+  if (temps.length < 2) return null;
+  const lo = Math.min(...temps);
+  const span = Math.max(1, Math.max(...temps) - lo);
+  const points = temps.map((temp, index): [number, number] => [
+    10 + (index / (temps.length - 1)) * 440,
+    74 - ((temp - lo) / span) * 56,
+  ]);
+  const path = smoothPath(points);
+  const now = points[0]!;
   return (
     <svg className="mini-spark" viewBox="0 0 460 92" aria-hidden="true">
       <defs>
@@ -84,8 +57,8 @@ function Sparkline() {
           <stop offset="1" className="spark-stop-bottom" />
         </linearGradient>
       </defs>
-      <path d={`${CURVE_PATH} L450 92 L10 92 Z`} fill="url(#ms-fill)" />
-      <path d={CURVE_PATH} className="spark-line" />
+      <path d={`${path} L450 92 L10 92 Z`} fill="url(#ms-fill)" />
+      <path d={path} className="spark-line" />
       <circle cx={now[0]} cy={now[1]} r={5} className="spark-now" />
     </svg>
   );
@@ -226,10 +199,14 @@ function MiniMap() {
 /* ---------- Tiles ---------- */
 
 interface Tile {
+  key: string;
   span: number;
   icon: IconName;
   title: string;
   text: string;
+  /** The part of Lisbon's page the tile opens, and the words for the link. */
+  section: string;
+  go: string;
   bleed?: boolean;
   viz: ReactNode;
 }
@@ -242,201 +219,273 @@ interface Props {
 export default function Bento({ units, homeZone }: Props) {
   const phone = useIsPhone();
   const now = useNow();
-  const today = new Date(now).getDay();
-  const overlap = workOverlap(homeZone, 'Europe/Lisbon', new Date(now));
-  const tiles: Tile[] = [
-    {
-      span: 5,
-      icon: 'cloud-sun',
-      title: 'Weather, hour by hour',
-      text: 'Conditions now, the next 24 hours and the week ahead, with sunrise and sunset.',
-      viz: (
-        <>
-          <Sparkline />
-          <div className="mini-days">
-            {WEEK.map((day, index) => (
-              <span key={index}>
-                {index === 0 ? 'Today' : DAYS[(today + index) % 7]}
-                <Icon name={day.icon} size={20} />
-                <b>{deg(day.hi, units)}</b>
-              </span>
-            ))}
-          </div>
-        </>
-      ),
-    },
-    {
-      span: 7,
-      icon: 'clock',
-      title: 'Your working hours',
-      text: "See which hours of your 9 to 5 overlap with the city's, from whatever time zone you're in.",
-      viz: (
-        <>
-          <div className="mini-price">
-            <b>{overlap.minutes ? shortHours(overlap.minutes) : 'None'}</b>
-            <span>of your 9 to 5 lines up with Lisbon's, seen from {zoneCity(homeZone)}</span>
-          </div>
-          <div className="mini-lanes">
-            <div className="mini-lane">
-              <span>Lisbon 9 to 5</span>
-              <div className="mini-track">
-                <i className="city" style={cssVars({ '--a': '37.5%', '--w': '33.33%' })} />
-              </div>
+  const when = new Date(now);
+  const city = useCity(EXAMPLE);
+  // Sections load by the city's full ID, the same requests the Lisbon page makes.
+  const id = city.data?.id ?? '';
+  const weather = useWeather(id, units);
+  const essentials = useEssentials(id);
+  const stays = useStays(id, STAY);
+  const places = usePlaces(id);
+  const climate = useClimate(phone ? '' : id, units);
+  const overlap = workOverlap(homeZone, ZONE, when);
+
+  const currency = essentials.data?.currency;
+  const average = stays.data?.average_price ?? null;
+  const prices = (stays.data?.stays ?? []).flatMap((stay) => (stay.price_per_night === null ? [] : [stay.price_per_night]));
+  const local = inLocal(average, currency);
+  const coworking = (places.data?.places ?? [])
+    .filter((place) => place.type === 'coworking')
+    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0];
+  const spaces = places.data?.counts.coworking;
+  const cafes = places.data?.counts.coffee;
+  const open = coworking ? openState(coworking.opening_hours, ZONE, when) : null;
+  const internet = essentials.data?.internet;
+  const rate = currency?.usd_rate ?? null;
+  const holidays = essentials.data?.holidays ?? [];
+  const forecast = weather.data;
+  const current = forecast?.current;
+
+  const hours: Tile = {
+    key: 'hours',
+    span: 7,
+    icon: 'clock',
+    title: 'Your working hours',
+    text: "Which hours of your 9 to 5 line up with the city's, from whatever time zone you're in.",
+    section: 'work',
+    go: "See Lisbon's hours",
+    viz: (
+      <>
+        <div className="mini-price">
+          <b>{overlap.minutes ? shortHours(overlap.minutes) : 'None'}</b>
+          <span>of your 9 to 5 lines up with Lisbon's, seen from {zoneCity(homeZone)}</span>
+        </div>
+        <div className="mini-lanes">
+          <div className="mini-lane">
+            <span>Lisbon 9 to 5</span>
+            <div className="mini-track">
+              <i className="city" style={cssVars({ '--a': '37.5%', '--w': '33.33%' })} />
             </div>
-            <div className="mini-lane">
-              <span>Your 9 to 5</span>
-              <div className="mini-track">
-                {overlap.homeSpans.map(([start, end]) => (
-                  <i key={start} className="you" style={cssVars({ '--a': `${pct(start)}%`, '--w': `${pct(end - start)}%` })} />
-                ))}
-              </div>
+          </div>
+          <div className="mini-lane">
+            <span>Your 9 to 5</span>
+            <div className="mini-track">
+              {overlap.homeSpans.map(([start, end]) => (
+                <i key={start} className="you" style={cssVars({ '--a': `${pct(start)}%`, '--w': `${pct(end - start)}%` })} />
+              ))}
             </div>
-            {overlap.minutes > 0 && (
-              <div
-                className="mini-band"
-                style={cssVars({ '--a': pct(overlap.cityStart), '--w': pct(overlap.cityEnd - overlap.cityStart) })}
-              />
-            )}
           </div>
-          <div className="mini-axis" aria-hidden="true">
-            {[0, 6, 12, 18, 24].map((hour) => (
-              <span key={hour} style={cssVars({ '--at': `${(hour / 24) * 100}%` })}>
-                {fmtClock(hour * 60, true)}
-              </span>
-            ))}
-          </div>
-        </>
-      ),
-    },
-    {
-      span: 7,
-      icon: 'pin',
-      title: 'Places to work, eat and live',
-      text: 'Coffee shops and coworking spaces with live opening hours, plus restaurants, gyms, parks and laundry.',
-      bleed: true,
-      viz: (
-        <div className="mini-map">
-          <div className="map">
-            <MiniMap />
-          </div>
+          {overlap.minutes > 0 && (
+            <div
+              className="mini-band"
+              style={cssVars({ '--a': pct(overlap.cityStart), '--w': pct(overlap.cityEnd - overlap.cityStart) })}
+            />
+          )}
+        </div>
+        <div className="mini-axis" aria-hidden="true">
+          {[0, 6, 12, 18, 24].map((hour) => (
+            <span key={hour} style={cssVars({ '--at': `${(hour / 24) * 100}%` })}>
+              {fmtClock(hour * 60, true)}
+            </span>
+          ))}
+        </div>
+      </>
+    ),
+  };
+
+  const hotels: Tile = {
+    key: 'hotels',
+    span: 5,
+    icon: 'bed',
+    title: 'What a night costs',
+    text: 'Average hotel prices for your dates, from one night to a month, in dollars and local money.',
+    section: 'stays',
+    go: "See Lisbon's hotels",
+    viz: (
+      <>
+        <div className="mini-price">
+          {average !== null ? <b>{usd(average)}</b> : stays.isError ? <b>–</b> : <Loading />}
+          <span>
+            {stays.isError && average === null
+              ? "Hotel prices didn't load just now"
+              : `a night in Lisbon${local ? `, about ${local}` : ''}`}
+          </span>
+        </div>
+        {!phone && prices.length > 1 && average !== null && (
+          <DotPlot prices={prices} average={average} width={460} height={100} />
+        )}
+      </>
+    ),
+  };
+
+  const workPlaces: Tile = {
+    key: 'places',
+    span: 7,
+    icon: 'pin',
+    title: 'Places to work, eat and live',
+    text: 'Coffee shops and coworking spaces with live opening hours, plus restaurants, gyms, parks and laundry.',
+    section: 'places',
+    go: "See Lisbon's places",
+    bleed: !phone,
+    viz: phone ? (
+      <div className="mini-price">
+        {spaces !== undefined ? <b>{spaces}</b> : places.isError ? <b>–</b> : <Loading />}
+        <span>coworking{cafes !== undefined ? `, ${cafes} cafés` : ''}</span>
+      </div>
+    ) : (
+      <div className="mini-map">
+        <div className="map">
+          <MiniMap />
+        </div>
+        {coworking && (
           <div className="mini-place" style={cssVars({ '--tint': 'var(--pin-coworking)' })}>
             <span className="tile">
               <Icon name="desk" size={18} />
             </span>
             <span>
-              <b>Coworking in Cais do Sodré</b>
+              <b>{coworking.name}</b>
               <small>
-                <span className="rating">
-                  <Icon name="star" size={11} className="star" />
-                  4.8
-                </span>
-                <span className="sep open">Open until 10&nbsp;PM</span>
+                {coworking.rating !== null && (
+                  <span className="rating">
+                    <Icon name="star" size={11} className="star" />
+                    {coworking.rating.toFixed(1)}
+                  </span>
+                )}
+                {open && <span className={`sep${open.open ? ' open' : ''}`}>{open.label}</span>}
               </small>
             </span>
           </div>
-        </div>
-      ),
-    },
-    {
-      span: 5,
-      icon: 'bed',
-      title: 'What a night costs',
-      text: 'Average hotel prices for your dates, from one night to a month, in dollars and local money.',
-      viz: (
-        <>
-          <div className="mini-price">
-            <b>$142</b>
-            <span>a night in Lisbon, about €122</span>
-          </div>
-          <DotPlot prices={HOTEL_PRICES} average={142} width={460} height={100} />
-        </>
-      ),
-    },
-    {
-      span: 4,
-      icon: 'wifi',
-      title: 'Internet you can count on',
-      text: 'Typical home and mobile speeds from millions of real speed tests.',
-      viz: (
-        <>
-          <MiniSpeed label="Home" value={164} share={82} />
-          <MiniSpeed label="Mobile" value={72} share={36} />
-        </>
-      ),
-    },
-    {
-      span: 4,
-      icon: 'calendar',
-      title: 'Best time to go',
-      text: 'Five years of weather by month, with the mildest, driest months marked.',
-      viz: (
-        <>
-          <div className="mini-months">
-            {CLIMATE.map(([low, high, best], index) => (
-              <span
-                key={index}
-                className={best ? 'best' : undefined}
-                style={cssVars({ '--lo': ((low - 5) / 30) * 100, '--hi': ((high - 5) / 30) * 100 })}
-              >
-                <i />
-              </span>
-            ))}
-          </div>
-          <div className="mini-mlabels">
-            {CLIMATE.map(([, , best], index) => (
-              <span key={index} className={best ? 'best' : undefined}>
-                {MONTH_LETTERS[index]}
-              </span>
-            ))}
-          </div>
-        </>
-      ),
-    },
-    {
-      span: 4,
-      icon: 'cash',
-      title: 'Money and holidays',
-      text: "Today's exchange rate and the public holidays coming up.",
-      viz: (
-        <>
-          <div className="mini-rate">
-            €0.86<small>to the dollar</small>
-          </div>
-          <div className="mini-hols">
-            {[
-              ['NOV', 1],
-              ['DEC', 1],
-              ['DEC', 8],
-            ].map(([month, day]) => (
-              <span key={`${month}${day}`} className="cal-tile">
-                <small>{month}</small>
-                <b>{day}</b>
-              </span>
-            ))}
-          </div>
-        </>
-      ),
-    },
-  ];
+        )}
+      </div>
+    ),
+  };
+
+  const tiles: Tile[] = phone
+    ? [hours, hotels, workPlaces]
+    : [
+        {
+          key: 'weather',
+          span: 5,
+          icon: 'cloud-sun',
+          title: 'Weather, hour by hour',
+          text: 'Conditions now, the next 24 hours and the week ahead, with sunrise and sunset.',
+          section: 'weather',
+          go: "See Lisbon's forecast",
+          viz: forecast ? (
+            <>
+              <div className="mini-price">
+                <b>{degrees(current?.temperature)}</b>
+                <span>{current?.description} in Lisbon now</span>
+              </div>
+              <Sparkline weather={forecast} when={when} />
+              <div className="mini-days">
+                {forecast.daily.slice(0, 7).map((day, index) => (
+                  <span key={day.date}>
+                    {index === 0 ? 'Today' : shortWeekday(day.date)}
+                    <Icon name={weatherIcon(day.weather_code, true)} size={20} />
+                    <b>{degrees(day.temperature_max)}</b>
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="mini-price">{weather.isError ? <span>The forecast didn&apos;t load just now</span> : <Loading wide />}</div>
+          ),
+        },
+        hours,
+        workPlaces,
+        hotels,
+        {
+          key: 'internet',
+          span: 4,
+          icon: 'wifi',
+          title: 'Internet you can count on',
+          text: 'Typical home and mobile speeds from millions of real speed tests.',
+          section: 'work',
+          go: "See Lisbon's internet",
+          viz: internet?.fixed || internet?.mobile ? (
+            <>
+              {internet.fixed && <MiniSpeed label="Home" value={Math.round(internet.fixed.download_mbps)} />}
+              {internet.mobile && <MiniSpeed label="Mobile" value={Math.round(internet.mobile.download_mbps)} />}
+            </>
+          ) : (
+            <div className="mini-price">{essentials.isPending ? <Loading wide /> : <span>No speed data just now</span>}</div>
+          ),
+        },
+        {
+          key: 'climate',
+          span: 4,
+          icon: 'calendar',
+          title: 'Best time to go',
+          text: 'Five years of weather by month, with the mildest, driest months marked.',
+          section: 'climate',
+          go: "See Lisbon's months",
+          viz: <MiniClimate months={climate.data?.months} />,
+        },
+        {
+          key: 'money',
+          span: 4,
+          icon: 'cash',
+          title: 'Money and holidays',
+          text: "Today's exchange rate and the public holidays coming up.",
+          section: 'work',
+          go: "See Lisbon's money",
+          viz: (
+            <>
+              <div className="mini-rate">
+                {rate !== null && currency ? (
+                  <>
+                    {currency.symbol || `${currency.code} `}
+                    {rate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <small>to the dollar</small>
+                  </>
+                ) : essentials.isPending ? (
+                  <Loading />
+                ) : (
+                  <small>No rate just now</small>
+                )}
+              </div>
+              {holidays.length > 0 && (
+                <div className="mini-hols">
+                  {holidays.slice(0, 3).map((holiday) => {
+                    const [, month = 1, day = 1] = holiday.date.split('-').map(Number);
+                    return (
+                      <span key={`${holiday.date}-${holiday.name}`} className="cal-tile" title={holiday.name}>
+                        <small>{MONTHS[month - 1]}</small>
+                        <b>{day}</b>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ),
+        },
+      ];
 
   return (
     <section className="feat" aria-labelledby="feat-title">
       <div className="wrap">
         <div className="feat-head">
-          <span className="sec-kicker">
-            <Icon name="layers" size={16} />
-            One page per city
-          </span>
-          <h2 id="feat-title">Everything you'd check before you book</h2>
-          <p>
-            Live data from trusted sources, laid out so you can size up a city in a minute.
-            {phone ? ' ' : <br />}
-            The previews below use Lisbon as an example.
-          </p>
+          <div>
+            <h2 id="feat-title">What a city page shows</h2>
+            <p>Live numbers for Lisbon. {phone ? 'Tap' : 'Pick'} a card to open that part of its page.</p>
+          </div>
+          {!phone && (
+            <Link className="feat-open" to={`/city/${EXAMPLE}`}>
+              Open Lisbon
+              <Icon name="arrow-right" size={16} />
+            </Link>
+          )}
         </div>
-        <div className="bento">
+        <div className={phone ? 'bento hscroll' : 'bento'}>
           {tiles.map((tile) => (
-            <article key={tile.title} className="bt" style={cssVars({ '--span': tile.span })}>
+            <Link
+              key={tile.key}
+              className="bt"
+              to={`/city/${EXAMPLE}#${tile.section}`}
+              style={cssVars({ '--span': tile.span })}
+            >
               <div className="bt-top">
                 <span className="tile">
                   <Icon name={tile.icon} size={20} />
@@ -445,7 +494,11 @@ export default function Bento({ units, homeZone }: Props) {
               </div>
               <p>{tile.text}</p>
               <div className={`bt-viz${tile.bleed ? ' bleed' : ''}`}>{tile.viz}</div>
-            </article>
+              <span className="bt-go">
+                {tile.go}
+                <Icon name="arrow-right" size={15} />
+              </span>
+            </Link>
           ))}
         </div>
       </div>
@@ -453,7 +506,43 @@ export default function Bento({ units, homeZone }: Props) {
   );
 }
 
-function MiniSpeed({ label, value, share }: { label: string; value: number; share: number }) {
+/** Each month's average low to high, best months in green. */
+function MiniClimate({ months }: { months: ClimateMonth[] | undefined }) {
+  if (!months || months.length !== 12) return <Loading wide />;
+  const lows = months.map((month) => month.temperature_min ?? 0);
+  const highs = months.map((month) => month.temperature_max ?? 0);
+  const lo = Math.min(...lows);
+  const span = Math.max(1, Math.max(...highs) - lo);
+  return (
+    <>
+      <div className="mini-months">
+        {months.map((month, index) => (
+          <span
+            key={index}
+            className={month.best ? 'best' : undefined}
+            style={cssVars({
+              '--lo': (((month.temperature_min ?? lo) - lo) / span) * 100,
+              '--hi': (((month.temperature_max ?? lo) - lo) / span) * 100,
+            })}
+          >
+            <i />
+          </span>
+        ))}
+      </div>
+      <div className="mini-mlabels">
+        {months.map((month, index) => (
+          <span key={index} className={month.best ? 'best' : undefined}>
+            {MONTH_LETTERS[index]}
+          </span>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** A speed against a 200 Mbps scale. */
+function MiniSpeed({ label, value }: { label: string; value: number }) {
+  const share = Math.min(100, value / 2);
   return (
     <div className="speed">
       <div className="speed-top">

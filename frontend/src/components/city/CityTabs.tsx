@@ -1,13 +1,14 @@
-import { type MouseEvent, useLayoutEffect, useRef, useState } from 'react';
+import { type MouseEvent, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 
-import { useWorkScore } from '../../api/queries';
 import type { City } from '../../api/types';
+import { useLayerElement } from '../../lib/chrome';
 import { scrollBehavior, useIsPhone, useOnScroll } from '../../lib/layout';
+import { useSavedCities } from '../../lib/savedCities';
 import Icon, { Logo } from '../Icon';
 import { openSearch } from '../Search';
-import { Ring } from '../ui';
-import { SaveButton } from './CityHero';
+import { SaveButton, compareWith } from './CityHero';
 import { type SectionId, TABS, goToSection } from './common';
 
 const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -67,7 +68,7 @@ function Tabs({ active, phone }: { active: SectionId | null; phone: boolean }) {
           aria-current={active === tab.id ? 'true' : undefined}
           onClick={(event) => jump(event, tab.id)}
         >
-          {tab.label}
+          {phone ? tab.short : tab.label}
         </a>
       ))}
       <span className="ink" ref={ink} aria-hidden="true" />
@@ -75,43 +76,52 @@ function Tabs({ active, phone }: { active: SectionId | null; phone: boolean }) {
   );
 }
 
-/** Desktop: a bar that takes over from the site header once the hero scrolls away. */
-function SectionBar({ city, dataId }: { city: City; dataId: string }) {
+/**
+ * Desktop: a row of tabs right under the hero, then a bar that takes over from the site header once
+ * that row scrolls away.
+ */
+function SectionBar({ city }: { city: City }) {
   const dock = useRef<HTMLDivElement>(null);
   const [on, setOn] = useState(false);
   const active = useActiveSection(140);
-  const score = useWorkScore(dataId);
   useOnScroll(() => {
     const node = dock.current;
     if (node) setOn(node.getBoundingClientRect().top <= 1);
   });
 
   return (
-    <div className="subnav-dock" ref={dock}>
-      <div className={`subnav${on ? ' is-on' : ''}`}>
+    <>
+      {/* One set of section tabs at a time: this row until the pinned bar takes over. */}
+      <div className="sec-tabs" aria-hidden={on} inert={on}>
         <div className="wrap">
-          <Link className="subnav-home" to="/" aria-label="Remote Radar home">
-            <Logo size={24} />
-          </Link>
-          <span className="subnav-sep" aria-hidden="true" />
-          <span className="subnav-city">
-            <Ring score={score.data?.score} size={30} stroke={3.5} />
-            <span className="subnav-name">{city.name}</span>
-          </span>
           <Tabs active={active} phone={false} />
-          <div className="subnav-acts">
-            <button type="button" className="btn btn-ghost" onClick={() => openSearch()}>
-              <Icon name="search" size={16} />
-              <span className="subnav-label">Search</span>
-              <span className="kbd" aria-hidden="true">
-                {MAC ? '⌘K' : 'Ctrl K'}
-              </span>
-            </button>
-            <SaveButton city={city} className="btn-secondary" size={16} />
+        </div>
+      </div>
+      <div className="subnav-dock" ref={dock}>
+        <div className={`subnav${on ? ' is-on' : ''}`} aria-hidden={!on} inert={!on}>
+          <div className="wrap">
+            <Link className="subnav-home" to="/" aria-label="Remote Radar home">
+              <Logo size={24} />
+            </Link>
+            <span className="subnav-sep" aria-hidden="true" />
+            <span className="subnav-city">
+              <span className="subnav-name">{city.name}</span>
+            </span>
+            <Tabs active={active} phone={false} />
+            <div className="subnav-acts">
+              <button type="button" className="btn btn-ghost" onClick={() => openSearch()}>
+                <Icon name="search" size={16} />
+                <span className="subnav-label">Search</span>
+                <span className="kbd" aria-hidden="true">
+                  {MAC ? '⌘K' : 'Ctrl K'}
+                </span>
+              </button>
+              <SaveButton city={city} className="btn-secondary" size={16} />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -124,7 +134,45 @@ function PhoneTabs() {
   );
 }
 
-/** The city page's section tabs: a bar on desktop, a strip of tabs under the header on phones. */
-export default function CityTabs({ city, dataId }: { city: City; dataId: string }) {
-  return useIsPhone() ? <PhoneTabs /> : <SectionBar city={city} dataId={dataId} />;
+/** The city page's section tabs: a row and a pinned bar on desktop, a strip under the header on phones. */
+export default function CityTabs({ city }: { city: City }) {
+  return useIsPhone() ? <PhoneTabs /> : <SectionBar city={city} />;
+}
+
+/**
+ * Phones: Save and Compare stay at the bottom of the screen once the hero's own buttons scroll away.
+ * The root gets `has-actbar` while it's on the page (room at the bottom) and `actbar-on` while it shows
+ * (the map button and toasts move up out of its way).
+ */
+export function PhoneActionBar({ city }: { city: City }) {
+  const phone = useIsPhone();
+  const layer = useLayerElement();
+  const saved = useSavedCities();
+  const [on, setOn] = useState(false);
+  useOnScroll(() => {
+    const hero = document.querySelector('.acts3');
+    setOn(hero ? hero.getBoundingClientRect().bottom < 0 : false);
+  });
+
+  useEffect(() => {
+    if (!phone) return;
+    const root = document.documentElement;
+    root.classList.add('has-actbar');
+    return () => root.classList.remove('has-actbar', 'actbar-on');
+  }, [phone]);
+  useEffect(() => {
+    if (phone) document.documentElement.classList.toggle('actbar-on', on);
+  }, [phone, on]);
+
+  if (!phone || !layer) return null;
+  return createPortal(
+    <div className={`actbar${on ? ' is-on' : ''}`} aria-hidden={!on} inert={!on}>
+      <SaveButton city={city} className="btn-primary" size={18} named />
+      <Link className="btn btn-secondary" to={compareWith(city, saved)}>
+        <Icon name="compare" size={18} />
+        Compare
+      </Link>
+    </div>,
+    layer,
+  );
 }
