@@ -173,6 +173,32 @@
   width: 100%;
 }
 
+/* The one solid button on the city sky, in the sky's own ink. */
+.btn-sky {
+  background: var(--sky-ink);
+  color: var(--sky-solid-ink);
+  box-shadow: var(--shadow-1);
+}
+
+.btn-sky:hover {
+  background: color-mix(in srgb, var(--sky-ink) 86%, var(--sky-1));
+}
+
+.btn-sky[aria-pressed='true'] .ic {
+  fill: currentColor;
+}
+
+/* Square, icon only */
+.btn-icon {
+  width: 40px;
+  padding: 0;
+}
+
+.is-phone .btn-icon {
+  flex: none;
+  width: 44px;
+}
+
 .is-phone .btn {
   height: 44px;
   font-size: 15px;
@@ -601,9 +627,8 @@
   top: 0;
   z-index: 30;
   height: 64px;
-  background: color-mix(in srgb, var(--bg) 96%, transparent);
-  backdrop-filter: blur(20px) saturate(1.8);
-  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  /* Opaque, so page text never shows through behind the header's own. */
+  background: var(--bg);
   border-bottom: 1px solid var(--line);
   transition: transform 0.3s var(--ease), background-color 0.25s, border-color 0.25s, color 0.25s;
 }
@@ -730,6 +755,11 @@
 
 .hdr-spacer {
   margin-left: auto;
+}
+
+.hdr-in > .seg {
+  flex: none;
+  margin-right: -12px;
 }
 
 .theme-sw {

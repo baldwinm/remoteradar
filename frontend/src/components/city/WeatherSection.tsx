@@ -9,7 +9,6 @@ import { degrees } from '../../lib/units';
 import { weatherIcon } from '../../lib/weatherIcons';
 import { type HourPoint, HourlyChart } from '../charts';
 import Icon from '../Icon';
-import UnitsToggle from '../UnitsToggle';
 import { SecHead, cssVars } from '../ui';
 import { DAYS_LONG, rainLabel, windLabel } from './common';
 import { CardSkeleton, SectionError } from './states';
@@ -18,7 +17,6 @@ interface Props {
   city: City;
   dataId: string;
   units: Units;
-  onUnits: (units: Units) => void;
 }
 
 const pad = (value: number) => String(value).padStart(2, '0');
@@ -84,13 +82,12 @@ function clock(iso: string | null): string {
   return minutes === null ? '–' : fmtClock(minutes);
 }
 
-export default function WeatherSection({ city, dataId, units, onUnits }: Props) {
+export default function WeatherSection({ city, dataId, units }: Props) {
   const phone = useIsPhone();
   const now = useNow();
   const weather = useWeather(dataId, units);
   const data = weather.data;
   const when = new Date(now);
-  const toggle = <UnitsToggle units={units} onChange={onUnits} />;
 
   let body;
   if (weather.isPending) {
@@ -154,10 +151,10 @@ export default function WeatherSection({ city, dataId, units, onUnits }: Props) 
     );
     const chart = phone ? (
       <div className="hourly-scroll" tabIndex={0} aria-label="Next 24 hours, scrolls sideways">
-        <HourlyChart hours={hours} colW={50} height={188} every={1} fixed />
+        <HourlyChart hours={hours} colW={50} height={204} every={1} fixed />
       </div>
     ) : (
-      <HourlyChart hours={hours} colW={31.5} height={196} every={3} />
+      <HourlyChart hours={hours} colW={31.5} height={212} every={3} />
     );
     const sun = today && (
       <div className="sunrow">
@@ -188,7 +185,6 @@ export default function WeatherSection({ city, dataId, units, onUnits }: Props) 
           <div className="card">
             <div className="card-h">
               <h3>Next 7 days</h3>
-              {phone && toggle}
             </div>
             <div className="card-b days-b">
               <Week days={data.daily} nowTemp={current.temperature} />
@@ -214,7 +210,6 @@ export default function WeatherSection({ city, dataId, units, onUnits }: Props) 
           icon={<Icon name="cloud-sun" size={16} />}
           kicker="Weather"
           title={data ? weatherTitle(data, when) : `Weather in ${city.name}`}
-          tools={!phone && toggle}
         />
         {body}
       </div>

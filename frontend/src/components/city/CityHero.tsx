@@ -1,4 +1,4 @@
-import { type MouseEvent, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
 import type { StayOptions } from '../../api/client';
@@ -28,9 +28,9 @@ import { degrees } from '../../lib/units';
 import { weatherIcon } from '../../lib/weatherIcons';
 import { zoneCity } from '../../lib/world';
 import Icon, { type IconName } from '../Icon';
-import UnitsToggle from '../UnitsToggle';
 import { Bar, Ring, cssVars } from '../ui';
 import { DAYS_LONG, currencyLabel, goToSection, guestsLabel, inLocal, usd } from './common';
+import ScoreDetails from './ScoreDetails';
 
 interface HeroProps {
   city: City;
@@ -38,7 +38,6 @@ interface HeroProps {
   dataId: string;
   zone: string;
   units: Units;
-  onUnits: (units: Units) => void;
   stay: StayOptions;
 }
 
@@ -54,7 +53,18 @@ export function compareWith(city: City, saved: { id: string }[]): string {
   return `/compare?cities=${[city.id, ...others.map((item) => item.id)].map(encodeURIComponent).join(',')}`;
 }
 
-export function SaveButton({ city, className, size }: { city: City; className: string; size: number }) {
+/** Save or unsave the city. `named` says which city ("Save Lisbon"), for the hero's main button. */
+export function SaveButton({
+  city,
+  className,
+  size,
+  named = false,
+}: {
+  city: City;
+  className: string;
+  size: number;
+  named?: boolean;
+}) {
   const saved = useSavedCities();
   const on = saved.some((item) => item.id === city.id);
 
@@ -71,7 +81,7 @@ export function SaveButton({ city, className, size }: { city: City; className: s
   return (
     <button type="button" className={`btn ${className}`} aria-pressed={on} onClick={toggle}>
       <Icon name="bookmark" size={size} filled={on} />
-      {on ? 'Saved' : 'Save'}
+      {on ? 'Saved' : named ? `Save ${city.name}` : 'Save'}
     </button>
   );
 }
@@ -118,12 +128,9 @@ export default function CityHero(props: HeroProps) {
         </section>
         <HeroScore city={city} score={score.data} status={score.status} phone />
         <div className="acts3">
-          <SaveButton city={city} className="btn-secondary" size={18} />
-          <CompareLink city={city} className="btn btn-secondary" size={18} />
-          <button type="button" className="btn btn-secondary" onClick={() => void sharePage(`${city.name} - Remote Radar`, true)}>
-            <Icon name="share" size={18} />
-            Share
-          </button>
+          <SaveButton city={city} className="btn-primary" size={18} named />
+          <CompareLink city={city} className="btn btn-secondary btn-icon" size={18} />
+          <ShareButton city={city} className="btn btn-secondary btn-icon" size={18} phone />
         </div>
         <Vitals {...props} phone />
       </div>
@@ -153,13 +160,9 @@ export default function CityHero(props: HeroProps) {
               {currencyLabel(city) && <span className="sep">{currencyLabel(city)}</span>}
             </p>
             <div className="sky-actions">
-              <SaveButton city={city} className="btn-glass" size={17} />
-              <CompareLink city={city} className="btn btn-glass" size={17} />
-              <button type="button" className="btn btn-glass" onClick={() => void sharePage(`${city.name} - Remote Radar`, false)}>
-                <Icon name="share" size={17} />
-                Share
-              </button>
-              <UnitsToggle units={units} onChange={props.onUnits} glass />
+              <SaveButton city={city} className="btn-sky" size={17} named />
+              <CompareLink city={city} className="btn btn-glass btn-icon" size={17} />
+              <ShareButton city={city} className="btn btn-glass btn-icon" size={17} phone={false} />
             </div>
           </div>
           <HeroScore city={city} score={score.data} status={score.status} />
@@ -180,13 +183,27 @@ function PhoneDiff({ zone, when }: { zone: string; when: Date }) {
   return <span className="sep">{diffShort(zone, homeZone, when)}</span>;
 }
 
+/** Icon-only, so Save stays the one obvious action. */
 function CompareLink({ city, className, size }: { city: City; className: string; size: number }) {
   const saved = useSavedCities();
   return (
-    <Link className={className} to={compareWith(city, saved)}>
+    <Link className={className} to={compareWith(city, saved)} aria-label={`Compare ${city.name}`} title="Compare">
       <Icon name="compare" size={size} />
-      Compare
     </Link>
+  );
+}
+
+function ShareButton({ city, className, size, phone }: { city: City; className: string; size: number; phone: boolean }) {
+  return (
+    <button
+      type="button"
+      className={className}
+      aria-label={`Share ${city.name}`}
+      title="Share"
+      onClick={() => void sharePage(`${city.name} - Remote Radar`, phone)}
+    >
+      <Icon name="share" size={size} />
+    </button>
   );
 }
 
@@ -223,29 +240,33 @@ function HeroScore({
     text = `Only ${score.counted} of ${score.factors.length} factors have data for ${city.name}.`;
   }
   const aria =
-    value !== null ? `Remote work score ${value} out of 100, ${tier.label}. See how it's scored.` : 'Remote work score. See how it works.';
-
-  function open(event: MouseEvent) {
-    event.preventDefault();
-    goToSection('score');
-  }
+    value !== null ? `Remote work score ${value} out of 100, ${tier.label}. See how it's calculated.` : 'Remote work score. See how it works.';
+  // The breakdown opens once there's a score (or a list of what's missing) to show.
+  const details = status === 'success';
 
   if (phone) {
-    return (
-      <a className={`scorecard tier-${tier.key}`} href="#score" onClick={open} aria-label={aria}>
+    const body = (
+      <>
         <Ring score={value} size={76} stroke={7} />
         <div>
           <div className="sc-label">Remote work score</div>
           <div className="sc-tier tier-text">{tierText}</div>
           <p className="sc-verdict">{text}</p>
         </div>
-        <Icon name="chevron-right" size={20} />
-      </a>
+        {details && <Icon name="chevron-right" size={20} />}
+      </>
+    );
+    return details ? (
+      <ScoreDetails city={city} score={score} phone className={`scorecard tier-${tier.key}`} label={aria}>
+        {body}
+      </ScoreDetails>
+    ) : (
+      <div className={`scorecard tier-${tier.key}`}>{body}</div>
     );
   }
 
   return (
-    <a className={`scorecard tier-${tier.key}`} href="#score" onClick={open} aria-label={aria}>
+    <div className={`scorecard tier-${tier.key}`}>
       <div className="sc-top">
         <Ring score={value} size={76} stroke={7} />
         <div>
@@ -267,11 +288,13 @@ function HeroScore({
           ))}
         </div>
       )}
-      <span className="sc-more">
-        See how it&apos;s scored
-        <Icon name="arrow-down" size={14} />
-      </span>
-    </a>
+      {details && (
+        <ScoreDetails city={city} score={score} phone={false} className="sc-more">
+          {value !== null ? `How ${value} is calculated` : 'How the score works'}
+          <Icon name="chevron-down" size={14} />
+        </ScoreDetails>
+      )}
+    </div>
   );
 }
 
@@ -295,6 +318,7 @@ function Vital({ jump, icon, label, value, hint, phone }: VitalProps) {
         <span className="label">
           <Icon name={icon} size={15} />
           {label}
+          <Icon name="arrow-right" size={15} className="go" />
         </span>
         {loading ? <span className="skel tile-skel" /> : <b>{value}</b>}
         <span>{loading ? ' ' : hint}</span>
@@ -306,6 +330,7 @@ function Vital({ jump, icon, label, value, hint, phone }: VitalProps) {
       <span className="v-label">
         <Icon name={icon} size={17} />
         {label}
+        <Icon name="arrow-right" size={16} className="go" />
       </span>
       {loading ? <span className="skel vital-skel" /> : <span className="v-value">{value}</span>}
       <span className="v-hint">{loading ? ' ' : hint}</span>

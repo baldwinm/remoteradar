@@ -131,7 +131,8 @@ export function HourlyChart({ hours, colW = 30, height = 196, every = 3, fixed =
   const padX = 18;
   const width = padX * 2 + colW * (hours.length - 1);
   const top = 46;
-  const bottom = height - 64;
+  // Under the plot, top to bottom: icons, the chance of rain in its own row, then the hour.
+  const bottom = height - 84;
   const temps = hours.map((hour) => hour.temp);
   const lo = Math.min(...temps);
   const hi = Math.max(...temps);
@@ -182,7 +183,7 @@ export function HourlyChart({ hours, colW = 30, height = 196, every = 3, fixed =
                   {degrees(hour.temp)}
                 </text>
                 <g className="hc-ic">
-                  <Icon name={hour.icon} size={18} x={x(index) - 9} y={height - 58} />
+                  <Icon name={hour.icon} size={18} x={x(index) - 9} y={height - 70} />
                 </g>
                 <text className={`hc-h${now ? ' now' : ''}`} x={x(index)} y={height - 8} textAnchor="middle">
                   {hour.label}
@@ -201,7 +202,7 @@ export function HourlyChart({ hours, colW = 30, height = 196, every = 3, fixed =
                   rx={2}
                 />
                 {show && (
-                  <text className="hc-p" x={x(index)} y={(bottom - rainHeight - 2).toFixed(1)} textAnchor="middle">
+                  <text className="hc-p" x={x(index)} y={height - 30} textAnchor="middle">
                     {Math.round(hour.rain)}%
                   </text>
                 )}
@@ -243,6 +244,8 @@ export function ClimateChart({ months, width, height, selected, nowMonth, onSele
   const plotBottom = height - 58;
   const col = (width - left) / 12;
   const barW = Math.min(22, col * 0.46);
+  const narrow = col < 34;
+  const pill = Math.min(34, col - 2);
   const min = Math.floor(Math.min(...temps) / 10) * 10;
   const max = Math.max(min + 10, Math.ceil(Math.max(...temps) / 10) * 10);
   const y = (temp: number) => plotBottom - ((temp - min) / (max - min)) * (plotBottom - top);
@@ -328,7 +331,8 @@ export function ClimateChart({ months, width, height, selected, nowMonth, onSele
               </>
             )}
             <text className={`cl-m${best}`} x={x(index).toFixed(1)} y={plotBottom + 22} textAnchor="middle">
-              {MONTHS[index]}
+              {/* Single letters when the columns are too narrow for "Mar", as on phones. */}
+              {narrow ? MONTHS[index]?.[0] : MONTHS[index]}
             </text>
             {month.rainy_days !== null && (
               <text className="cl-rain" x={x(index).toFixed(1)} y={plotBottom + 42} textAnchor="middle">
@@ -337,7 +341,7 @@ export function ClimateChart({ months, width, height, selected, nowMonth, onSele
             )}
             {nowMonth === index && (
               <g className="cl-now">
-                <rect x={(x(index) - 17).toFixed(1)} y={height - 14} width={34} height={14} rx={7} />
+                <rect x={(x(index) - pill / 2).toFixed(1)} y={height - 14} width={pill.toFixed(1)} height={14} rx={7} />
                 <text x={x(index).toFixed(1)} y={height - 3.5} textAnchor="middle">
                   Now
                 </text>

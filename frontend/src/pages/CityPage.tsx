@@ -9,10 +9,9 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import Icon from '../components/Icon';
 import { openSearch } from '../components/Search';
 import CityHero, { HeroSkeleton } from '../components/city/CityHero';
-import CityTabs from '../components/city/CityTabs';
+import CityTabs, { PhoneActionBar } from '../components/city/CityTabs';
 import ClimateSection from '../components/city/ClimateSection';
 import PlacesSection from '../components/city/PlacesSection';
-import ScoreSection from '../components/city/ScoreSection';
 import StaysSection from '../components/city/StaysSection';
 import WeatherSection from '../components/city/WeatherSection';
 import WorkSection from '../components/city/WorkSection';
@@ -73,7 +72,7 @@ function CityView({ cityId }: { cityId: string }) {
   const essentials = useEssentials(dataId);
   const found = data?.timezone || essentials.data?.timezone || '';
   const zone = isValidTimeZone(found) ? found : 'UTC';
-  const [units, setUnits] = usePageUnits();
+  const [units] = usePageUnits();
   const [stay, setStay] = useState<StayOptions>({ occupants: 1, nights: 1 });
   const { hash } = useLocation();
 
@@ -136,27 +135,25 @@ function CityView({ cityId }: { cityId: string }) {
   return (
     <div className="city-page">
       <ErrorBoundary fallback={sectionFallback('overview')}>
-        <CityHero city={data} dataId={dataId} zone={zone} units={units} onUnits={setUnits} stay={stay} />
+        <CityHero city={data} dataId={dataId} zone={zone} units={units} stay={stay} />
       </ErrorBoundary>
-      <CityTabs city={data} dataId={dataId} />
-      <ErrorBoundary fallback={sectionFallback('score')}>
-        <ScoreSection city={data} dataId={dataId} />
-      </ErrorBoundary>
+      <CityTabs city={data} />
       <ErrorBoundary fallback={sectionFallback('work')}>
         <WorkSection city={data} dataId={dataId} zone={zone} units={units} />
-      </ErrorBoundary>
-      <ErrorBoundary fallback={sectionFallback('weather')}>
-        <WeatherSection city={data} dataId={dataId} units={units} onUnits={setUnits} />
-      </ErrorBoundary>
-      <ErrorBoundary fallback={sectionFallback('best time to go')}>
-        <ClimateSection city={data} dataId={dataId} zone={zone} units={units} />
-      </ErrorBoundary>
-      <ErrorBoundary fallback={sectionFallback('stays')}>
-        <StaysSection city={data} dataId={dataId} zone={zone} stay={stay} onStay={setStay} />
       </ErrorBoundary>
       <ErrorBoundary fallback={sectionFallback('places')}>
         <PlacesSection city={data} dataId={dataId} zone={zone} units={units} />
       </ErrorBoundary>
+      <ErrorBoundary fallback={sectionFallback('stays')}>
+        <StaysSection city={data} dataId={dataId} zone={zone} stay={stay} onStay={setStay} />
+      </ErrorBoundary>
+      <ErrorBoundary fallback={sectionFallback('weather')}>
+        <WeatherSection city={data} dataId={dataId} units={units} />
+      </ErrorBoundary>
+      <ErrorBoundary fallback={sectionFallback('best time to go')}>
+        <ClimateSection city={data} dataId={dataId} zone={zone} units={units} />
+      </ErrorBoundary>
+      <PhoneActionBar city={data} />
     </div>
   );
 }

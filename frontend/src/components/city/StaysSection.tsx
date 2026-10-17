@@ -254,7 +254,6 @@ function HotelCard({
       <div className="hotel-b">
         <div className="hotel-name">
           <span>{stay.title}</span>
-          <Icon name="external" size={16} label="Opens Booking.com" />
         </div>
         <div className="hotel-meta">
           {stay.property_type}
@@ -284,6 +283,11 @@ function HotelCard({
             <small>per night{local ? `, about ${local}` : ''}</small>
           </span>
         </div>
+        {/* The whole card is the link; this says where it goes. */}
+        <span className="btn btn-secondary hotel-cta">
+          View on Booking.com
+          <Icon name="external" size={15} />
+        </span>
       </div>
     </a>
   );

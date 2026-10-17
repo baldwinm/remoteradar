@@ -17,7 +17,6 @@ import type {
 } from '../api/types';
 import Icon, { type IconName } from '../components/Icon';
 import { openSearch } from '../components/Search';
-import UnitsToggle from '../components/UnitsToggle';
 import { formatRate } from '../components/city/WorkSection';
 import { MONTHS, bestRuns, usd } from '../components/city/common';
 import { Bar, Ring, cssVars } from '../components/ui';
@@ -434,7 +433,7 @@ export default function ComparePage() {
   const [searchParams] = useSearchParams();
   const ids = parseIds(searchParams.get('cities'));
   const idsKey = ids.join(',');
-  const [units, setUnits] = usePageUnits();
+  const [units] = usePageUnits();
   const homeZone = useHomeZone();
   const saved = useSavedCities();
   const now = useNow();
@@ -517,7 +516,6 @@ export default function ComparePage() {
         </div>
         {ids.length > 0 && (
           <div className="page-tools">
-            <UnitsToggle units={units} onChange={setUnits} />
             <button type="button" className="btn btn-secondary" onClick={() => void sharePage(TITLE, phone)}>
               <Icon name="share" size={17} />
               Share
