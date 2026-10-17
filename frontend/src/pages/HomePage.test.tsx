@@ -31,7 +31,10 @@ describe('HomePage saved and recent cities', () => {
     renderWithProviders(<HomePage />);
 
     const section = screen.getByRole('region', { name: 'Your cities' });
-    expect(within(section).getByRole('link', { name: /^Lisbon.*Portugal/ })).toHaveAttribute('href', '/city/lisbon--pt');
+    expect(within(section).getByRole('link', { name: /^Lisbon.*Portugal/ })).toHaveAttribute(
+      'href',
+      '/city/lisbon--pt',
+    );
     // Lisbon is already saved, so recent visits show only Porto.
     expect(within(section).getByRole('link', { name: 'Porto' })).toHaveAttribute('href', '/city/porto--pt');
     expect(within(section).queryByRole('link', { name: 'Lisbon' })).not.toBeInTheDocument();
@@ -82,5 +85,47 @@ describe('HomePage popular cities', () => {
     renderWithProviders(<HomePage />);
     expect(await screen.findByText('Popular on Remote Radar')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Bali' })).toHaveAttribute('href', '/city/bali--id');
+  });
+});
+
+describe('HomePage examples', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("links each example to that part of Lisbon's page, with Lisbon's live numbers", async () => {
+    mockApi({
+      '/api/cities/lisbon--pt': { ...LISBON, id: 'lisbon--lisbon--pt', lat: 38.72, lng: -9.14 },
+      '/api/cities/lisbon--lisbon--pt/stays': {
+        checkin: '2026-10-23',
+        checkout: '2026-10-24',
+        nights: 1,
+        occupants: 1,
+        average_price: 131,
+        currency: 'USD',
+        stays: [],
+      },
+    });
+    renderWithProviders(<HomePage />);
+    const hotels = await screen.findByRole('link', { name: /What a night costs/ });
+    expect(hotels).toHaveAttribute('href', '/city/lisbon--pt#stays');
+    expect(await within(hotels).findByText('$131')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Best time to go/ })).toHaveAttribute('href', '/city/lisbon--pt#climate');
+  });
+});
+
+describe('HomePage search', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('offers popular cities when nothing matches, without opening one on Enter', async () => {
+    mockApi({ '/api/cities': { cities: [] } });
+    const user = userEvent.setup();
+    renderWithProviders(<HomePage />);
+    const box = screen.getByRole('combobox', { name: 'Search for a city' });
+    await user.type(box, 'xqzzv');
+    expect(await screen.findByText('No city called “xqzzv”')).toBeInTheDocument();
+    const offered = screen.getByRole('group', { name: 'Try one of these' });
+    expect(within(offered).getAllByRole('option').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/to open the first match/)).not.toBeInTheDocument();
+    await user.keyboard('{Enter}');
+    expect(screen.queryByTestId('other-route')).not.toBeInTheDocument();
   });
 });

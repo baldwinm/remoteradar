@@ -6,13 +6,13 @@ import type { IconName } from '../Icon';
 
 /* Pieces shared by the city page's sections. */
 
+/** The city page's sections, in page order. `short` is the label on phones, where all five must fit. */
 export const TABS = [
-  { id: 'score', label: 'Score' },
-  { id: 'work', label: 'Work' },
-  { id: 'weather', label: 'Weather' },
-  { id: 'climate', label: 'Best time' },
-  { id: 'stays', label: 'Stays' },
-  { id: 'places', label: 'Places' },
+  { id: 'work', label: 'Work from here', short: 'Work' },
+  { id: 'places', label: 'Places', short: 'Places' },
+  { id: 'stays', label: 'Stays', short: 'Stays' },
+  { id: 'weather', label: 'Weather', short: 'Weather' },
+  { id: 'climate', label: 'Best time to go', short: 'Climate' },
 ] as const;
 
 export type SectionId = (typeof TABS)[number]['id'];

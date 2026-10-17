@@ -39,6 +39,7 @@ function DeskHeader() {
   const savedButton = useRef<HTMLButtonElement>(null);
   const [savedOpen, setSavedOpen] = useState(false);
   const close = () => setSavedOpen(false);
+  const [units, setUnits] = usePageUnits();
 
   return (
     <header className="hdr">
@@ -60,7 +61,8 @@ function DeskHeader() {
             onClick={() => setSavedOpen((open) => !open)}
           >
             <Icon name="bookmark" size={17} />
-            Saved <span className="count">{saved.length}</span>
+            Saved
+            {saved.length > 0 && <span className="count">{saved.length}</span>}
           </button>
         </nav>
         {/* The home page has its own big search box. */}
@@ -76,6 +78,7 @@ function DeskHeader() {
             </span>
           </button>
         )}
+        <UnitsToggle units={units} onChange={setUnits} />
         <ThemeSwitch />
       </div>
       <Popover open={savedOpen} onClose={close} anchor={savedButton} label="Saved cities" closeOnScroll>
@@ -202,7 +205,7 @@ function MenuSheet({ open, onClose, onSaved }: { open: boolean; onClose: () => v
           <button type="button" onClick={onSaved}>
             <Icon name="bookmark" size={20} />
             Saved cities
-            <span className="count">{saved.length}</span>
+            {saved.length > 0 && <span className="count">{saved.length}</span>}
             <Icon name="chevron-right" size={18} />
           </button>
           <Link to="/privacy" onClick={onClose}>

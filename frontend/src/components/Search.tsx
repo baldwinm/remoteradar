@@ -105,6 +105,8 @@ export interface SearchModel {
   items: SearchItem[];
   empty?: { title: string; text: string };
   note?: string;
+  /** Nothing matched, so the list offers popular cities instead; Enter doesn't open one unasked. */
+  fallback?: boolean;
 }
 
 function useDebounced(value: string, delay: number) {
@@ -184,14 +186,23 @@ export function useSearchModel(query: string, mode: SearchMode, exclude: readonl
     ...popular.cities.map(fromPopular),
   ].filter((item) => !skip.has(item.id));
   const close = suggestions(trimmed, pool);
+  const groups: Group[] = close.length ? [{ title: '', items: close }] : [];
+  if (mode === 'go') {
+    const others = popular.cities
+      .map(fromPopular)
+      .filter((item) => !close.some((match) => match.id === item.id))
+      .slice(0, 5);
+    if (others.length) groups.push({ title: close.length ? 'Or try one of these' : 'Try one of these', items: others });
+  }
   return {
     status: 'empty',
-    groups: close.length ? [{ title: '', items: close }] : [],
-    items: close,
+    groups,
+    items: groups.flatMap((group) => group.items),
     empty: {
       title: `No city called “${trimmed}”`,
       text: close.length ? 'Did you mean one of these?' : 'Check the spelling, or try a larger city nearby.',
     },
+    fallback: close.length === 0,
   };
 }
 
@@ -277,7 +288,15 @@ export function SearchResults({ model, query, listId, active, onActive, onPick }
   );
 }
 
-/** Arrow keys move through the results; Enter opens the highlighted one (or the first). */
+/**
+ * The highlighted result. `active` is -1 until the arrow keys or the mouse move it, which means the
+ * first result, except when the list only offers popular cities after a failed search.
+ */
+export function currentIndex(model: SearchModel, active: number): number {
+  return active < 0 && !model.fallback ? 0 : active;
+}
+
+/** Arrow keys move through the results; Enter opens the highlighted one. */
 export function resultKeys(
   event: KeyboardEvent<HTMLInputElement>,
   model: SearchModel,
@@ -287,8 +306,9 @@ export function resultKeys(
   listId: string,
 ) {
   const count = model.items.length;
+  const from = currentIndex(model, active);
   if (event.key === 'Enter') {
-    const item = model.items[active] ?? model.items[0];
+    const item = model.items[from];
     if (item) {
       event.preventDefault();
       pick(item);
@@ -298,7 +318,7 @@ export function resultKeys(
   if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
   if (!count) return;
   event.preventDefault();
-  const next = event.key === 'ArrowDown' ? (active + 1) % count : active <= 0 ? count - 1 : active - 1;
+  const next = event.key === 'ArrowDown' ? (from + 1) % count : from <= 0 ? count - 1 : from - 1;
   setActive(next);
   document.getElementById(`${listId}-${next}`)?.scrollIntoView({ block: 'nearest' });
 }
@@ -349,7 +369,7 @@ export function SearchOverlay() {
 function useSearchState() {
   const req = useSearchRequest();
   const [query, setQuery] = useFreshState(req.seq, '');
-  const [active, setActive] = useFreshState(req.seq, 0);
+  const [active, setActive] = useFreshState(req.seq, -1);
   const model = useSearchModel(query, req.mode, req.exclude);
   const pick = usePickCity(req.onPick);
   return { req, query, setQuery, active, setActive, model, pick };
@@ -389,7 +409,7 @@ function SearchPalette() {
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
-              setActive(0);
+              setActive(-1);
             }}
             onKeyDown={(event) => resultKeys(event, model, active, setActive, pick, listId)}
             placeholder={compare ? 'Add a city to compare' : 'Search any city in the world'}
@@ -398,12 +418,19 @@ function SearchPalette() {
             role="combobox"
             aria-expanded="true"
             aria-controls={listId}
-            aria-activedescendant={model.items.length ? `${listId}-${active}` : undefined}
+            aria-activedescendant={currentIndex(model, active) >= 0 && model.items.length ? `${listId}-${currentIndex(model, active)}` : undefined}
             aria-label="Search for a city"
           />
           <span className="kbd">esc</span>
         </label>
-        <SearchResults model={model} query={query} listId={listId} active={active} onActive={setActive} onPick={pick} />
+        <SearchResults
+          model={model}
+          query={query}
+          listId={listId}
+          active={currentIndex(model, active)}
+          onActive={setActive}
+          onPick={pick}
+        />
         <div className="palette-foot">
           <span>
             <span className="kbd">↑</span>
