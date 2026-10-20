@@ -1,9 +1,9 @@
 # Runtime dependencies. Pinned so every deploy installs the same versions.
-fastapi==0.143.0
+fastapi==0.143.3
 uvicorn[standard]==0.54.0
 uvicorn-worker==0.4.0
 gunicorn==26.2.0
 httpx==0.28.1
 pydantic==2.14.1
-pydantic-settings==2.15.0
+pydantic-settings==2.16.0
 redis==8.1.0
