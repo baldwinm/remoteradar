@@ -50,11 +50,6 @@ export function formatUtcOffset(minutes: number): string {
   return `UTC${sign}${hours}${rest ? `:${String(rest).padStart(2, '0')}` : ''}`;
 }
 
-/** Wall-clock time in `timeZone`, e.g. "3:42 PM". */
-export function clockIn(timeZone: string, when = new Date()): string {
-  return when.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit' });
-}
-
 /** Minutes from midnight -> "9 AM", "1:30 PM", "noon". */
 export function minuteLabel(minutes: number): string {
   const m = ((Math.round(minutes) % DAY) + DAY) % DAY;
