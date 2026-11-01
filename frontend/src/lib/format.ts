@@ -27,18 +27,6 @@ export function formatMoney(amount: number | null | undefined, currency = 'USD')
   }
 }
 
-export const PRICE_LEVEL_LABELS = ['Free', '$', '$$', '$$$', '$$$$'] as const;
-
-/** Headline prices: "€118" rather than "€118.40". */
-export function formatWholeMoney(amount: number | null | undefined, currency = 'USD'): string {
-  if (amount === null || amount === undefined) return '–';
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount);
-  } catch {
-    return `$${Math.round(amount)}`;
-  }
-}
-
 /** 38.7223, -9.1393 -> "38.72° N, 9.14° W". */
 export function formatCoords(lat: number, lng: number): string {
   const ns = lat >= 0 ? 'N' : 'S';
@@ -49,15 +37,4 @@ export function formatCoords(lat: number, lng: number): string {
 /** "2026-10-12" -> "Mon". */
 export function shortWeekday(isoDate: string): string {
   return weekdayName(isoDate).slice(0, 3);
-}
-
-/** "2026-11-01" -> "Sun, Nov 1", read as a calendar date. */
-export function shortDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-').map(Number);
-  if (!year || !month || !day) return isoDate;
-  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
 }
